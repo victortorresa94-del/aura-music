@@ -2,10 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMusico } from '@/hooks/useMusico';
+import { useProductor } from '@/hooks/useProductor';
 import { useStudio } from '@/hooks/useStudio';
 import { getCompas } from '@/lib/daw/rhythm/compases';
 import { getGroove } from '@/lib/daw/rhythm/grooves';
 import { MusicoSheet } from './MusicoSheet';
+import { ProductorSheet } from './ProductorSheet';
 import { useTheme } from '@/hooks/useTheme';
 import { SettingsSheet } from './SettingsSheet';
 import { THEME_CSS, T, haptic } from './theme';
@@ -13,7 +15,7 @@ import { Timeline } from './Timeline';
 import { RhythmSheet } from './RhythmSheet';
 import { ClickSheet, TrackSheet, TrackStrip } from './TrackPanel';
 import { Transport } from './Transport';
-import { IconButton, IconChevronDown, IconClose, IconSettings, IconUndo, label, numeric } from './ui';
+import { IconButton, IconChevronDown, IconClose, IconSettings, IconSpark, IconUndo, label, numeric } from './ui';
 
 /**
  * Cómo se nombra el ciclo en la cabecera, en lo que ocupa una firma de compás.
@@ -31,7 +33,7 @@ export default function StudioApp() {
   const studio = useStudio();
   const theme = useTheme();
   const [pps, setPps] = useState(45);
-  const [sheet, setSheet] = useState<null | 'track' | 'click' | 'settings' | 'ritmo' | 'musico'>(null);
+  const [sheet, setSheet] = useState<null | 'track' | 'click' | 'settings' | 'ritmo' | 'musico' | 'productor'>(null);
   // El ciclo del ritmo que esté puesto: si es una bulería, el bajo «al compás» la sigue.
   const grooveId = studio.grooveId;
   const groove = useMemo(() => (grooveId ? getGroove(grooveId) : null), [grooveId]);
@@ -41,6 +43,7 @@ export default function StudioApp() {
     return { pulsos: compas.pulsos, acentos: compas.acentos };
   }, [groove]);
   const musico = useMusico(studio, ciclo);
+  const productor = useProductor(studio, musico, ciclo?.pulsos ?? 4, groove?.nombre ?? null);
   const { ready, project, status, busy, transport, setStatus, loadProjectAudio, engine, record, undo } =
     studio;
   const loadedRef = useRef<string | null>(null);
@@ -256,6 +259,10 @@ export default function StudioApp() {
           </span>
         </button>
 
+        {/* El productor: el único verde de la cabecera, porque es Aura. */}
+        <IconButton title="Productor" onClick={() => setSheet('productor')}>
+          <IconSpark size={21} color={T.ai} />
+        </IconButton>
         <IconButton title="Deshacer" onClick={undo}>
           <IconUndo size={20} color={T.text} />
         </IconButton>
@@ -330,7 +337,12 @@ export default function StudioApp() {
               }}
             />
           ) : (
-            <TrackStrip studio={studio} theme={theme.resolved} onOpenTrack={() => setSheet('track')} />
+            <TrackStrip
+              studio={studio}
+              theme={theme.resolved}
+              onOpenTrack={() => setSheet('track')}
+              onPonerDebajo={() => setSheet('musico')}
+            />
           )}
           <Transport
             studio={studio}
@@ -350,6 +362,13 @@ export default function StudioApp() {
         onOpenMusico={() => setSheet('musico')}
       />
       <MusicoSheet studio={studio} musico={musico} open={sheet === 'musico'} onClose={() => setSheet(null)} />
+      <ProductorSheet
+        studio={studio}
+        musico={musico}
+        productor={productor}
+        open={sheet === 'productor'}
+        onClose={() => setSheet(null)}
+      />
       <ClickSheet studio={studio} open={sheet === 'click'} onClose={() => setSheet(null)} />
       <SettingsSheet
         studio={studio}
@@ -696,7 +715,7 @@ function FirstRun({
       }}
     >
       <div style={{ width: '100%', maxWidth: 440, margin: '0 auto' }}>
-        <span style={{ ...label, fontSize: 13 }}>Compás · tu estudio de bolsillo</span>
+        <span style={{ ...label, fontSize: 13 }}>Aura Music · tu estudio de bolsillo</span>
         <h2
           style={{
             fontFamily: T.fontBody,

@@ -1,4 +1,5 @@
 import { proveedorActivo } from '@/lib/ia/proveedores';
+import { accesoPermitido, faltaCodigo } from '@/lib/servidor/acceso';
 import { fallo, json, mismoOrigen } from '../_comun';
 
 export const dynamic = 'force-dynamic';
@@ -9,6 +10,7 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(request: Request) {
   if (!mismoOrigen(request)) return json({ error: 'Origen no permitido.' }, 403);
+  if (!accesoPermitido(request)) return faltaCodigo();
   const proveedor = proveedorActivo();
   if (!proveedor) return json({ error: 'No hay músico en la nube configurado.' }, 503);
   const archivo = new URL(request.url).searchParams.get('archivo');

@@ -105,3 +105,37 @@ solo se deshace lo aprendido de más.
 **Descartado:** medir solo contra la rejilla. Si la primera pista se tocó
 libre, la rejilla da con seguridad una respuesta equivocada: sin claqueta, la
 referencia son las otras pistas.
+
+## 0013 · Se llama Aura Music, es blanco y el verde es Aura (17-nov-2026)
+
+El dueño: «hazmelo blanco, que todos los DAW son oscuros, rollo Aura… lo
+llamaremos Aura Music». El tema claro sale por defecto y usa los tokens de
+Aura (`aura-lite/src/styles/cristal.css`): papel blanco, suelo apenas salvia,
+tinta #111114 y sombras teñidas de verde. Letra Geist y Geist Mono, las de
+Aura, servidas desde casa. El acento de «lo ha puesto la máquina» pasa del
+ámbar al verde de Aura (#5DBB9C; #1C7A5B como texto en claro, 5,3:1 sobre
+blanco). El rojo sigue siendo solo «grabando». El oscuro queda en Ajustes.
+**Pendiente:** el «3D», los verdes y el cristal de Aura; el dueño lo aplazó
+hasta tener la IA desplegada.
+
+## 0014 · El productor: Claude decide, la app ejecuta (17-nov-2026)
+
+Le pides algo con palabras y Claude (`claude-opus-5-5`, salida estructurada,
+`src/app/api/productor/route.ts`) devuelve un plan de como mucho cuatro pasos
+que solo puede usar piezas que ya existen: músico al momento, músico con IA,
+tempo y canción entera (ACE-Step `text2music`, nueva). El móvil los ejecuta
+uno a uno y cada pista sale como una más, con el Deshacer de siempre.
+`normalizarPlan` corrige ids inventados, limita números y quita el cambio de
+tempo si ya hay audio grabado. El cerebro (gustos, pedidos, usos, tempos,
+tonos, ideas) vive en el móvil y viaja como un resumen de unas líneas; se ve y
+se borra en la hoja.
+**Descartado:** un agente con herramientas en bucle. El plan cabe en una sola
+llamada y así no hay estados a medias en el servidor ni coste que crece solo.
+**Descartado:** que Claude toque el audio. Claude elige; las notas y el sonido
+los ponen el músico de la app y ACE-Step.
+**Candado:** con `AURA_MUSIC_CODIGO` en el servidor, las rutas que gastan
+(productor, pistas y canciones con IA) piden un código que el móvil guarda.
+Es lo mínimo antes de poner claves en un enlace público.
+**Siguiente:** entrar con la cuenta de Aura (Firebase `aether-app-59bd1`),
+guardar las ideas en `users/{uid}/auraMusicProjects` y compartir el cerebro de
+Aura a través de aura-mcp.

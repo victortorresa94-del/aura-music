@@ -4,39 +4,37 @@ import localFont from 'next/font/local';
 /*
   Una sola sans para toda la interfaz y una mono para los números: la letra de
   titulares no tiene sitio en una herramienta, ni en sus datos ni en sus rótulos.
+  Las dos son Geist, las de la familia Aura (aura-lite, design-system/tokens.css).
 
   Servidas desde casa, no desde Google. `next/font/google` descarga los
   ficheros al compilar, y en este equipo el servidor de desarrollo no llegaba:
   caía en silencio al Arial de respaldo, con la mono «ajustada» al 135 % (los
   números salían enormes). Además, si suena al tocar va en local, y la letra
   de la pantalla de una app que funciona sin cobertura también. Son los mismos
-  .woff2 que usa web-aether (solo el subset latin, que es todo el castellano).
+  .woff2 que usa Aura (solo el subset latin, que es todo el castellano).
 */
 const body = localFont({
-  src: [{ path: './fonts/inter.woff2', weight: '100 900', style: 'normal' }],
+  src: [{ path: './fonts/geist.woff2', weight: '100 900', style: 'normal' }],
   variable: '--font-body',
   display: 'swap',
   fallback: ['system-ui', 'sans-serif'],
 });
 const mono = localFont({
-  src: [
-    { path: './fonts/ibm-plex-mono-400.woff2', weight: '400', style: 'normal' },
-    { path: './fonts/ibm-plex-mono-500.woff2', weight: '500', style: 'normal' },
-  ],
+  src: [{ path: './fonts/geist-mono.woff2', weight: '100 900', style: 'normal' }],
   variable: '--font-mono',
   display: 'swap',
   fallback: ['ui-monospace', 'monospace'],
 });
 
 export const metadata: Metadata = {
-  title: 'Compás',
+  title: 'Aura Music',
   description:
-    'Graba una idea por capas desde el móvil, sin desfase, y ponle un bajo que toca a tu tempo y en tu tonalidad.',
+    'Graba una idea por capas desde el móvil, sin desfase, y ponle bajo, batería o teclas que tocan a tu tempo y en tu tonalidad.',
   manifest: '/manifest.webmanifest',
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'black-translucent',
-    title: 'Compás',
+    statusBarStyle: 'default',
+    title: 'Aura Music',
     startupImage: ['/icons/icon-512.png'],
   },
   icons: {
@@ -52,10 +50,8 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
-  themeColor: [
-    { media: '(prefers-color-scheme: dark)', color: '#0B0B0A' },
-    { media: '(prefers-color-scheme: light)', color: '#F1F0EA' },
-  ],
+  // El estudio sale en claro aunque el sistema esté en oscuro: una sola barra blanca.
+  themeColor: '#FFFFFF',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

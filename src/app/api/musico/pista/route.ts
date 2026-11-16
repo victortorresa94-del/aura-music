@@ -1,11 +1,11 @@
 import { proveedorActivo } from '@/lib/ia/proveedores';
-import type { Instrumento } from '@/lib/ia/tipos';
+import { INSTRUMENTOS, type Instrumento } from '@/lib/ia/tipos';
 import { LIMITE_SUBIDA_BYTES } from '@/lib/musico/wav';
+import { accesoPermitido, faltaCodigo } from '@/lib/servidor/acceso';
 import { fallo, json, mismoOrigen } from '../_comun';
 
 export const dynamic = 'force-dynamic';
 
-const INSTRUMENTOS: Instrumento[] = ['bajo', 'bateria', 'guitarra', 'teclado', 'cuerdas', 'metales', 'percusion', 'sinte'];
 const DURACION_MAXIMA = 60;
 
 /**
@@ -14,6 +14,7 @@ const DURACION_MAXIMA = 60;
  */
 export async function POST(request: Request) {
   if (!mismoOrigen(request)) return json({ error: 'Origen no permitido.' }, 403);
+  if (!accesoPermitido(request)) return faltaCodigo();
   const proveedor = proveedorActivo();
   if (!proveedor) {
     return json({ error: 'No hay músico en la nube configurado (falta ACESTEP_API_URL).' }, 503);
@@ -61,6 +62,7 @@ export async function POST(request: Request) {
 /** ¿Cómo va? Cuando está lista, dice de dónde bajar el audio. */
 export async function GET(request: Request) {
   if (!mismoOrigen(request)) return json({ error: 'Origen no permitido.' }, 403);
+  if (!accesoPermitido(request)) return faltaCodigo();
   const proveedor = proveedorActivo();
   if (!proveedor) return json({ error: 'No hay músico en la nube configurado.' }, 503);
   const id = new URL(request.url).searchParams.get('tarea');

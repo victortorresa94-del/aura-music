@@ -14,7 +14,7 @@ describe('/api/musico/estado', () => {
     const pedir = vi.fn();
     vi.stubGlobal('fetch', pedir);
 
-    expect(await (await GET()).json()).toEqual({ ia: false, conectado: false, prueba: false, proveedor: null });
+    expect(await (await GET()).json()).toMatchObject({ ia: false, conectado: false, prueba: false, proveedor: null });
     expect(pedir).not.toHaveBeenCalled();
   });
 
@@ -22,7 +22,7 @@ describe('/api/musico/estado', () => {
     vi.stubEnv('ACESTEP_API_URL', 'http://localhost:8001');
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(sobre({ status: 'ok', service: 'ACE-Step falso (una nota fija)' })));
 
-    expect(await (await GET()).json()).toEqual({
+    expect(await (await GET()).json()).toMatchObject({
       ia: true,
       conectado: true,
       prueba: true,
@@ -37,7 +37,7 @@ describe('/api/musico/estado', () => {
     const respuesta = await GET();
     expect(respuesta.status).toBe(200);
     expect(respuesta.headers.get('Cache-Control')).toBe('no-store');
-    expect(await respuesta.json()).toEqual({ ia: true, conectado: false, prueba: false, proveedor: 'ACE-Step 1.5' });
+    expect(await respuesta.json()).toMatchObject({ ia: true, conectado: false, prueba: false, proveedor: 'ACE-Step 1.5' });
   });
 
   it('con ACE-Step de verdad: conectado y no de prueba', async () => {
@@ -51,6 +51,16 @@ describe('/api/musico/estado', () => {
         .mockResolvedValueOnce(sobre({ data: [] })),
     );
 
-    expect(await (await GET()).json()).toEqual({ ia: true, conectado: true, prueba: false, proveedor: 'ACE-Step 1.5' });
+    expect(await (await GET()).json()).toMatchObject({ ia: true, conectado: true, prueba: false, proveedor: 'ACE-Step 1.5' });
+  });
+
+  it('dice si hay candado y si el productor tiene clave, sin enseñar ninguna', async () => {
+    vi.stubEnv('ACESTEP_API_URL', '');
+    vi.stubEnv('AURA_MUSIC_CODIGO', 'secreto');
+    vi.stubEnv('ANTHROPIC_API_KEY', 'sk-ant-prueba');
+    const texto = await (await GET()).text();
+    expect(JSON.parse(texto)).toMatchObject({ candado: true, productor: true });
+    expect(texto).not.toContain('secreto');
+    expect(texto).not.toContain('sk-ant-prueba');
   });
 });

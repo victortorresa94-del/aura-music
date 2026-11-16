@@ -1,5 +1,6 @@
 import { proveedorActivo } from '@/lib/ia/proveedores';
 import type { SaludProveedor } from '@/lib/ia/tipos';
+import { hayCandado } from '@/lib/servidor/acceso';
 import { json } from '../_comun';
 
 export const dynamic = 'force-dynamic';
@@ -13,6 +14,10 @@ export interface EstadoMusico {
   prueba: boolean;
   /** Quién toca, para enseñarlo. Si es de prueba, lo dice. */
   proveedor: string | null;
+  /** Las rutas que gastan piden código de acceso (AURA_MUSIC_CODIGO). */
+  candado: boolean;
+  /** Hay clave de Anthropic: el productor puede pensar. */
+  productor: boolean;
 }
 
 /**
@@ -23,7 +28,8 @@ export interface EstadoMusico {
  * pide ningún trabajo. No lanza nunca: ante la duda, «no conectado».
  */
 export async function GET() {
-  const nadie: EstadoMusico = { ia: false, conectado: false, prueba: false, proveedor: null };
+  const extra = { candado: hayCandado(), productor: Boolean(process.env.ANTHROPIC_API_KEY) };
+  const nadie: EstadoMusico = { ia: false, conectado: false, prueba: false, proveedor: null, ...extra };
   try {
     const proveedor = proveedorActivo();
     if (!proveedor) return json(nadie);
@@ -38,6 +44,7 @@ export async function GET() {
       conectado: salud.conectado,
       prueba: salud.prueba,
       proveedor: salud.prueba ? (salud.detalle ?? `${proveedor.nombre} (prueba)`) : proveedor.nombre,
+      ...extra,
     };
     return json(estado);
   } catch {

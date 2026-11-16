@@ -19,11 +19,13 @@ export const label: CSSProperties = {
   color: T.dim,
 };
 
-/** Números que se leen: mono, de ancho fijo, para que no bailen al cambiar. */
+/** Números que se leen: cifras de ancho fijo, para que no bailen al cambiar.
+ *  En la sans y no en la mono: Geist trae cifras tabulares, y el cero tachado
+ *  de Geist Mono, a tamaño de lectura (el 1.1 del compás, los ms), se leía «Ø». */
 export const numeric: CSSProperties = {
-  fontFamily: T.fontMono,
+  fontFamily: T.fontBody,
   fontVariantNumeric: 'tabular-nums',
-  letterSpacing: '-0.01em',
+  letterSpacing: '-0.02em',
 };
 
 /** Números dentro de una frase: la misma letra, con cifras de ancho fijo. */
@@ -226,6 +228,25 @@ export const IconRhythm = ({ size = 18, color = T.text }: IconProps) => (
     <ellipse cx="12" cy="14.5" rx="7.5" ry="2.6" stroke={color} strokeWidth={W} />
     <path d="M4.5 14.5v3.2c0 1.4 3.4 2.6 7.5 2.6s7.5-1.2 7.5-2.6v-3.2" stroke={color} strokeWidth={W} />
     <path d="m8 3.5 3 9M16.5 3.5l-3 9" stroke={color} strokeWidth={W} strokeLinecap="round" />
+  </svg>
+);
+
+/** El productor: una chispa grande y una pequeña. Es Aura, no un «asistente». */
+export const IconSpark = ({ size = 20, color = T.text }: IconProps) => (
+  <svg {...svg(size)}>
+    <path
+      d="M10 3.5c.5 3.6 2.4 5.5 6 6-3.6.5-5.5 2.4-6 6-.5-3.6-2.4-5.5-6-6 3.6-.5 5.5-2.4 6-6Z"
+      stroke={color}
+      strokeWidth={W}
+      strokeLinejoin="round"
+    />
+    <path d="M18 14.5c.2 1.5 1 2.3 2.5 2.5-1.5.2-2.3 1-2.5 2.5-.2-1.5-1-2.3-2.5-2.5 1.5-.2 2.3-1 2.5-2.5Z" fill={color} />
+  </svg>
+);
+
+export const IconSend = ({ size = 18, color = T.text }: IconProps) => (
+  <svg {...svg(size)}>
+    <path d="M12 19V5M6 11l6-6 6 6" stroke={color} strokeWidth={W} strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );
 

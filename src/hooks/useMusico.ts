@@ -6,7 +6,7 @@
  * Dos motores con el mismo resultado, una pista nueva en ámbar debajo de tu
  * toma:
  *
- *   · «Al momento»: el bajista de Compás escribe la línea con tus acordes y
+ *   · «Al momento»: el bajista de Aura Music escribe la línea con tus acordes y
  *     la toca el sintetizador. En el móvil, sin red, en menos de un segundo.
  *   · «Con IA»: la toma viaja al músico de la nube (ACE-Step), que toca
  *     escuchándote. Tarda de 10 a 60 segundos y suena a banda de verdad.
@@ -18,6 +18,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Studio } from '@/hooks/useStudio';
 import type { Instrumento } from '@/lib/ia/tipos';
+import { cabecerasDeAcceso, FaltaCodigo } from '@/lib/acceso';
 import { getGroove } from '@/lib/daw/rhythm/grooves';
 import { OPCIONES_POR_DEFECTO, duracionPatron, renderGroove } from '@/lib/daw/rhythm/player';
 import { escribirBajo, ESTILOS, type CicloBajo, type EstiloBajo } from '@/lib/musico/bajo';
@@ -35,6 +36,10 @@ export type Motor = 'momento' | 'ia';
 export type Paso = 'mandando' | 'en-cola' | 'generando' | 'bajando' | 'cuadrando';
 
 export interface EstadoIA {
+  /** Las rutas que gastan piden código de acceso. */
+  candado: boolean;
+  /** Hay clave de Anthropic en el servidor: el productor puede pensar. */
+  productor: boolean;
   /** Hay servidor configurado y responde. */
   disponible: boolean;
   /** Hay servidor configurado (aunque esté apagado). */
@@ -42,6 +47,16 @@ export interface EstadoIA {
   /** Es el servidor de prueba, que devuelve siempre la misma nota. */
   prueba: boolean;
   proveedor: string | null;
+}
+
+/** Lo que contesta /api/musico/estado. */
+interface EstadoServidor {
+  ia: boolean;
+  conectado?: boolean;
+  prueba?: boolean;
+  proveedor: string | null;
+  candado?: boolean;
+  productor?: boolean;
 }
 
 /** Lo que se le pide al músico «al momento». */
@@ -60,6 +75,25 @@ export const NOMBRE_INSTRUMENTO: Record<Instrumento, string> = {
   percusion: 'Percusión',
   sinte: 'Sinte',
 };
+
+/** Una canción entera desde cero: la pide el productor. */
+export interface PeticionCancionCliente {
+  descripcion: string;
+  letra: string | null;
+  segundos: number;
+  bpm: number | null;
+  tonalidad: string | null;
+}
+
+/** fetch a las rutas que gastan, con el código de acceso si lo hay. */
+async function pedirConCodigo(url: string, init: RequestInit = {}): Promise<Response> {
+  const respuesta = await fetch(url, {
+    ...init,
+    headers: cabecerasDeAcceso((init.headers as Record<string, string> | undefined) ?? {}),
+  });
+  if (respuesta.status === 401) throw new FaltaCodigo();
+  return respuesta;
+}
 
 /** Lo máximo que se manda a la nube de una vez: cabe en una petición. */
 const SEGUNDOS_IA = 45;
@@ -112,15 +146,19 @@ export function useMusico(studio: Studio, ciclo?: CicloBajo) {
   const comprobarIA = useCallback(() => {
     fetch('/api/musico/estado', { cache: 'no-store' })
       .then((r) => r.json())
-      .then((d: { ia: boolean; conectado?: boolean; prueba?: boolean; proveedor: string | null }) => {
+      .then((d: EstadoServidor) => {
         setIa({
+          candado: Boolean(d.candado),
+          productor: Boolean(d.productor),
           configurado: d.ia,
           disponible: d.ia && d.conectado !== false,
           prueba: Boolean(d.prueba),
           proveedor: d.proveedor,
         });
       })
-      .catch(() => setIa({ configurado: false, disponible: false, prueba: false, proveedor: null }));
+      .catch(() =>
+        setIa({ candado: false, productor: false, configurado: false, disponible: false, prueba: false, proveedor: null }),
+      );
   }, []);
 
   useEffect(() => {
@@ -164,8 +202,8 @@ export function useMusico(studio: Studio, ciclo?: CicloBajo) {
    * repitan con ella sin desfasarse.
    */
   const tocarAlMomento = useCallback(
-    async (track: Track, oido: Escucha, peticion: PeticionMomento) => {
-      if (!engine) return;
+    async (track: Track, oido: Escucha, peticion: PeticionMomento): Promise<boolean> => {
+      if (!engine) return false;
       const sr = engine.contextSampleRate;
       const comun = { bpm: oido.bpm, fase: oido.fase, duracion: oido.duracion, ciclo, semilla: Date.now() % 100_000 };
       let samples: Float32Array;
@@ -174,7 +212,7 @@ export function useMusico(studio: Studio, ciclo?: CicloBajo) {
 
       if (peticion.instrumento === 'bateria') {
         const groove = getGroove(peticion.ritmo);
-        if (!groove) return;
+        if (!groove) return false;
         const bpm = tempoParaRitmo(oido.bpm, groove.bpm);
         const vueltas = Math.max(1, Math.ceil(oido.duracion / duracionPatron(groove, bpm)));
         const render = await renderGroove(groove, bpm, OPCIONES_POR_DEFECTO, vueltas, sr);
@@ -188,7 +226,7 @@ export function useMusico(studio: Studio, ciclo?: CicloBajo) {
             : escribirTeclas(oido.acordes, { ...comun, estilo: peticion.estilo });
         if (notas.length === 0) {
           setError('No he oído acordes claros en esta toma. Prueba con una parte con más armonía.');
-          return;
+          return false;
         }
         samples =
           peticion.instrumento === 'bajo'
@@ -214,8 +252,43 @@ export function useMusico(studio: Studio, ciclo?: CicloBajo) {
       });
       const listo = { bajo: 'Bajo listo', teclado: 'Teclas listas', bateria: 'Batería lista' }[peticion.instrumento];
       setStatus(`${listo} · ${detalle}${seguirTempo(oido)}`);
+      return true;
     },
     [engine, ciclo, addGeneratedTrack, setStatus, seguirTempo],
+  );
+
+  /**
+   * Lo común a una pista y a una canción: el encargo ya está hecho; se
+   * pregunta cada dos segundos, con paciencia pero no infinita, se baja el
+   * audio y se decodifica.
+   */
+  const recibir = useCallback(
+    async (encargo: Response, senal: AbortSignal, nombre: string): Promise<AudioBuffer> => {
+      if (!engine) throw new Error('El estudio todavía no está listo.');
+      const datos = (await encargo.json()) as { tarea?: string; error?: string };
+      if (!encargo.ok || !datos.tarea) throw new Error(datos.error ?? 'El músico de la nube no ha cogido el encargo.');
+
+      setPaso('en-cola');
+      const limite = Date.now() + PACIENCIA;
+      let audioUrl: string | undefined;
+      while (!audioUrl) {
+        if (Date.now() > limite) throw new Error('El músico de la nube está tardando demasiado. Prueba otra vez.');
+        await espera(CADA, senal);
+        const consulta = await pedirConCodigo(`/api/musico/pista?tarea=${encodeURIComponent(datos.tarea)}`, {
+          signal: senal,
+        });
+        const estado = (await consulta.json()) as { estado?: string; audio?: string; error?: string };
+        if (!consulta.ok || estado.estado === 'fallo') throw new Error(estado.error ?? 'No ha salido la pista.');
+        if (estado.estado === 'generando') setPaso('generando');
+        if (estado.estado === 'listo') audioUrl = estado.audio;
+      }
+
+      setPaso('bajando');
+      const audio = await pedirConCodigo(audioUrl, { signal: senal });
+      if (!audio.ok) throw new Error('No he podido bajar la pista.');
+      return engine.decodeFile(new File([await audio.arrayBuffer()], nombre));
+    },
+    [engine],
   );
 
   const tocarConIA = useCallback(
@@ -243,28 +316,8 @@ export function useMusico(studio: Studio, ciclo?: CicloBajo) {
         }
         if (descripcion.trim()) form.set('descripcion', descripcion.trim());
 
-        const encargo = await fetch('/api/musico/pista', { method: 'POST', body: form, signal: senal });
-        const datos = (await encargo.json()) as { tarea?: string; error?: string };
-        if (!encargo.ok || !datos.tarea) throw new Error(datos.error ?? 'El músico de la nube no ha cogido el encargo.');
-
-        // Preguntar cada dos segundos, con paciencia pero no infinita.
-        setPaso('en-cola');
-        const limite = Date.now() + PACIENCIA;
-        let audioUrl: string | undefined;
-        while (!audioUrl) {
-          if (Date.now() > limite) throw new Error('El músico de la nube está tardando demasiado. Prueba otra vez.');
-          await espera(CADA, senal);
-          const consulta = await fetch(`/api/musico/pista?tarea=${encodeURIComponent(datos.tarea)}`, { signal: senal });
-          const estado = (await consulta.json()) as { estado?: string; audio?: string; error?: string };
-          if (!consulta.ok || estado.estado === 'fallo') throw new Error(estado.error ?? 'No ha salido la pista.');
-          if (estado.estado === 'generando') setPaso('generando');
-          if (estado.estado === 'listo') audioUrl = estado.audio;
-        }
-
-        setPaso('bajando');
-        const audio = await fetch(audioUrl, { signal: senal });
-        if (!audio.ok) throw new Error('No he podido bajar la pista.');
-        const decodificado = await engine.decodeFile(new File([await audio.arrayBuffer()], 'pista.wav'));
+        const encargo = await pedirConCodigo('/api/musico/pista', { method: 'POST', body: form, signal: senal });
+        const decodificado = await recibir(encargo, senal, 'pista.wav');
         const sr = decodificado.sampleRate;
         let samples = mono(decodificado, 0, decodificado.length);
 
@@ -302,12 +355,69 @@ export function useMusico(studio: Studio, ciclo?: CicloBajo) {
         setPaso(null);
       }
     },
-    [engine, region, ciclo, addGeneratedTrack, setStatus, ia?.proveedor, seguirTempo],
+    [engine, region, ciclo, addGeneratedTrack, setStatus, ia?.proveedor, seguirTempo, recibir],
+  );
+
+  /**
+   * Una canción entera desde cero, sin toma. Entra como una pista más al
+   * principio del proyecto. Si trae tempo, el proyecto se pone a ese tempo
+   * cuando todavía no hay nada grabado, para que la claqueta vaya con ella.
+   */
+  const crearCancion = useCallback(
+    async (peticion: PeticionCancionCliente): Promise<boolean> => {
+      if (!engine) return false;
+      const controlador = new AbortController();
+      abortRef.current = controlador;
+      try {
+        setError(null);
+        setPaso('mandando');
+        const encargo = await pedirConCodigo('/api/musico/cancion', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...peticion, pulsosPorCompas: ciclo?.pulsos ?? 4 }),
+          signal: controlador.signal,
+        });
+        const decodificado = await recibir(encargo, controlador.signal, 'cancion.mp3');
+        setPaso('cuadrando');
+        const samples = mono(decodificado, 0, decodificado.length);
+        addGeneratedTrack({
+          name: 'Canción · IA',
+          samples,
+          sampleRate: decodificado.sampleRate,
+          start: 0,
+          repeats: 1,
+        });
+        const hayTomas = project.tracks.some((t) => !t.ia);
+        if (peticion.bpm && !hayTomas && Math.abs(project.bpm - peticion.bpm) >= 1) setBpm(Math.round(peticion.bpm));
+        setStatus(`Canción lista · ${Math.round(decodificado.duration)} s`);
+        return true;
+      } catch (e) {
+        if ((e as Error).name === 'AbortError') setStatus('Encargo cancelado');
+        else setError((e as Error).message);
+        return false;
+      } finally {
+        abortRef.current = null;
+        setPaso(null);
+      }
+    },
+    [engine, ciclo, recibir, addGeneratedTrack, project.tracks, project.bpm, setBpm, setStatus],
   );
 
   const cancelar = useCallback(() => abortRef.current?.abort(), []);
 
-  return { ia, comprobarIA, escucha, escuchar, paso, error, setError, tocarAlMomento, tocarConIA, cancelar };
+  return {
+    ia,
+    comprobarIA,
+    escucha,
+    escuchar,
+    paso,
+    error,
+    setError,
+    tocarAlMomento,
+    tocarConIA,
+    crearCancion,
+    cancelar,
+  };
 }
 
 export type Musico = ReturnType<typeof useMusico>;

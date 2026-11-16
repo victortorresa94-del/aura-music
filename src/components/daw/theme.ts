@@ -12,24 +12,32 @@
  * el color es información, no decoración. Solo hay dos acentos y los dos
  * significan algo:
  *   · rojo   = está entrando audio, esto se está grabando
- *   · ámbar  = esto lo ha generado la IA, no lo has tocado tú
+ *   · verde  = esto lo ha puesto Aura, no lo has tocado tú. Es el verde de
+ *              marca de Aura (#5DBB9C); en claro va oscurecido a #1C7A5B
+ *              para que como texto llegue a 4,5:1 sobre blanco.
  * Todo lo demás es gris para que el ojo encuentre esos dos al instante.
  *
- * Profundidad (acabado premium): una sola luz, arriba a la izquierda, para
- * toda la app, y cuatro alturas:
+ * El claro es el de casa (Aura Music es de la familia Aura) y el que sale por
+ * defecto: casi todos los DAW son oscuros y este no quiere parecerse a ellos.
+ * El oscuro queda en Ajustes.
+ *
+ * Profundidad: una sola luz, arriba a la izquierda, para toda la app, y
+ * cuatro alturas:
  *   0 · a ras      la página y las calles de la línea de tiempo
  *   1 · apoyado    cabecera, columna de pistas, el dock del transporte
  *   2 · flotante   chips, el aviso, la barra del oído, el clip que arrastras
  *   3 · hoja       los paneles que suben desde abajo
- * En oscuro la altura se cuenta sobre todo con superficies más claras
- * (#0B0B0A → #141413 → #1C1C1A → #1F1F1D); las sombras van en tres capas
- * teñidas del fondo, nunca negro puro, y cada superficie lleva un filo de
- * luz de 1 px arriba (inset 0 1px 0).
+ * En claro casi todo es papel blanco y la altura la cuentan un filo de 1 px
+ * y sombras muy suaves teñidas del verde del suelo. En oscuro la cuentan
+ * superficies más claras (#0B0B0A → #141413 → #1C1C1A → #1F1F1D).
  */
 
 export type ThemeMode = 'dark' | 'light' | 'system';
 
-export const THEME_STORAGE_KEY = 'compas:theme';
+/* Clave nueva con el nombre nuevo: quien eligió «Oscuro» cuando el estudio
+   era oscuro por defecto vuelve a ver el claro una vez y decide otra vez. */
+export const THEME_STORAGE_KEY = 'aura-music:tema';
+export const DEFAULT_THEME: ThemeMode = 'light';
 
 /** Referencias a variables CSS. Se usan tal cual en estilos inline. */
 export const T = {
@@ -96,11 +104,12 @@ export const T = {
  *   oscuro · dim   #A3A29A sobre #0B0B0A →  7.7 · sobre hoja → 6.6
  *   oscuro · faint #8C8B83 sobre #0B0B0A →  5.6 · sobre hoja → 4.8
  *   oscuro · rojo  #DC5448 sobre #0B0B0A →  5.1 · texto sobre #BF3B31 → 5.1
- *   oscuro · ámbar #CDA42B sobre #0B0B0A →  8.4
- *   claro  · texto #17160F sobre #F1F0EA → 15.9
- *   claro  · dim   #57564F sobre #F1F0EA →  6.5
- *   claro  · faint #6E6D66 sobre #F1F0EA →  4.6
- *   claro  · rojo  #B03127 sobre #F1F0EA →  5.6 · ámbar #7F640A → 4.9
+ *   oscuro · verde #5DBB9C sobre #0B0B0A →  8.9
+ *   claro  · texto #111114 sobre blanco → 18.9 · sobre el suelo #FAFBFA → 18.0
+ *   claro  · dim   #5D5E63 sobre blanco →  6.5 · sobre el suelo → 6.2
+ *   claro  · faint #6B6C71 sobre blanco →  5.2 · sobre el suelo → 5.0
+ *   claro  · rojo  #C2362B sobre blanco →  5.5 · blanco sobre ese rojo → 5.5
+ *   claro  · verde #1C7A5B sobre blanco →  5.3 · sobre el clip de Aura #E3F2EC → 4.6
  */
 export const THEME_CSS = `
 [data-daw-theme='dark'] {
@@ -114,7 +123,7 @@ export const THEME_CSS = `
   --daw-knob: #F2F1EC;
   --daw-knob-shadow: 0 0 0 0.5px rgba(4,4,3,0.4), 0 1px 2px rgba(4,4,3,0.35), 1px 3px 8px rgba(4,4,3,0.3);
   --daw-clip: #1E1E1B;
-  --daw-clip-ai: #221E13;
+  --daw-clip-ai: #12201B;
   --daw-border: rgba(242,241,236,0.09);
   --daw-border-strong: rgba(242,241,236,0.22);
   --daw-row-line: rgba(242,241,236,0.055);
@@ -126,8 +135,8 @@ export const THEME_CSS = `
   --daw-rec-soft: rgba(220,84,72,0.15);
   --daw-rec-fill: #BF3B31;
   --daw-on-rec: #FFF7F3;
-  --daw-ai: #CDA42B;
-  --daw-ai-soft: rgba(205,164,43,0.16);
+  --daw-ai: #5DBB9C;
+  --daw-ai-soft: rgba(93,187,156,0.16);
   --daw-wave: rgba(242,241,236,0.55);
   --daw-wave-strong: rgba(242,241,236,0.92);
   --daw-grid: rgba(242,241,236,0.035);
@@ -144,42 +153,46 @@ export const THEME_CSS = `
 }
 
 [data-daw-theme='light'] {
-  --daw-bg: #F1F0EA;
-  --daw-surface: #F9F8F4;
-  --daw-raised: #FFFEFA;
-  --daw-sheet: #FAF9F5;
-  --daw-fill: rgba(23,22,15,0.05);
-  --daw-fill-strong: rgba(23,22,15,0.095);
-  --daw-thumb: #FFFEFA;
-  --daw-knob: #FFFEFA;
-  --daw-knob-shadow: 0 0 0 0.5px rgba(23,22,15,0.16), 0 1px 2px rgba(60,52,30,0.14), 1px 3px 8px rgba(60,52,30,0.12);
-  --daw-clip: #E9E6DC;
-  --daw-clip-ai: #F0E7CF;
-  --daw-border: rgba(23,22,15,0.11);
-  --daw-border-strong: rgba(23,22,15,0.3);
-  --daw-row-line: rgba(23,22,15,0.07);
-  --daw-text: #17160F;
-  --daw-dim: #57564F;
-  --daw-faint: #6E6D66;
-  --daw-inverse: #FAF9F5;
-  --daw-rec: #B03127;
-  --daw-rec-soft: rgba(176,49,39,0.1);
-  --daw-rec-fill: #B03127;
-  --daw-on-rec: #FFF7F3;
-  --daw-ai: #7F640A;
-  --daw-ai-soft: rgba(127,100,10,0.13);
-  --daw-wave: rgba(23,22,15,0.5);
-  --daw-wave-strong: rgba(23,22,15,0.85);
-  --daw-grid: rgba(23,22,15,0.045);
-  --daw-grid-bar: rgba(23,22,15,0.11);
-  --daw-shadow: rgba(60,52,30,0.16);
-  --daw-rim: rgba(255,255,252,0.85);
-  --daw-elev-1: inset 0 1px 0 var(--daw-rim), 0 0 0 1px rgba(23,22,15,0.06), 0.5px 1px 1px rgba(60,52,30,0.07), 1px 2px 5px rgba(60,52,30,0.06);
-  --daw-elev-2: inset 0 1px 0 var(--daw-rim), 0 0 0 1px rgba(23,22,15,0.07), 1px 3px 6px rgba(60,52,30,0.08), 4px 12px 28px rgba(60,52,30,0.12);
-  --daw-elev-3: inset 0 1px 0 var(--daw-rim), 0 0 0 1px rgba(23,22,15,0.06), 0 -4px 16px rgba(60,52,30,0.08), 0 -16px 48px rgba(60,52,30,0.1);
-  --daw-scrim: rgba(23,22,15,0.28);
-  --daw-glass: rgba(255,254,250,0.76);
-  --daw-focus: rgba(23,22,15,0.75);
+  /* El claro es el de Aura: papel blanco para el trabajo, un suelo apenas
+     verde salvia debajo, tinta casi negra y sombras teñidas de ese verde (una
+     sombra gris sobre un fondo con tinte se lee como suciedad). Los valores
+     salen de aura-lite/src/styles/cristal.css. */
+  --daw-bg: #FAFBFA;
+  --daw-surface: #FFFFFF;
+  --daw-raised: #FFFFFF;
+  --daw-sheet: #FFFFFF;
+  --daw-fill: rgba(20,40,33,0.045);
+  --daw-fill-strong: rgba(20,40,33,0.085);
+  --daw-thumb: #FFFFFF;
+  --daw-knob: #FFFFFF;
+  --daw-knob-shadow: 0 0 0 0.5px rgba(17,17,20,0.12), 0 1px 2px rgba(20,40,33,0.10), 0 3px 8px rgba(20,40,33,0.10);
+  --daw-clip: #EEF2F0;
+  --daw-clip-ai: #E3F2EC;
+  --daw-border: rgba(17,17,20,0.08);
+  --daw-border-strong: rgba(17,17,20,0.22);
+  --daw-row-line: rgba(17,17,20,0.06);
+  --daw-text: #111114;
+  --daw-dim: #5D5E63;
+  --daw-faint: #6B6C71;
+  --daw-inverse: #FFFFFF;
+  --daw-rec: #C2362B;
+  --daw-rec-soft: rgba(194,54,43,0.09);
+  --daw-rec-fill: #C2362B;
+  --daw-on-rec: #FFFFFF;
+  --daw-ai: #1C7A5B;
+  --daw-ai-soft: rgba(93,187,156,0.16);
+  --daw-wave: rgba(17,17,20,0.42);
+  --daw-wave-strong: rgba(17,17,20,0.82);
+  --daw-grid: rgba(17,17,20,0.035);
+  --daw-grid-bar: rgba(17,17,20,0.08);
+  --daw-shadow: rgba(20,40,33,0.12);
+  --daw-rim: rgba(255,255,255,0.9);
+  --daw-elev-1: 0 0 0 1px rgba(17,17,20,0.06), 0 1px 2px rgba(20,40,33,0.05), 0 2px 8px rgba(20,40,33,0.05);
+  --daw-elev-2: 0 0 0 1px rgba(17,17,20,0.06), 0 1px 2px rgba(20,40,33,0.06), 0 8px 24px rgba(20,40,33,0.10), 0 24px 48px -16px rgba(20,40,33,0.16);
+  --daw-elev-3: 0 0 0 1px rgba(17,17,20,0.05), 0 -8px 32px rgba(20,40,33,0.10), 0 -24px 64px -16px rgba(20,40,33,0.14);
+  --daw-scrim: rgba(17,24,21,0.22);
+  --daw-glass: rgba(255,255,255,0.72);
+  --daw-focus: rgba(17,17,20,0.72);
   color-scheme: light;
 }
 `;

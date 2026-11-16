@@ -11,6 +11,7 @@ import {
   IconMinus,
   IconPlus,
   IconRepeat,
+  IconSpark,
   IconTrash,
   IconVolume,
   Readout,
@@ -55,14 +56,21 @@ export const inputStyle: React.CSSProperties = {
  * La pista elegida, siempre a mano: su nombre (que abre todo lo demás) y su
  * volumen. Vive en lo alto del dock del transporte y solo aparece cuando hay
  * una pista elegida; sin pista, no ocupa sitio diciendo «toca una pista».
+ *
+ * Si la pista es una toma tuya, lleva al lado «Ponle algo», en verde. Antes
+ * ese botón solo salía justo después de grabar: al volver a abrir la idea,
+ * poner un bajo a una toma vieja quedaba escondido detrás de «⋯».
  */
 export function TrackStrip({
   studio,
   onOpenTrack,
+  onPonerDebajo,
   theme = 'dark',
 }: {
   studio: Studio;
   onOpenTrack: () => void;
+  /** Abre el músico sobre esta toma. */
+  onPonerDebajo?: () => void;
   theme?: 'dark' | 'light';
 }) {
   const { selectedTrack, setVolume, project } = studio;
@@ -70,6 +78,7 @@ export function TrackStrip({
 
   const index = project.tracks.findIndex((track) => track.id === selectedTrack.id);
   const tint = trackTint(Math.max(0, index), theme);
+  const ponerDebajo = onPonerDebajo && !selectedTrack.ia;
 
   return (
     <div
@@ -105,7 +114,7 @@ export function TrackStrip({
           color: T.text,
           cursor: 'pointer',
           minWidth: 0,
-          maxWidth: '46%',
+          maxWidth: ponerDebajo ? '38%' : '46%',
           flexShrink: 0,
           touchAction: 'manipulation',
         }}
@@ -133,10 +142,44 @@ export function TrackStrip({
         <IconChevronRight size={12} color={T.dim} />
       </button>
 
+      {ponerDebajo ? (
+        <button
+          type="button"
+          className="daw-press daw-hover"
+          onClick={() => {
+            haptic(10);
+            onPonerDebajo();
+          }}
+          aria-label={`Ponle algo debajo a ${selectedTrack.name}`}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            minHeight: 40,
+            padding: '0 12px 0 10px',
+            border: 'none',
+            borderRadius: 10,
+            background: T.aiSoft,
+            color: T.ai,
+            fontFamily: T.fontBody,
+            fontSize: 13,
+            fontWeight: 600,
+            letterSpacing: '-0.01em',
+            whiteSpace: 'nowrap',
+            cursor: 'pointer',
+            flexShrink: 0,
+            touchAction: 'manipulation',
+          }}
+        >
+          <IconSpark size={16} color={T.ai} />
+          Ponle algo
+        </button>
+      ) : null}
+
       {/* En pantallas anchas el volumen no se estira a 800 px: un fader
           largo no es más preciso, solo más lejano. */}
       <div style={{ flex: 1, minWidth: 0, maxWidth: 380, marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-        <IconVolume size={16} color={T.dim} />
+        {ponerDebajo ? null : <IconVolume size={16} color={T.dim} />}
         <Slider
           ariaLabel={`Volumen de ${selectedTrack.name}`}
           value={Math.round(selectedTrack.volume * 100)}
@@ -144,9 +187,13 @@ export function TrackStrip({
           max={150}
           onChange={(value) => setVolume(selectedTrack.id, value / 100)}
         />
-        <span style={{ ...numeric, fontSize: 12, color: T.dim, width: 58, textAlign: 'right', flexShrink: 0 }}>
-          {decibelios(selectedTrack.volume)}
-        </span>
+        {/* Con «Ponle algo» al lado, en el móvil no caben los dB: el número
+            sigue en el panel de la pista. */}
+        {ponerDebajo ? null : (
+          <span style={{ ...numeric, fontSize: 12, color: T.dim, width: 58, textAlign: 'right', flexShrink: 0 }}>
+            {decibelios(selectedTrack.volume)}
+          </span>
+        )}
       </div>
     </div>
   );

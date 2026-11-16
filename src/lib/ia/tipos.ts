@@ -20,6 +20,31 @@ export type Instrumento =
   | 'percusion'
   | 'sinte';
 
+export const INSTRUMENTOS: readonly Instrumento[] = [
+  'bajo',
+  'bateria',
+  'guitarra',
+  'teclado',
+  'cuerdas',
+  'metales',
+  'percusion',
+  'sinte',
+];
+
+/** Una canción entera desde cero, sin toma: la pide el productor. */
+export interface PeticionCancion {
+  /** Cómo suena, en inglés, como lo entienden los modelos. */
+  descripcion: string;
+  /** Con letra canta; sin letra es instrumental. */
+  letra?: string;
+  segundos: number;
+  bpm?: number;
+  /** En inglés: «A minor». */
+  tonalidad?: string;
+  pulsosPorCompas?: number;
+  semilla?: number;
+}
+
 export interface PeticionPista {
   /** La toma sobre la que se toca, en WAV. */
   audio: Blob;
@@ -59,6 +84,8 @@ export interface ProveedorDePistas {
   id: string;
   nombre: string;
   iniciar(peticion: PeticionPista): Promise<Tarea>;
+  /** Canción entera sin toma. Opcional: no todos los modelos saben. */
+  iniciarCancion?(peticion: PeticionCancion): Promise<Tarea>;
   consultar(id: string): Promise<Tarea>;
   descargar(archivo: string): Promise<Response>;
   /** Comprobación rápida y barata. Nunca lanza: si algo falla, `conectado: false`. */

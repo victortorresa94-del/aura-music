@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Compás · levanta ACE-Step 1.5 (el músico con IA) en una GPU alquilada.
+# Aura Music · levanta ACE-Step 1.5 (el músico con IA) en una GPU alquilada.
 # Pensado para un pod de RunPod (Linux, NVIDIA, plantilla PyTorch).
 # Uso: bash acestep-gpu.sh    Guía paso a paso: docs/ACESTEP.md
 # Se puede lanzar las veces que haga falta: lo que ya está hecho no se repite.
@@ -11,6 +11,11 @@ BASE=/workspace
 cd "$BASE"
 export UV_CACHE_DIR="$BASE/.uv/cache" UV_PYTHON_INSTALL_DIR="$BASE/.uv/python"
 export HF_HOME="$BASE/.cache/huggingface"
+# La plantilla PyTorch de RunPod trae HF_HUB_ENABLE_HF_TRANSFER=1, pero el
+# entorno de ACE-Step no tiene el paquete hf_transfer: con eso activado, la
+# descarga de Hugging Face falla y el servidor no arranca («Failed to download
+# main model»). Se apaga y se baja por la vía normal.
+export HF_HUB_ENABLE_HF_TRANSFER=0
 export PATH="$HOME/.local/bin:$PATH"
 
 echo ">> 1/4 Preparando uv (el instalador de Python que usa ACE-Step)"
@@ -22,6 +27,16 @@ cd ACE-Step-1.5
 uv sync
 
 echo ">> 3/4 Descargando los modelos (la primera vez son varios GB)"
+# Una descarga que se cortó deja la carpeta del modelo creada pero vacía o a
+# medias, el descargador la da por buena y el servidor muere al cargarla
+# («Unrecognized model … Should have a `model_type` key»). Si el config.json
+# no está completo, se borra la carpeta y se baja de nuevo.
+for MODELO in checkpoints/acestep-v15-base checkpoints/acestep-v15-turbo; do
+  if [ -d "$MODELO" ] && ! grep -q '"model_type"' "$MODELO/config.json" 2>/dev/null; then
+    echo "!! $MODELO quedó a medias: la borro y la bajo otra vez"
+    rm -rf "$MODELO"
+  fi
+done
 uv run acestep-download ||
   echo "!! No he podido bajar los modelos ahora. No pasa nada: el servidor los baja al arrancar (tardará más)."
 uv run acestep-download --model acestep-v15-base ||
@@ -36,7 +51,11 @@ if [ -z "${ACESTEP_API_KEY:-}" ]; then
   ACESTEP_API_KEY="$(cat "$FICHERO_CLAVE")"
 fi
 # El modelo base: el turbo no sabe tocar sobre tu toma (tarea lego).
+# ACESTEP_NO_INIT=false: carga el modelo en la GPU AL ARRANCAR. Por defecto
+# ACE-Step lo carga con la primera petición, y esa primera pista tardaría más
+# de los 3 minutos que espera la app (acestep/api/startup_model_init.py).
 export ACESTEP_CONFIG_PATH=acestep-v15-base ACESTEP_API_HOST=0.0.0.0 ACESTEP_API_PORT=8001 ACESTEP_API_KEY
+export ACESTEP_NO_INIT=false
 
 if [ -n "${RUNPOD_POD_ID:-}" ]; then
   URL="https://${RUNPOD_POD_ID}-8001.proxy.runpod.net"
@@ -49,8 +68,9 @@ cat <<AVISO
 ACESTEP_API_URL=$URL
 ACESTEP_API_KEY=$ACESTEP_API_KEY
 ==============================================================================
-Deja esta terminal abierta mientras uses Compás. La primera vez tarda en estar
-listo: carga los modelos en la GPU. Para pararlo: Ctrl+C, y PARA EL POD en RunPod.
+Está listo cuando abajo salga «Uvicorn running on http://0.0.0.0:8001».
+Antes carga el modelo en la GPU: uno o dos minutos. Puedes cerrar esta
+pestaña, el servidor sigue. Al acabar, PARA EL POD en RunPod (Stop).
 
 AVISO
 

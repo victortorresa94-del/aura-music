@@ -20,6 +20,7 @@
 import {
   ErrorDeProveedor,
   type Instrumento,
+  type PeticionCancion,
   type PeticionPista,
   type ProveedorDePistas,
   type SaludProveedor,
@@ -132,6 +133,36 @@ export function crearAceStep(config: ConfigAceStep, pedir: typeof fetch = fetch)
       if (p.semilla !== undefined) form.set('seed', String(p.semilla));
 
       const data = await llamar<{ task_id: string; status?: string }>('/release_task', {
+        method: 'POST',
+        headers: cabeceras(),
+        body: form,
+      });
+      if (!data?.task_id) throw new ErrorDeProveedor('ACE-Step no ha devuelto una tarea.');
+      return { id: data.task_id, estado: 'en-cola' };
+    },
+
+    /* La canción entera: `text2music`, sin toma. Sale en MP3 y no en WAV
+       porque una canción de dos minutos en WAV pesa más de 20 MB y no cabe
+       por el proxy; aquí no hay nada que cuadrar contra una toma, así que el
+       retardo del códec no molesta. */
+    async iniciarCancion(p: PeticionCancion): Promise<Tarea> {
+      const form = new FormData();
+      form.set('task_type', 'text2music');
+      form.set('prompt', p.descripcion.trim());
+      form.set('lyrics', p.letra?.trim() || '[inst]');
+      if (p.letra?.trim()) form.set('vocal_language', 'es');
+      form.set('audio_duration', String(Math.round(p.segundos)));
+      if (p.bpm) form.set('bpm', String(Math.round(p.bpm)));
+      if (p.tonalidad) form.set('key_scale', p.tonalidad);
+      form.set('time_signature', String(p.pulsosPorCompas ?? 4));
+      form.set('audio_format', 'mp3');
+      form.set('inference_steps', String(config.pasos ?? 32));
+      form.set('guidance_scale', '7');
+      form.set('thinking', 'false');
+      if (config.modelo) form.set('model', config.modelo);
+      if (p.semilla !== undefined) form.set('seed', String(p.semilla));
+
+      const data = await llamar<{ task_id: string }>('/release_task', {
         method: 'POST',
         headers: cabeceras(),
         body: form,

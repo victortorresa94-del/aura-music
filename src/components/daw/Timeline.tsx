@@ -294,6 +294,9 @@ function ClipBlock({
   // Mezclado con el fondo, no transparente: las líneas de la rejilla no se
   // cuelan por debajo de la onda.
   const mezcla = (pct: number, base: string = T.bg) => `color-mix(in srgb, ${tint} ${pct}%, ${base})`;
+  // Sobre papel blanco el mismo porcentaje pesa casi el doble que sobre negro:
+  // en claro el clip es un velo y la que lleva el color es la onda.
+  const claro = theme === 'light';
 
   return (
     <div
@@ -318,7 +321,7 @@ function ClipBlock({
         height: CLIP_H,
         width,
         borderRadius: 6,
-        background: mezcla(selected ? 17 : 13),
+        background: mezcla(claro ? (selected ? 11 : 7) : selected ? 17 : 13),
         // El contorno va en una capa encima (ver abajo): una sombra interior
         // aquí quedaría tapada por la franja del nombre. Aquí, la elevación.
         boxShadow: selected ? (arrastrando ? T.elev2 : T.elev1) : 'none',
@@ -341,7 +344,7 @@ function ClipBlock({
           alignItems: 'center',
           gap: 6,
           padding: '0 7px',
-          background: mezcla(selected ? 40 : 26),
+          background: mezcla(claro ? (selected ? 26 : 15) : selected ? 40 : 26),
           pointerEvents: 'none',
         }}
       >

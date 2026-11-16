@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "skills": {
+    "audio-mixing-mastering": {
+      "source": "calesthio/generative-media-skills",
+      "sourceType": "github",
+      "skillPath": "skills/production/audio-craft/audio-mixing-mastering/SKILL.md",
+      "computedHash": "1ad04f46da3ec543efbe20987401d79a351652038e37db19eb6ef420c7d77cc7"
+    },
+    "mobile-native": {
+      "source": "emilkowalski/skills",
+      "sourceType": "github",
+      "skillPath": "skills/mobile-native/SKILL.md",
+      "computedHash": "5a848356e54c9aea29faade0d39589ff5ffc609207c403706795783b41d670b4"
+    },
+    "pwa-development": {
+      "source": "alinaqi/maggy",
+      "sourceType": "github",
+      "skillPath": "skills/pwa-development/SKILL.md",
+      "computedHash": "2219041ce92f6361ba77eb06c9a927dc7a1ba48f40ff5132321a29c4154ebc7a"
+    }
+  }
+}

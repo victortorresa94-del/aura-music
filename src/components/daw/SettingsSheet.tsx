@@ -187,8 +187,8 @@ export function SettingsSheet({
   };
 
   const themes: { value: ThemeMode; text: string }[] = [
-    { value: 'dark', text: 'Oscuro' },
     { value: 'light', text: 'Claro' },
+    { value: 'dark', text: 'Oscuro' },
     { value: 'system', text: 'Sistema' },
   ];
 

@@ -1,12 +1,12 @@
 /**
- * Service worker de Compás.
+ * Service worker de Aura Music.
  *
  * La app se sirve primero de red y cae a caché cuando no hay cobertura, que
  * es justo cuando más falta hace poder grabar una idea. Las rutas /api no se
  * cachean nunca: el músico de la nube siempre tiene que responder en vivo.
  */
 
-const CACHE = 'compas-v2';
+const CACHE = 'aura-music-v3';
 const SHELL = ['/', '/icons/icon-192.png', '/icons/icon-512.png'];
 
 self.addEventListener('install', (event) => {
