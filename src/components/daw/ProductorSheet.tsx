@@ -16,7 +16,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { Studio } from '@/hooks/useStudio';
 import type { Musico, Paso as PasoDelMusico } from '@/hooks/useMusico';
 import { tomaObjetivo, type EstadoPaso, type Productor, type Turno } from '@/hooks/useProductor';
-import { guardarCodigo, leerCodigo } from '@/lib/acceso';
+import { comprobarCodigo, guardarCodigo, leerCodigo } from '@/lib/acceso';
 import { sugerenciasDelCerebro } from '@/lib/productor/cerebro';
 import { tituloDelPaso } from '@/lib/productor/plan';
 import { haptic } from './theme';
@@ -471,25 +471,45 @@ function CerebroVista({
 
 function PedirCodigo({ onGuardado }: { onGuardado: () => void }) {
   const [codigo, setCodigo] = useState('');
+  const [estado, setEstado] = useState<'escribiendo' | 'comprobando' | 'no-vale' | 'sin-red'>('escribiendo');
   return (
     <Aviso titulo="Código de acceso">
-      Este enlace está cerrado con un código para que nadie más gaste tu IA. Escríbelo una vez y se queda en este móvil.
+      El mismo que pusiste en Vercel (AURA_MUSIC_CODIGO). Da igual mayúsculas o minúsculas. Se escribe una vez y se queda
+      en este móvil.
       <form
-        onSubmit={(e) => {
+        onSubmit={async (e) => {
           e.preventDefault();
-          if (!codigo.trim()) return;
+          if (!codigo.trim() || estado === 'comprobando') return;
+          // Se comprueba antes de guardar: así sabes al momento si es el bueno.
+          setEstado('comprobando');
+          const resultado = await comprobarCodigo(codigo);
+          if (resultado !== 'vale') {
+            setEstado(resultado);
+            return;
+          }
           guardarCodigo(codigo);
           setCodigo('');
+          setEstado('escribiendo');
           onGuardado();
         }}
         style={{ display: 'flex', gap: 8, marginTop: 12 }}
       >
+        {/* Texto y no contraseña: ves lo que escribes, y el iPhone no ofrece
+            inventarse una «contraseña segura» ni pone la primera en mayúscula. */}
         <input
-          type="password"
+          type="text"
           autoComplete="off"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          enterKeyHint="done"
           aria-label="Código de acceso"
+          aria-invalid={estado === 'no-vale'}
           value={codigo}
-          onChange={(e) => setCodigo(e.target.value)}
+          onChange={(e) => {
+            setCodigo(e.target.value);
+            if (estado !== 'comprobando') setEstado('escribiendo');
+          }}
           style={{
             flex: 1,
             minWidth: 0,
@@ -519,11 +539,23 @@ function PedirCodigo({ onGuardado }: { onGuardado: () => void }) {
             fontWeight: 500,
             cursor: 'pointer',
             touchAction: 'manipulation',
+            opacity: estado === 'comprobando' ? 0.6 : 1,
           }}
         >
-          Guardar
+          {estado === 'comprobando' ? 'Comprobando' : 'Guardar'}
         </button>
       </form>
+      {estado === 'no-vale' ? (
+        <p role="alert" style={{ margin: '10px 0 0', fontFamily: T.fontBody, fontSize: 14, color: T.rec }}>
+          Ese no es. Mira en Vercel, en Settings → Environment Variables, el valor de AURA_MUSIC_CODIGO. Si lo
+          cambiaste allí después de desplegar, hay que volver a desplegar para que cuente.
+        </p>
+      ) : null}
+      {estado === 'sin-red' ? (
+        <p role="alert" style={{ margin: '10px 0 0', fontFamily: T.fontBody, fontSize: 14, color: T.text }}>
+          No he podido comprobarlo: mira la conexión y vuelve a probar.
+        </p>
+      ) : null}
     </Aviso>
   );
 }

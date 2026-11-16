@@ -77,6 +77,8 @@ export function useProductor(studio: Studio, musico: Musico, pulsosPorCompas: nu
   const turnosRef = useRef(turnos);
   turnosRef.current = turnos;
   const cerebroRef = useRef(cerebro);
+  // El pedido que se quedó esperando el código: se repite solo al guardarlo.
+  const pendienteRef = useRef<string | null>(null);
 
   useEffect(() => {
     let guardado: string | null = null;
@@ -244,6 +246,7 @@ export function useProductor(studio: Studio, musico: Musico, pulsosPorCompas: nu
         }
         cambiarTurno(id, (t) => ({ ...t, estado: 'listo' }));
       } catch (e) {
+        if (e instanceof FaltaCodigo) pendienteRef.current = pedido;
         cambiarTurno(id, (t) => ({ ...t, estado: 'fallo', error: (e as Error).message }));
       } finally {
         setOcupado(false);
@@ -251,10 +254,21 @@ export function useProductor(studio: Studio, musico: Musico, pulsosPorCompas: nu
     },
     [ocupado, pulsosPorCompas, ritmo, cambiarCerebro, cambiarTurno, cambiarPaso, ejecutar],
   );
+  const pedirRef = useRef(pedir);
+  pedirRef.current = pedir;
 
   const olvidar = useCallback((indice: number) => cambiarCerebro((c) => olvidarNota(c, indice)), [cambiarCerebro]);
   const olvidarTodo = useCallback(() => cambiarCerebro(() => cerebroVacio()), [cambiarCerebro]);
-  const codigoGuardado = useCallback(() => setNecesitaCodigo(false), []);
+
+  /** Con el código ya bueno, lo que se quedó esperando se pide otra vez, sin reescribirlo. */
+  const codigoGuardado = useCallback(() => {
+    setNecesitaCodigo(false);
+    const pendiente = pendienteRef.current;
+    pendienteRef.current = null;
+    if (!pendiente) return;
+    setTurnos((todos) => todos.filter((t) => !(t.estado === 'fallo' && t.pedido === pendiente)));
+    void pedirRef.current(pendiente);
+  }, []);
 
   return { turnos, cerebro, ocupado, necesitaCodigo, pedir, olvidar, olvidarTodo, codigoGuardado };
 }
