@@ -1,7 +1,8 @@
 {
+  "id": "/",
   "name": "Aura Music",
   "short_name": "Aura Music",
-  "description": "Graba una idea por capas desde el móvil y ponle bajo, batería o teclas que tocan a tu tempo.",
+  "description": "Graba una idea por capas desde el móvil y ponle bajo, batería o teclas que tocan a tu tempo. Funciona sin cobertura.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -11,9 +12,11 @@
   "categories": ["music", "productivity"],
   "lang": "es-ES",
   "dir": "ltr",
+  "prefer_related_applications": false,
   "icons": [
     { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
     { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ],
   "shortcuts": [
@@ -21,7 +24,49 @@
       "name": "Grabar una idea",
       "short_name": "Grabar",
       "url": "/?grabar=1",
-      "description": "Abre el estudio listo para grabar"
+      "description": "Abre el estudio grabando",
+      "icons": [
+        { "src": "/icons/atajo-grabar-96.png", "sizes": "96x96", "type": "image/png" },
+        { "src": "/icons/atajo-grabar-192.png", "sizes": "192x192", "type": "image/png" }
+      ]
     }
-  ]
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/estudio.png",
+      "sizes": "1170x2532",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "El estudio: una pista por toma, a tu tempo"
+    },
+    {
+      "src": "/screenshots/musico.png",
+      "sizes": "1170x2532",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Ponle algo debajo: bajo, batería o teclas que siguen tu toma"
+    },
+    {
+      "src": "/screenshots/ajustes.png",
+      "sizes": "1170x2532",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Copias de la idea en un zip y el espacio que ocupa"
+    }
+  ],
+  "share_target": {
+    "action": "/compartir",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "titulo",
+      "text": "texto",
+      "files": [
+        {
+          "name": "audio",
+          "accept": ["audio/*", ".m4a", ".mp3", ".wav", ".ogg", ".opus", ".aac", ".flac", ".webm"]
+        }
+      ]
+    }
+  }
 }

@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react';
 import type { Studio } from '@/hooks/useStudio';
+import { AjustesDeNotas } from './instrumentos';
 import { haptic, trackTint } from './theme';
 import {
   Field,
@@ -240,6 +241,9 @@ export function TrackSheet({
           style={inputStyle}
         />
       </Field>
+
+      {/* Pilar B: si se tocó en la pantalla, cuadrar, humanizar y cambiar el sonido. */}
+      {selectedTrack.notas ? <AjustesDeNotas studio={studio} track={selectedTrack} /> : null}
 
       <Field
         title="Repetir el bloque"

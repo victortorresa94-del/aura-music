@@ -1,0 +1,77 @@
+{
+  "id": "piano-electrico",
+  "nombre": "Piano eléctrico FM (Yamaha TX81Z «FM Piano», VCSL)",
+  "autor": "Versilian Studios (Versilian Community Sample Library)",
+  "origen": "https://github.com/sgossner/VCSL/tree/master/Electrophones/TX81Z/FM%20Piano",
+  "licencia": "CC0-1.0",
+  "urlLicencia": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "creditos": "",
+  "archivos": [
+    {
+      "nombre": "36.mp3",
+      "midi": 36,
+      "bytes": 32746
+    },
+    {
+      "nombre": "40.mp3",
+      "midi": 40,
+      "bytes": 32199
+    },
+    {
+      "nombre": "44.mp3",
+      "midi": 44,
+      "bytes": 32564
+    },
+    {
+      "nombre": "48.mp3",
+      "midi": 48,
+      "bytes": 33162
+    },
+    {
+      "nombre": "52.mp3",
+      "midi": 52,
+      "bytes": 34800
+    },
+    {
+      "nombre": "56.mp3",
+      "midi": 56,
+      "bytes": 34462
+    },
+    {
+      "nombre": "60.mp3",
+      "midi": 60,
+      "bytes": 34540
+    },
+    {
+      "nombre": "64.mp3",
+      "midi": 64,
+      "bytes": 36542
+    },
+    {
+      "nombre": "68.mp3",
+      "midi": 68,
+      "bytes": 33932
+    },
+    {
+      "nombre": "72.mp3",
+      "midi": 72,
+      "bytes": 33933
+    },
+    {
+      "nombre": "76.mp3",
+      "midi": 76,
+      "bytes": 35760
+    },
+    {
+      "nombre": "80.mp3",
+      "midi": 80,
+      "bytes": 35684
+    },
+    {
+      "nombre": "84.mp3",
+      "midi": 84,
+      "bytes": 38414
+    }
+  ],
+  "bytes": 448738
+}

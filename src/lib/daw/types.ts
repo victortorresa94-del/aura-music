@@ -7,6 +7,7 @@
  */
 
 import type { AjustesMaster, MezclaPista } from './mezcla/tipos';
+import type { PistaDeNotas } from '@/lib/instrumentos/tipos';
 
 export interface Clip {
   /** Clave del audio en el almacén (IndexedDB / mapa de buffers en memoria). */
@@ -42,6 +43,13 @@ export interface Track {
    * Las pistas de antes no lo traen y suenan neutras: léelo con `mezclaDe`.
    */
   mezcla?: MezclaPista;
+  /**
+   * Pilar B: si la pista se tocó en la pantalla, sus notas en bruto, los
+   * ajustes y el instrumento (ver `src/lib/instrumentos/tipos.ts`). El clip
+   * apunta al audio hecho con ellas, así que el motor la reproduce y la
+   * exporta como cualquier otra. Las pistas sin este campo son audio.
+   */
+  notas?: PistaDeNotas;
 }
 
 export interface Project {

@@ -16,6 +16,7 @@ import { ESTILOS, type EstiloBajo } from '@/lib/musico/bajo';
 import { ritmosParaTempo, tempoParaRitmo, vaConTuTempo } from '@/lib/musico/bateria';
 import { ESTILOS_TECLAS, type EstiloTeclas } from '@/lib/musico/teclas';
 import { Field, Readout, Sheet, T, hintText, label, numeric } from './ui';
+import { GpuControl } from './GpuControl';
 import { haptic } from './theme';
 
 /** Los que tocan aquí mismo, sin red. El resto solo existe con IA. */
@@ -138,9 +139,11 @@ export function MusicoSheet({
       ? 'Servidor de prueba: devuelve siempre la misma nota. Sirve para probar el recorrido, no para sonar.'
       : ia.disponible
         ? 'Un modelo toca escuchándote. Tarda de 30 a 60 segundos y suena a banda.'
-        : ia.configurado
-          ? 'Tu servidor no responde. Comprueba que el pod de la GPU esté encendido.'
-          : 'Sin conectar. Hace falta encender ACE-Step en una GPU (docs/ACESTEP.md).';
+        : ia.gpu
+          ? 'La GPU está apagada para que no cobre. Enciéndela aquí abajo.'
+          : ia.configurado
+            ? 'Tu servidor no responde. Comprueba que el pod de la GPU esté encendido.'
+            : 'Sin conectar. Hace falta encender ACE-Step en una GPU (docs/ACESTEP.md).';
   const segundos = desde ? Math.max(0, Math.round((ahora - desde) / 1000)) : 0;
 
   return (
@@ -281,6 +284,7 @@ export function MusicoSheet({
                 ia
               />
             </Opciones>
+            <GpuControl musico={musico} />
           </Field>
 
           {motorEfectivo === 'momento' && instrumento === 'bateria' ? (

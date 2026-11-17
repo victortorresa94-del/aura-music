@@ -1,5 +1,6 @@
 import { proveedorActivo } from '@/lib/ia/proveedores';
 import type { SaludProveedor } from '@/lib/ia/tipos';
+import { runpodActivo } from '@/lib/ia/runpod';
 import { hayCandado } from '@/lib/servidor/acceso';
 import { json } from '../_comun';
 
@@ -18,6 +19,8 @@ export interface EstadoMusico {
   candado: boolean;
   /** Hay clave de Anthropic: el productor puede pensar. */
   productor: boolean;
+  /** La GPU de RunPod se puede encender y apagar desde la app. */
+  gpu: boolean;
 }
 
 /**
@@ -28,7 +31,11 @@ export interface EstadoMusico {
  * pide ningún trabajo. No lanza nunca: ante la duda, «no conectado».
  */
 export async function GET() {
-  const extra = { candado: hayCandado(), productor: Boolean(process.env.ANTHROPIC_API_KEY) };
+  const extra = {
+    candado: hayCandado(),
+    productor: Boolean(process.env.ANTHROPIC_API_KEY),
+    gpu: Boolean(runpodActivo()),
+  };
   const nadie: EstadoMusico = { ia: false, conectado: false, prueba: false, proveedor: null, ...extra };
   try {
     const proveedor = proveedorActivo();

@@ -28,6 +28,16 @@ import { masterizar, OBJETIVOS, type ResultadoMaster } from './mezcla/masterizar
 import { masterDe, type ObjetivoMaster } from './mezcla/tipos';
 
 const LEAD_TIME = 0.12;
+/** Lo que se espera a que iOS despierte el audio antes de darlo por atascado. */
+const RESUME_MS = 1200;
+
+/** El audio del sistema no arranca: hay que volver a tocar para rehacerlo. */
+export class AudioBloqueado extends Error {
+  constructor() {
+    super('El audio del móvil se ha quedado bloqueado. Toca otra vez y lo despierto.');
+    this.name = 'AudioBloqueado';
+  }
+}
 const SCHEDULER_INTERVAL = 25;
 const SCHEDULER_LOOKAHEAD = 0.2;
 const FADE_TIME = 0.006;
@@ -47,6 +57,17 @@ export interface TickInfo {
   countInRemaining: number;
 }
 
+/**
+ * Pilar B (instrumentos): opciones para reproducir mientras se graba lo que
+ * tocas en la pantalla. No hay micro, así que no pasa por `record`.
+ */
+export interface OpcionesReproduccion {
+  /** Pulsos de claqueta antes de arrancar (la cuenta atrás). */
+  claquetaPulsos?: number;
+  /** No parar al llegar al final del proyecto: se está tocando algo nuevo. */
+  sinFin?: boolean;
+}
+
 export class StudioEngine {
   ctx: AudioContext | null = null;
   /** La entrada del master del grafo de mezcla: aquí van el ritmo y el tono de prueba. */
@@ -56,6 +77,8 @@ export class StudioEngine {
 
   private buffers = new Map<string, AudioBuffer>();
   private sources: AudioBufferSourceNode[] = [];
+  /** El contexto no arrancó tras volver de otra app: el próximo toque lo rehace. */
+  private contextoAtascado = false;
 
   private recorder: Recorder | null = null;
   private stream: MediaStream | null = null;
@@ -88,6 +111,8 @@ export class StudioEngine {
   private project: Project | null = null;
   private settings: StudioSettings | null = null;
   private stopping: Promise<void> | null = null;
+  /** Pilar B: grabando notas, el transporte no se para solo al final del proyecto. */
+  private sinFin = false;
 
   onTick: ((info: TickInfo) => void) | null = null;
   onLevel: ((level: number) => void) | null = null;
@@ -150,7 +175,8 @@ export class StudioEngine {
    * cuanto la ejecución cruza una promesa.
    */
   unlockSync(): AudioContext {
-    if (!this.ctx || this.ctx.state === 'closed' || isInterrupted(this.ctx)) {
+    if (!this.ctx || this.ctx.state === 'closed' || isInterrupted(this.ctx) || this.contextoAtascado) {
+      this.contextoAtascado = false;
       // Los AudioBuffer no pertenecen a ningún contexto, así que las pistas
       // grabadas sobreviven al cambio. El worklet sí se vuelve a registrar.
       const previous = this.ctx;
@@ -167,9 +193,32 @@ export class StudioEngine {
     return ctx;
   }
 
+  /**
+   * Nunca se queda esperando para siempre. En iOS 26, al volver de otra app,
+   * `resume()` a veces no vuelve nunca (WebKit 291892): antes eso dejaba el
+   * play colgado y, con él, el candado del transporte, así que el botón ya no
+   * respondía hasta recargar (17-nov-2026, el dueño: «no me va el play en el
+   * móvil»). Ahora se espera como mucho RESUME_MS; si el contexto no arranca,
+   * se marca como atascado y el siguiente toque lo rehace entero dentro del
+   * gesto, que es lo único que iOS acepta.
+   */
   async ensureContext(): Promise<AudioContext> {
     const ctx = this.unlockSync();
-    if (ctx.state !== 'running') await ctx.resume().catch(() => undefined);
+    if (ctx.state !== 'running') {
+      await Promise.race([
+        ctx.resume().catch(() => undefined),
+        new Promise((resolve) => setTimeout(resolve, RESUME_MS)),
+      ]);
+      // TS cree que el estado no cambia tras el await; en el navegador sí.
+      if ((ctx.state as AudioContextState) !== 'running') this.contextoAtascado = true;
+    }
+    return ctx;
+  }
+
+  /** Para el transporte: sin el audio en marcha no se arranca, se avisa. */
+  private async contextoEnMarcha(): Promise<AudioContext> {
+    const ctx = await this.ensureContext();
+    if (ctx.state !== 'running') throw new AudioBloqueado();
     return ctx;
   }
 
@@ -279,6 +328,15 @@ export class StudioEngine {
     return this.recordStartPosition;
   }
 
+  /**
+   * Pilar B: la posición de la línea de tiempo que corresponde a un instante
+   * del reloj de audio, sin recortar la claqueta (sale negativa antes del
+   * arranque). Es lo que coloca cada nota tocada en la pantalla en su sitio.
+   */
+  posicionEn(tiempoContexto: number): number {
+    return this.anchorPosition + (tiempoContexto - this.anchorTime);
+  }
+
   /** Segundos que faltan para que termine la claqueta. */
   get countInRemaining(): number {
     if (!this.ctx || this.state !== 'countin') return 0;
@@ -301,15 +359,20 @@ export class StudioEngine {
     this.reviewReturn = from;
   }
 
-  async play(project: Project, settings: StudioSettings, from?: number) {
+  async play(project: Project, settings: StudioSettings, from?: number, opciones: OpcionesReproduccion = {}) {
     if (this.state !== 'stopped') await this.stop();
-    const ctx = await this.ensureContext();
+    const ctx = await this.contextoEnMarcha();
     this.reviewReturn = null;
     this.project = project;
     this.settings = settings;
 
     const start = from ?? this.idlePosition;
-    const t0 = ctx.currentTime + LEAD_TIME;
+    // Pilar B: la claqueta va delante del arranque, como en `record`.
+    const claquetaPulsos = Math.max(0, Math.round(opciones.claquetaPulsos ?? 0));
+    const claqueta = claquetaPulsos * (60 / project.bpm);
+    if (claquetaPulsos > 0) this.scheduleCountIn(project.bpm, ctx.currentTime + LEAD_TIME, claquetaPulsos);
+    this.sinFin = !!opciones.sinFin;
+    const t0 = ctx.currentTime + LEAD_TIME + claqueta;
     this.anchorTime = t0;
     this.anchorPosition = start;
     this.setTempo(project.bpm);
@@ -331,7 +394,7 @@ export class StudioEngine {
 
   async record(project: Project, settings: StudioSettings, from?: number) {
     if (this.state !== 'stopped') await this.stop();
-    const ctx = await this.ensureContext();
+    const ctx = await this.contextoEnMarcha();
     if (!this.recorder) throw new Error('Micrófono no disponible');
 
     this.project = project;
@@ -378,16 +441,21 @@ export class StudioEngine {
    * toques seguidos al botón podrían cerrar la misma toma dos veces y crear
    * una pista fantasma. La primera llamada manda; las demás esperan.
    */
-  async stop(): Promise<void> {
+  async stop(opciones: { inmediata?: boolean } = {}): Promise<void> {
     if (this.stopping) return this.stopping;
     if (this.state === 'stopped') return;
-    this.stopping = this.doStop().finally(() => {
+    this.stopping = this.doStop(opciones.inmediata === true).finally(() => {
       this.stopping = null;
     });
     return this.stopping;
   }
 
-  private async doStop(): Promise<void> {
+  /**
+   * `inmediata` (PWA): la app se va a segundo plano a media toma. No se espera
+   * la cola de la última nota: iOS congela la página en nada y lo que importa
+   * es sacar lo grabado y guardarlo antes.
+   */
+  private async doStop(inmediata = false): Promise<void> {
     const wasRecording = this.state === 'recording' || this.state === 'countin';
     const ctx = this.ctx;
     const endPosition = wasRecording
@@ -397,12 +465,13 @@ export class StudioEngine {
     this.stopMetronome();
     this.silenceGroove();
     this.stopClock();
+    this.sinFin = false;
 
     if (wasRecording && this.recorder && ctx) {
       // La cola de la interpretación todavía está viajando por el sistema:
       // si cortamos ahora, la última nota se queda a medias.
       const tail = Math.min(600, this.recordLatencySeconds * 1000 + 150);
-      await new Promise((resolve) => setTimeout(resolve, tail));
+      if (!inmediata) await new Promise((resolve) => setTimeout(resolve, tail));
       const { samples, sampleRate } = this.recorder.stop();
       // Se vuelve a modo reproducción antes de que pueda darle al play.
       setAudioSession('playback');
@@ -456,7 +525,7 @@ export class StudioEngine {
 
       this.emitTick();
 
-      if (this.state === 'playing' && this.project) {
+      if (this.state === 'playing' && this.project && !this.sinFin) {
         const end = projectDuration(this.project);
         if (end > 0 && this.position >= end + 0.15) {
           void this.stop();
@@ -551,6 +620,57 @@ export class StudioEngine {
   /** Para los medidores del mezclador. Cambia si iOS obliga a rehacer el contexto. */
   get grafoMezcla(): GrafoMezcla | null {
     return this.mezcla;
+  }
+
+  /**
+   * Vuelve a programar lo que suena sin parar la reproducción, desde donde va
+   * el cursor. Hace falta cuando cambia QUÉ suena mientras suena: una pista
+   * que pone el músico o el productor, o un clip que se mueve o se recorta.
+   * Sin esto, lo nuevo no se oía hasta parar y volver a darle al play
+   * (17-nov-2026, el dueño: «no se oye la pista que he añadido»).
+   *
+   * El reloj no se toca, así que la claqueta y el ritmo siguen igual. Las
+   * fuentes nuevas arrancan dentro de LEAD_TIME justo en su punto de la línea
+   * de tiempo y las viejas se paran en ese mismo instante: no hay hueco.
+   * Reutiliza `scheduleProject`, para que lo nuevo pase por la misma cadena
+   * que lo demás.
+   *
+   * Mezcla (pilar A): las cadenas de las pistas viven en el grafo de mezcla
+   * y no se rehacen; solo cambian las fuentes. Las nuevas salen adelantadas
+   * la latencia de la cadena (ver `scheduleProject`), así que las viejas se
+   * paran en ese mismo instante, no en `when`, para no solaparse 9 ms.
+   */
+  resync(project: Project) {
+    const ctx = this.ctx;
+    if (!ctx || this.state !== 'playing') return;
+    this.project = project;
+    const when = ctx.currentTime + LEAD_TIME;
+    const from = this.anchorPosition + (when - this.anchorTime);
+    const corte = when - (this.mezcla?.latencia ?? 0);
+
+    const viejas = this.sources;
+    // Vacías antes de programar: `scheduleProject` limpia lo que haya, y lo
+    // viejo tiene que seguir sonando hasta el corte.
+    this.sources = [];
+    this.scheduleProject(project, from, when);
+
+    for (const source of viejas) {
+      try {
+        source.onended = null;
+        source.stop(corte);
+      } catch {
+        /* ya parado */
+      }
+    }
+    window.setTimeout(() => {
+      for (const node of viejas) {
+        try {
+          node.disconnect();
+        } catch {
+          /* ya desconectado */
+        }
+      }
+    }, (LEAD_TIME + 0.25) * 1000);
   }
 
   setMasterVolume(value: number) {

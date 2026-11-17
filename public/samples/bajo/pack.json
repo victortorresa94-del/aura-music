@@ -1,0 +1,67 @@
+{
+  "id": "bajo",
+  "nombre": "Bajo eléctrico (Karoryfer Growlybass, Squier Jazz Bass)",
+  "autor": "Karoryfer Samples",
+  "origen": "https://github.com/sfzinstruments/karoryfer.growlybass/tree/master/sustain",
+  "licencia": "CC0-1.0",
+  "urlLicencia": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "creditos": "",
+  "archivos": [
+    {
+      "nombre": "28.mp3",
+      "midi": 28,
+      "bytes": 22369
+    },
+    {
+      "nombre": "30.mp3",
+      "midi": 30,
+      "bytes": 22078
+    },
+    {
+      "nombre": "33.mp3",
+      "midi": 33,
+      "bytes": 21678
+    },
+    {
+      "nombre": "36.mp3",
+      "midi": 36,
+      "bytes": 21965
+    },
+    {
+      "nombre": "39.mp3",
+      "midi": 39,
+      "bytes": 22173
+    },
+    {
+      "nombre": "42.mp3",
+      "midi": 42,
+      "bytes": 22426
+    },
+    {
+      "nombre": "45.mp3",
+      "midi": 45,
+      "bytes": 21837
+    },
+    {
+      "nombre": "48.mp3",
+      "midi": 48,
+      "bytes": 22123
+    },
+    {
+      "nombre": "51.mp3",
+      "midi": 51,
+      "bytes": 23041
+    },
+    {
+      "nombre": "54.mp3",
+      "midi": 54,
+      "bytes": 26030
+    },
+    {
+      "nombre": "57.mp3",
+      "midi": 57,
+      "bytes": 22625
+    }
+  ],
+  "bytes": 248345
+}

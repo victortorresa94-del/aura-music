@@ -21,6 +21,9 @@ import type { EstiloBajo } from '@/lib/musico/bajo';
 import type { EstiloTeclas } from '@/lib/musico/teclas';
 import type { Track } from '@/lib/daw/types';
 import type { Paso, Plan } from '@/lib/productor/plan';
+import { rehacerPistaDeNotas } from '@/hooks/useInstrumentos';
+import { getInstrumento } from '@/lib/instrumentos/registro';
+import { ajustesParaCuadrar, describirDiagnostico, diagnosticar } from '@/lib/musico/groove';
 import type { ContextoProductor, TurnoProductor } from '@/lib/productor/prompt';
 // Mezcla (pilar A)
 import { aplicarCambio, conMaster } from '@/lib/daw/mezcla/acciones';
@@ -87,6 +90,8 @@ export function useProductor(studio: Studio, musico: Musico, pulsosPorCompas: nu
   const turnosRef = useRef(turnos);
   turnosRef.current = turnos;
   const cerebroRef = useRef(cerebro);
+  // El pedido que se quedó esperando el código: se repite solo al guardarlo.
+  const pendienteRef = useRef<string | null>(null);
 
   useEffect(() => {
     let guardado: string | null = null;
@@ -186,6 +191,22 @@ export function useProductor(studio: Studio, musico: Musico, pulsosPorCompas: nu
           cambiarCerebro((c) => apuntarUso(c, 'ia:cancion'));
           return { estado: 'hecho' };
         }
+        case 'cuadrar': {
+          // Pilar B: lo mismo que el botón «Cuadrar» de la pista, con los ajustes de Claude.
+          const pista = s.project.tracks.find((t) => t.notas && t.name === paso.pista);
+          if (!pista?.notas) return { estado: 'saltado', nota: 'No encuentro esa pista tocada en la pantalla.' };
+          const ajustes = ajustesParaCuadrar(pista.notas.bruto, pista.notas.ajustes, {
+            fuerza: paso.fuerza / 100,
+            swing: paso.swing / 100,
+            humanizar: paso.humanizar,
+            inicioBeat: (pista.clip.start * s.project.bpm) / 60,
+            semilla: (Date.now() % 9973) + 1,
+          });
+          const ok = await rehacerPistaDeNotas(s, pista.id, { ajustes });
+          if (!ok) return { estado: 'fallo', nota: 'No he podido rehacer el sonido de la pista.' };
+          cambiarCerebro((c) => apuntarUso(c, 'cuadrar'));
+          return { estado: 'hecho' };
+        }
       }
     },
     [cambiarCerebro],
@@ -214,6 +235,22 @@ export function useProductor(studio: Studio, musico: Musico, pulsosPorCompas: nu
             nombre: t.name,
             ia: Boolean(t.ia),
             segundos: t.clip.duration * t.clip.repeats,
+            // Pilar B: lo tocado en la pantalla va con su diagnóstico de tiempo.
+            notas: t.notas
+              ? {
+                  instrumento: getInstrumento(t.notas.instrumento).nombre.toLowerCase(),
+                  diagnostico:
+                    t.notas.bruto.length > 3
+                      ? describirDiagnostico(
+                          diagnosticar(t.notas.bruto, {
+                            bpm: t.notas.bpm,
+                            inicioBeat: (t.clip.start * t.notas.bpm) / 60,
+                            pulsosPorCompas: t.notas.pulsosPorCompas,
+                          }),
+                        )
+                      : null,
+                }
+              : null,
             mezcla: {
               volumenDb: dbDicho(t.volume),
               panorama: Math.round(m.panorama * 100),
@@ -292,6 +329,7 @@ export function useProductor(studio: Studio, musico: Musico, pulsosPorCompas: nu
         }
         cambiarTurno(id, (t) => ({ ...t, estado: 'listo' }));
       } catch (e) {
+        if (e instanceof FaltaCodigo) pendienteRef.current = pedido;
         cambiarTurno(id, (t) => ({ ...t, estado: 'fallo', error: (e as Error).message }));
       } finally {
         setOcupado(false);
@@ -299,10 +337,21 @@ export function useProductor(studio: Studio, musico: Musico, pulsosPorCompas: nu
     },
     [ocupado, pulsosPorCompas, ritmo, cambiarCerebro, cambiarTurno, cambiarPaso, ejecutar],
   );
+  const pedirRef = useRef(pedir);
+  pedirRef.current = pedir;
 
   const olvidar = useCallback((indice: number) => cambiarCerebro((c) => olvidarNota(c, indice)), [cambiarCerebro]);
   const olvidarTodo = useCallback(() => cambiarCerebro(() => cerebroVacio()), [cambiarCerebro]);
-  const codigoGuardado = useCallback(() => setNecesitaCodigo(false), []);
+
+  /** Con el código ya bueno, lo que se quedó esperando se pide otra vez, sin reescribirlo. */
+  const codigoGuardado = useCallback(() => {
+    setNecesitaCodigo(false);
+    const pendiente = pendienteRef.current;
+    pendienteRef.current = null;
+    if (!pendiente) return;
+    setTurnos((todos) => todos.filter((t) => !(t.estado === 'fallo' && t.pedido === pendiente)));
+    void pedirRef.current(pendiente);
+  }, []);
 
   return { turnos, cerebro, ocupado, necesitaCodigo, pedir, olvidar, olvidarTodo, codigoGuardado };
 }

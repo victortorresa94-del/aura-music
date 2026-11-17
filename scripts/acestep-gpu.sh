@@ -70,8 +70,45 @@ ACESTEP_API_KEY=$ACESTEP_API_KEY
 ==============================================================================
 Está listo cuando abajo salga «Uvicorn running on http://0.0.0.0:8001».
 Antes carga el modelo en la GPU: uno o dos minutos. Puedes cerrar esta
-pestaña, el servidor sigue. Al acabar, PARA EL POD en RunPod (Stop).
+pestaña, el servidor sigue.
 
 AVISO
 
-exec uv run acestep-api
+# ── Apagado automático ──────────────────────────────────────────────────
+# Un pod encendido cobra por segundo aunque nadie le pida nada (17-nov-2026,
+# el dueño: «se me han cobrado 10 $ por nada»). Cada petición que llega al
+# servidor (pistas, canciones, la comprobación de la app al abrirse) deja
+# una marca; si pasan APAGAR_TRAS_MIN minutos sin ninguna, el pod se para
+# solo con runpodctl, que RunPod trae instalado en cada pod con una clave
+# limitada a él mismo. Se vuelve a encender desde la app («Encender la
+# GPU») o con Start en RunPod. APAGAR_TRAS_MIN=0 lo desactiva.
+ACTIVIDAD="$BASE/.acestep-ultima-peticion"
+MINUTOS="${APAGAR_TRAS_MIN:-15}"
+LIMITE="${APAGAR_TRAS_SEG:-$((MINUTOS * 60))}"
+CADA="${VIGILAR_CADA_SEG:-60}"
+touch "$ACTIVIDAD"
+if [ -n "${RUNPOD_POD_ID:-}" ] && [ "$LIMITE" -gt 0 ] && command -v runpodctl >/dev/null 2>&1; then
+  (
+    while sleep "$CADA"; do
+      quieto=$(( $(date +%s) - $(stat -c %Y "$ACTIVIDAD") ))
+      if [ "$quieto" -ge "$LIMITE" ]; then
+        echo ">> $((LIMITE / 60)) minutos sin pedidos: apago el pod para que no cobre."
+        runpodctl pod stop "$RUNPOD_POD_ID" 2>/dev/null || runpodctl stop pod "$RUNPOD_POD_ID" ||
+          echo "!! No he podido pararlo solo: páralo con Stop en RunPod."
+        exit 0
+      fi
+    done
+  ) &
+  echo ">> Apagado automático: si pasan $((LIMITE / 60)) minutos sin pedidos, el pod se para solo."
+else
+  echo "!! Sin apagado automático (no estoy en RunPod o falta runpodctl): acuérdate de pulsar Stop."
+fi
+
+# El servidor escribe una línea por petición («"POST /release_task …"»):
+# cada una renueva la marca de actividad.
+uv run acestep-api 2>&1 | while IFS= read -r linea; do
+  printf '%s\n' "$linea"
+  case "$linea" in
+    *'"GET /'* | *'"POST /'*) touch "$ACTIVIDAD" ;;
+  esac
+done

@@ -1,0 +1,53 @@
+{
+  "_nota": "Plantillas de groove propias de Aura Music (sin licencia de terceros). Cada una es un compás de 4/4 a la rejilla indicada en pulsos: desfase en fracciones de paso (+ = más tarde) y fuerza relativa de cada paso.",
+  "plantillas": [
+    {
+      "id": "recta",
+      "nombre": "Recta",
+      "descripcion": "La rejilla tal cual, con los pulsos un poco más fuertes.",
+      "rejilla": 0.25,
+      "desfase": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "vel": [1.08, 0.9, 0.96, 0.9, 1.04, 0.9, 0.96, 0.9, 1.06, 0.9, 0.96, 0.9, 1.04, 0.9, 0.96, 0.9]
+    },
+    {
+      "id": "swing-suave",
+      "nombre": "Swing suave",
+      "descripcion": "Semicorcheas al 56 %, como una caja de ritmos de hip hop.",
+      "rejilla": 0.25,
+      "desfase": [0, 0.12, 0, 0.12, 0, 0.12, 0, 0.12, 0, 0.12, 0, 0.12, 0, 0.12, 0, 0.12],
+      "vel": [1.06, 0.82, 0.96, 0.84, 1.02, 0.82, 0.96, 0.84, 1.04, 0.82, 0.96, 0.84, 1.02, 0.82, 0.96, 0.84]
+    },
+    {
+      "id": "shuffle",
+      "nombre": "Shuffle",
+      "descripcion": "Corcheas de tresillo: el blues y el rock de los cincuenta.",
+      "rejilla": 0.5,
+      "desfase": [0, 0.333, 0, 0.333, 0, 0.333, 0, 0.333],
+      "vel": [1.06, 0.84, 1.0, 0.86, 1.04, 0.84, 1.0, 0.86]
+    },
+    {
+      "id": "detras",
+      "nombre": "Detrás del pulso",
+      "descripcion": "Todo un pelo tarde y el 2 y el 4 más tarde aún. Relajado, de soul.",
+      "rejilla": 0.25,
+      "desfase": [0, 0.06, 0.06, 0.06, 0.2, 0.06, 0.06, 0.06, 0.04, 0.06, 0.06, 0.06, 0.2, 0.06, 0.06, 0.06],
+      "vel": [1.04, 0.86, 0.94, 0.86, 1.08, 0.86, 0.94, 0.86, 1.02, 0.86, 0.94, 0.86, 1.08, 0.86, 0.94, 0.86]
+    },
+    {
+      "id": "rumba",
+      "nombre": "Rumba",
+      "descripcion": "Corcheas con el 3+3+2 marcado: uno, el «y» del dos y el cuatro.",
+      "rejilla": 0.5,
+      "desfase": [0, 0.04, 0.02, -0.02, 0.04, 0.02, -0.03, 0.04],
+      "vel": [1.12, 0.8, 0.86, 1.08, 0.8, 0.86, 1.06, 0.82]
+    },
+    {
+      "id": "dembow",
+      "nombre": "Dembow",
+      "descripcion": "Semicorcheas con el tres-tres-dos del reguetón, un poco empujado.",
+      "rejilla": 0.25,
+      "desfase": [0, 0, 0, -0.06, 0, 0, -0.04, 0, 0, 0, 0, -0.06, 0, 0, -0.04, 0],
+      "vel": [1.1, 0.78, 0.8, 1.04, 0.86, 0.78, 1.02, 0.8, 1.08, 0.78, 0.8, 1.04, 0.86, 0.78, 1.02, 0.8]
+    }
+  ]
+}

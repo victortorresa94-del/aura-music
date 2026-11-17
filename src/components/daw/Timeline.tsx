@@ -5,6 +5,7 @@ import type { PeakData, Track } from '@/lib/daw/types';
 import type { Studio } from '@/hooks/useStudio';
 import { cssColor, haptic, trackTint } from './theme';
 import { IconImport, IconMore, T, hintText, numeric } from './ui';
+import { IconTocar, NotasClip } from './instrumentos';
 
 /** Ancho de la columna de pistas en el móvil. En pantallas anchas crece. */
 export const HEADER_W = 128;
@@ -369,16 +370,21 @@ function ClipBlock({
       </div>
 
       <div style={{ position: 'absolute', left: 0, right: 0, top: CAPTION_H, bottom: 0 }}>
-        <Waveform
-          peaks={peaks}
-          offset={clip.offset}
-          duration={clip.duration}
-          repeats={clip.repeats}
-          width={width}
-          height={CLIP_H - CAPTION_H}
-          color={tint}
-          theme={theme}
-        />
+        {/* Pilar B: una pista tocada en la pantalla enseña sus notas, no la onda. */}
+        {track.notas ? (
+          <NotasClip notas={track.notas} clip={clip} pps={pps} width={width} height={CLIP_H - CAPTION_H} color={tint} theme={theme} />
+        ) : (
+          <Waveform
+            peaks={peaks}
+            offset={clip.offset}
+            duration={clip.duration}
+            repeats={clip.repeats}
+            width={width}
+            height={CLIP_H - CAPTION_H}
+            color={tint}
+            theme={theme}
+          />
+        )}
       </div>
 
       {/* separadores entre repeticiones */}
@@ -690,11 +696,14 @@ export function Timeline({
   onOpenTrack,
   onZoom,
   beatsPerBar = 4,
+  onTocar,
 }: {
   studio: Studio;
   pps: number;
   theme: string;
   onOpenTrack: () => void;
+  /** Pilar B: abre la pantalla «Tocar». Sin él, no sale el botón. */
+  onTocar?: () => void;
   /** Pellizco, Ctrl/⌘ + rueda o las teclas + y −. Sin él no hay zoom. */
   onZoom?: (pps: number) => void;
   /** Pulsos por compás para la regla: 4, o el ciclo del ritmo que suene. */
@@ -1032,10 +1041,10 @@ export function Timeline({
         {recording ? <RecordingRow studio={studio} pps={pps} headerW={headerW} laneStyle={laneStyle} /> : null}
 
         {project.tracks.length === 0 && !recording ? (
-          <EmptyState onImport={studio.importFile} width={viewport} />
+          <EmptyState onImport={studio.importFile} width={viewport} onTocar={onTocar} />
         ) : (
           <>
-            <AddTrackRow onImport={studio.importFile} headerW={headerW} laneWidth={laneWidth} laneStyle={laneStyle} wide={headerW > HEADER_W} />
+            <AddTrackRow onImport={studio.importFile} headerW={headerW} laneWidth={laneWidth} laneStyle={laneStyle} wide={headerW > HEADER_W} onTocar={onTocar} />
             {/* Relleno: la columna y la rejilla siguen hasta abajo, y deja
                 aire para que el aviso no tape la última pista. */}
             <div style={{ display: 'flex', flex: 1, minHeight: 72 }}>
@@ -1084,20 +1093,64 @@ function AddTrackRow({
   laneWidth,
   laneStyle,
   wide,
+  onTocar,
 }: {
   onImport: (file: File) => void | Promise<void>;
   headerW: number;
   laneWidth: number;
   laneStyle: React.CSSProperties;
   wide: boolean;
+  onTocar?: () => void;
 }) {
   return (
     <div style={{ display: 'flex', height: 56, flexShrink: 0, boxShadow: `inset 0 -1px 0 ${T.rowLine}` }}>
       <div style={{ ...headerCell(headerW), background: T.surface, justifyContent: 'center', padding: '0 6px' }}>
         <ImportButton onImport={onImport} text={wide ? 'Importar audio' : 'Importar'} />
       </div>
-      <div style={{ width: laneWidth, flexShrink: 0, ...laneStyle }} />
+      <div style={{ width: laneWidth, flexShrink: 0, ...laneStyle }}>
+        {/* Pilar B: tocar un instrumento es la otra forma de añadir una pista.
+            Pegado a la izquierda de la calle, para que no se vaya al desplazar. */}
+        {onTocar ? (
+          <div style={{ position: 'sticky', left: headerW, display: 'inline-flex', alignItems: 'center', height: '100%', paddingLeft: 8 }}>
+            <BotonTocar onTocar={onTocar} />
+          </div>
+        ) : null}
+      </div>
     </div>
+  );
+}
+
+/** Pilar B: el botón que abre la pantalla «Tocar». */
+function BotonTocar({ onTocar, prominent }: { onTocar: () => void; prominent?: boolean }) {
+  return (
+    <button
+      type="button"
+      className="daw-press daw-hover"
+      title="Tocar pads, teclado, acordes o bajo y grabarlo como notas"
+      onClick={() => {
+        haptic(10);
+        onTocar();
+      }}
+      style={{
+        ...botonPlano,
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 8,
+        minHeight: prominent ? 48 : 40,
+        padding: prominent ? '0 18px' : '0 12px',
+        borderRadius: prominent ? 12 : 10,
+        background: T.fill,
+        boxShadow: `inset 0 1px 0 ${T.rim}`,
+        color: T.text,
+        fontFamily: T.fontBody,
+        fontSize: prominent ? 15 : 13,
+        fontWeight: 600,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      <IconTocar size={prominent ? 18 : 16} color="currentColor" />
+      {prominent ? 'Tocar un instrumento' : 'Tocar'}
+    </button>
   );
 }
 
@@ -1218,7 +1271,15 @@ function Pill({
  * Estado vacío. Enseña lo que se hace aquí en una frase y apunta al botón de
  * grabar: el ojo tiene que saber en menos de un segundo qué toca, sin leer.
  */
-function EmptyState({ onImport, width }: { onImport: (file: File) => void | Promise<void>; width: number }) {
+function EmptyState({
+  onImport,
+  width,
+  onTocar,
+}: {
+  onImport: (file: File) => void | Promise<void>;
+  width: number;
+  onTocar?: () => void;
+}) {
   return (
     <div
       style={{
@@ -1255,7 +1316,11 @@ function EmptyState({ onImport, width }: { onImport: (file: File) => void | Prom
       <p style={{ ...hintText, fontSize: 13, color: T.faint, maxWidth: 300, marginBottom: 24 }}>
         Con cascos, para que la segunda toma no se coma a la primera.
       </p>
-      <ImportButton onImport={onImport} text="Importar un audio" prominent />
+      {/* Pilar B: sin micro también se empieza, tocando en la pantalla. */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 8 }}>
+        {onTocar ? <BotonTocar onTocar={onTocar} prominent /> : null}
+        <ImportButton onImport={onImport} text="Importar un audio" prominent />
+      </div>
       <svg width="22" height="56" viewBox="0 0 22 56" fill="none" aria-hidden style={{ marginTop: 24, opacity: 0.55 }}>
         <path d="M11 1v48" stroke={T.rec} strokeWidth="1.5" strokeLinecap="round" strokeDasharray="3 5" />
         <path d="m4.5 43 6.5 7 6.5-7" stroke={T.rec} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />

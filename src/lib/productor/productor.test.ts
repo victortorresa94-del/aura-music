@@ -66,6 +66,20 @@ describe('normalizarPlan', () => {
     );
     expect(tituloDelPaso({ tipo: 'al_momento', instrumento: 'bateria', estilo: 'rumba', porque: '' })).toMatch(/^Batería · /);
     expect(tituloDelPaso({ tipo: 'con_ia', instrumento: 'cuerdas', descripcion: '', porque: '' })).toBe('Cuerdas con IA');
+    expect(tituloDelPaso({ tipo: 'cuadrar', pista: 'Batería 808', fuerza: 70, swing: 0, humanizar: true, porque: '' })).toBe(
+      'Cuadrar Batería 808 al 70 % y humanizar',
+    );
+  });
+
+  it('solo cuadra pistas tocadas en la pantalla, y limita fuerza y swing', () => {
+    const pasos: Plan['pasos'] = [
+      { tipo: 'cuadrar', pista: 'Batería 808', fuerza: 140, swing: -5, humanizar: false, porque: 'x' },
+      { tipo: 'cuadrar', pista: 'Guitarra grabada', fuerza: 70, swing: 0, humanizar: false, porque: 'x' },
+    ];
+    const p = normalizarPlan(plan(pasos), { hayTomas: true, bpm: 96, pistasDeNotas: ['Batería 808'] });
+    expect(p.pasos).toHaveLength(1);
+    expect(p.pasos[0]).toMatchObject({ pista: 'Batería 808', fuerza: 100, swing: 0 });
+    expect(normalizarPlan(plan(pasos), { hayTomas: true, bpm: 96 }).pasos).toHaveLength(0);
   });
 });
 
@@ -193,7 +207,7 @@ describe('prompt', () => {
   it('el mensaje cuenta la toma, la IA y el cerebro, y acaba en el pedido', () => {
     const m = armarMensaje(peticion);
     expect(m).toContain('La menor');
-    expect(m).toContain('IA: apagada');
+    expect(m).toContain('ACE-Step en su GPU de RunPod): apagado');
     expect(m).toContain('Le tira la rumba');
     expect(m.trim().endsWith('Ponle un bajo funky')).toBe(true);
   });
@@ -232,13 +246,29 @@ describe('prompt', () => {
     expect(m).toContain('-3 dB');
     expect(m).toContain('reverb 22 %');
     expect(m).toContain('Master (pista 0)');
-    expect(SISTEMA).toContain('5. mezcla');
+    expect(SISTEMA).toContain('6. mezcla');
     expect(SISTEMA).toContain('guitarra-flamenca');
   });
 
   it('un móvil con la versión de antes (sin mezcla en el contexto) sigue valiendo', () => {
     expect(PeticionProductorSchema.safeParse(peticion).success).toBe(true);
     expect(armarMensaje(peticion)).toContain('1. Guitarra (12 s, grabada por él)');
+  });
+
+  it('cuenta las pistas tocadas en la pantalla con su diagnóstico', () => {
+    const conNotas = PeticionProductorSchema.parse({
+      ...peticion,
+      contexto: {
+        ...peticion.contexto,
+        pistas: [
+          ...peticion.contexto.pistas,
+          { nombre: 'Batería 808', ia: false, segundos: 9.6, notas: { instrumento: 'caja de ritmos 808', diagnostico: 'vas 14 ms por detrás' } },
+        ],
+      },
+    });
+    const m = armarMensaje(conNotas);
+    expect(m).toContain('Batería 808 (10 s, tocada en la pantalla con caja de ritmos 808: vas 14 ms por detrás)');
+    expect(SISTEMA).toContain('cuadrar');
   });
 
   it('rechaza pedidos vacíos o enormes', () => {

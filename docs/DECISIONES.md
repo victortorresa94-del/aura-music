@@ -140,7 +140,144 @@ Es lo mínimo antes de poner claves en un enlace público.
 guardar las ideas en `users/{uid}/auraMusicProjects` y compartir el cerebro de
 Aura a través de aura-mcp.
 
-## 0015 · El mezclador: un grafo, efectos nativos y masterizado en TS (17-nov-2026)
+## 0015 · La GPU se enciende desde la app y se apaga sola (17-nov-2026)
+
+El dueño: «¿la GPU gasta aunque no la use? se me han cobrado 10 $ por nada…
+quisiera usarla solo cuando uso la IA; un botón en la app». Ahora:
+- `scripts/acestep-gpu.sh` lleva un vigilante: cada petición deja una marca y
+  tras 15 minutos sin ninguna para el pod con `runpodctl pod stop`.
+- «Encender la GPU» (músico y productor) llama a `/api/gpu`, que con la API v2
+  de RunPod enciende el pod y, ya encendido, arranca ACE-Step dentro con
+  `/exec`: baja la última versión del script desde la propia app
+  (`public/acestep-gpu.sh`, copiado en `prebuild`) y le pasa la clave de
+  Vercel. Nadie vuelve a subir nada a Jupyter ni a copiar claves del pod.
+**Descartado (por ahora):** RunPod Serverless. Cobra solo por segundo de
+trabajo, pero hay que montar una imagen y un handler; con el apagado solo, el
+coste de estar quieto ya es como mucho 15 minutos.
+**Descartado:** cambiar el comando de arranque del pod para lanzar ACE-Step.
+Exige tocar la plantilla y, si se hace mal, el pod no arranca; `/exec` no
+toca nada del pod.
+
+## 0016 · La app instalada: Serwist, versiones sin sustos y la idea en un zip (17-nov-2026)
+
+Pilar E, ola 1. El service worker escrito a mano iba red primero para todo,
+solo guardaba `/` y dos iconos, se activaba solo (`skipWaiting`) y al
+activarse borraba cualquier caché que no fuera la suya, también las muestras
+de los instrumentos. Ahora es Serwist (`src/app/sw.ts`, sale a `public/sw.js`
+al compilar):
+- La app y los trozos de `_next/static` de cada compilación se guardan al
+  instalar. Páginas: red primero con 3 s de margen y, sin red, la última copia
+  o la app guardada (`/?app=guardada`). Estáticos, letras e iconos: caché
+  primero. `/api/*`: siempre red.
+- Al activarse borra solo sus cachés `aura-music-*` que ya no usa;
+  `aura-samples-*` nunca (`cachesQueSobran`, con test).
+- Sin `skipWaiting` automático: la versión nueva espera y la app dice «Nueva
+  versión · Actualizar». Solo se activa con el transporte parado y nada a
+  medias; guarda la idea y recarga. `reloadOnOnline` va apagado: Serwist
+  recarga por defecto al volver la cobertura, y eso cortaría una toma.
+- Manifest con `id`, maskable de 192 y 512, icono del atajo Grabar, tres
+  capturas `narrow` de 1170×2532 sacadas de la propia app con Chrome, y
+  `share_target`: el POST de Android lo recoge el worker, guarda el audio y la
+  app ofrece «Meter en la idea» (el toque hace falta para arrancar el audio).
+- iPhone: `audioSession` ya estaba bien (`playback` antes de crear el
+  contexto, `play-and-record` antes del micro) y el micro ya solo se pedía al
+  grabar. El contexto que no vuelve tras otra app ya lo arregló `main`
+  (`contextoAtascado` y `AudioBloqueado`); aquí no se duplica. Nuevo: Wake
+  Lock se vuelve a pedir al volver a la app, y si la app se oculta a media
+  toma se para sin esperar la cola, se guarda y se avisa al volver.
+- Instalar: en iPhone sin instalar, una guía antes de la intro, porque no hay
+  botón posible y lo grabado en Safari no pasa a la app instalada. En
+  Android, aviso con `beforeinstallprompt`. El evento vive en un solo sitio
+  (`src/lib/pwa/instalacion.ts`) y lo leen el aviso y Ajustes.
+- Copias: «Exportar idea» da un zip (fflate, MIT) con `idea.json` y un WAV de
+  16 bits por audio; «Importar idea» nunca pisa: si la idea ya está, entra
+  como copia. Exportar va en dos toques porque Safari solo abre la hoja de
+  compartir dentro del toque que la pide. La ida y vuelta es exacta, muestra a
+  muestra (test). Para eso `floatToInt16` pasa a ser la inversa exacta de
+  `int16ToFloat`: antes, volver a guardar un audio ya guardado le quitaba un
+  bit.
+- Espacio: `storage.ts` da una escritura por buena cuando la transacción se
+  confirma, no cuando la petición dice «ok». Si no cabe, el navegador aborta
+  después con `QuotaExceededError`, y antes eso pasaba en silencio: la toma
+  parecía guardada y no lo estaba. Ahora falla de verdad y la app avisa («El
+  móvil está lleno»). En Ajustes, lo que ocupa (`estimate()`) y si está
+  protegido (`persist()`, que ya se pedía con la primera toma).
+**Descartado:** `next-pwa`, sin mantener, y el `defaultCache` de Serwist, que
+guarda respuestas de `/api`.
+**Descartado:** guardar `/` tal cual en el precache. Esa ruta sirve primero lo
+guardado y las páginas tienen que ir red primero; por eso la copia va con
+otra URL, que Next sirve igual.
+**Descartado:** comprimir el audio dentro del zip. Apenas encoge y en el móvil
+gasta batería.
+**Solo se comprueba en un iPhone de verdad:** `audioSession`, Wake Lock,
+cortar la toma al salir, la guía de instalar y guardar el zip en Archivos.
+
+## 0017 · Instrumentos en la pantalla: se graban notas y suena su audio (17-nov-2026)
+
+Pilar B, ola 1. Pantalla «Tocar» con pads (808, 909 y cajón), teclado,
+tiras de acordes y bajo. Lo que tocas se guarda como NOTAS en bruto
+(`Track.notas`: `{beat, dur, nota, vel}` en pulsos, con el instrumento y los
+ajustes) y la pista apunta a un audio hecho con esas notas en un
+OfflineAudioContext, con los mismos instrumentos que suenan al tocar
+(`src/lib/instrumentos/render.ts`). Así el motor, la mezcla y el WAV la tratan
+como cualquier toma sin saber nada de notas, y el mezclador de la sesión A le
+pone efectos igual que a una voz. Cuadrar, humanizar, cambiar de sonido o de
+tempo rehace ese audio sin tocar el bruto; el audio anterior se queda guardado
+y Deshacer vuelve a él al momento.
+- **Al tocar**, el sonido sale del `pointerdown` nativo, sin pasar por React:
+  medido en el PC, de 0,5 a 1,5 ms de código entre el dedo y el `start()`.
+  Cada golpe se coloca con `getOutputTimestamp`: se apunta lo que estabas
+  OYENDO al tocar, no la hora del reloj. Encima va la calibración propia del
+  toque («Toca 8 veces con la claqueta», mediana por dispositivo en
+  `localStorage`), distinta de la del micro.
+- **Grabar** usa `engine.play` con dos opciones nuevas (claqueta delante y no
+  pararse al final del proyecto) y `engine.posicionEn(t)`. La captura está
+  siempre encendida: «Recuperar lo último» convierte en pista lo que tocaste
+  sin grabar desde el último silencio de 4 s.
+- **«La IA lo graba bien»** (`src/lib/musico/groove/`, TS puro con tests):
+  quitar dobles golpes de menos de 30 ms, cuantizar con fuerza, swing y
+  ventana, plantillas de groove propias en un JSON, humanizar con ruido 1/f
+  (Voss-McCartney) que mueve juntos los golpes simultáneos, y un diagnóstico
+  («vas 12 ms por detrás; donde más, en el 3»). La IA solo elige ajustes: la
+  rejilla que mejor explica lo tocado y el 70 % de fuerza.
+- **Sonidos.** Batería sintetizada (808 y 909 rehechas con nodos: seno que cae
+  para el bombo, seis cuadradas de la 808 para el metal) y cajón con palmas y
+  pitos. Muestras de 5 paquetes, 3,2 MB en total, servidas desde
+  `public/samples/`, bajadas al abrir el instrumento y guardadas en Cache
+  Storage `aura-samples-v1`; la primera carga baja 0 MB. smplr (MIT) las toca
+  con un programador propio que entrega todo al momento (el suyo usa un
+  `setInterval` que pierde notas en un OfflineAudioContext). Licencias
+  comprobadas en la fuente: piano Salamander (CC BY 3.0, crédito en Ajustes),
+  bajo Growlybass de Karoryfer, piano eléctrico TX81Z de VCSL, cuerdas
+  VSCO-2-CE y guitarra de nailon de FreePats (CC0). Detalle y citas en
+  `public/samples/LICENCIAS.md`.
+- **Sin muestras** (sin red la primera vez) suena una síntesis en TypeScript
+  puro (la regla de la 0005): la cuerda de guitarra es Karplus-Strong ampliado
+  (afinada a menos de 6 cents, con test), y el piano, el bajo y el colchón
+  salen del sintetizador del músico. La pista guarda con qué sonó y se rehace
+  sola cuando llegan las muestras.
+- **Si cambia el tempo**, las pistas de notas se rehacen a tu tempo nuevo y el
+  clip se escala para seguir en su compás: el audio grabado no puede, las
+  notas sí. Por eso el productor puede cambiar el tempo aunque haya pistas de
+  notas (solo lo frena el audio grabado).
+- **El productor cuadra.** Paso nuevo `cuadrar` (pista, fuerza, swing,
+  humanizar): Claude ve cada pista tocada en la pantalla con su diagnóstico
+  («vas 14 ms por detrás; donde más, en el 3») y puede proponer «¿lo cuadro al
+  70 %?». La app solo acepta nombres de pistas de notas que existen.
+**Descartado:** sonar las notas en directo desde el motor (un secuenciador
+dentro de `engine.ts`). Habría que tocar `scheduleProject`, `renderMix` y lo
+que monte la sesión del mezclador, y el WAV necesitaría su propio camino.
+**Descartado:** Karplus-Strong en un AudioWorklet. En un OfflineAudioContext
+los mensajes al worklet llegan cuando quieren y el WAV saldría distinto de lo
+que oíste; en TypeScript, la misma función hace las dos cosas y se prueba sin
+navegador.
+**Descartado (licencias):** Splendid Grand Piano (el «dominio público» solo lo
+dice un tercero), las muestras de Iowa (licencia propia, no estándar),
+jRhodes3 (CC BY-NC) y Ovation Guitar (sin licencia).
+**Pendiente:** piano roll; plantillas de groove sacadas del Groove MIDI
+Dataset (CC BY 4.0); repetición de nota en los pads; teclados MIDI en Android;
+medir la latencia real en un iPhone.
+## 0018 · El mezclador: un grafo, efectos nativos y masterizado en TS (17-nov-2026)
 
 Pilar A de la ola 1. Mezclador a pantalla completa (el botón de los faders
 de la cabecera, en el sitio del engranaje, que repetía lo que ya hace tocar

@@ -1,11 +1,16 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useInstrumentos } from '@/hooks/useInstrumentos';
 import { useMusico } from '@/hooks/useMusico';
 import { useProductor } from '@/hooks/useProductor';
 import { useStudio } from '@/hooks/useStudio';
+import { usePwa } from '@/hooks/usePwa';
+import { AvisosPwa } from '@/components/pwa/AvisosPwa';
+import { GuiaInstalarIphone } from '@/components/pwa/GuiaInstalar';
 import { getCompas } from '@/lib/daw/rhythm/compases';
 import { getGroove } from '@/lib/daw/rhythm/grooves';
+import { TocarPantalla } from './instrumentos';
 import { MusicoSheet } from './MusicoSheet';
 import { ProductorSheet } from './ProductorSheet';
 import { useTheme } from '@/hooks/useTheme';
@@ -52,6 +57,14 @@ export default function StudioApp() {
   // deshacer); la pantalla solo se monta al abrirla.
   const mezcla = useMezcla(studio);
   const [mezclador, setMezclador] = useState(false);
+  // Pilar B: los instrumentos que se tocan en la pantalla.
+  const instrumentos = useInstrumentos(studio, ciclo?.pulsos ?? 4);
+  const [tocar, setTocar] = useState(false);
+  const tonoOido = studio.oido?.tonalidad ?? musico.escucha?.tonalidad ?? null;
+  const tonalidadSugerida = useMemo(
+    () => (tonoOido ? { tonica: tonoOido.tonica, modo: tonoOido.modo } : null),
+    [tonoOido],
+  );
   const { ready, project, status, busy, transport, setStatus, loadProjectAudio, engine, record, undo } =
     studio;
   const loadedRef = useRef<string | null>(null);
@@ -114,14 +127,8 @@ export default function StudioApp() {
     return () => window.clearTimeout(timer);
   }, [ready, record, autoGrabar]);
 
-  // Service worker: la app abre sin cobertura una vez visitada.
-  useEffect(() => {
-    if (!('serviceWorker' in navigator)) return;
-    if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') return;
-    navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {
-      /* sin service worker la app sigue funcionando, solo que sin offline */
-    });
-  }, []);
+  // PWA (pilar E): service worker, versiones nuevas, compartir y espacio.
+  const pwa = usePwa(studio);
 
   useEffect(() => {
     if (!status) return;
@@ -291,6 +298,10 @@ export default function StudioApp() {
           beatsPerBar={beatsPerBar}
           onZoom={setPps}
           onOpenTrack={() => setSheet('track')}
+          onTocar={() => {
+            engine?.unlockSync();
+            setTocar(true);
+          }}
         />
 
         {/* Lo que flota sobre la línea de tiempo: el aviso. Es el único
@@ -397,7 +408,18 @@ export default function StudioApp() {
         onClose={() => setMezclador(false)}
       />
 
+      <TocarPantalla
+        studio={studio}
+        instrumentos={instrumentos}
+        abierta={tocar}
+        onCerrar={() => setTocar(false)}
+        tonalidadSugerida={tonalidadSugerida}
+      />
+
       <FirstRun studio={studio} suprimida={autoGrabar} onRecord={() => void record()} />
+      {/* PWA (pilar E): avisos bajo la cabecera y, en iPhone sin instalar, cómo instalarla. */}
+      <AvisosPwa studio={studio} pwa={pwa} onAbrirAjustes={() => setSheet('settings')} />
+      <GuiaInstalarIphone />
 
       <style>{`
         ${THEME_CSS}
