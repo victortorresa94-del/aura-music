@@ -20,6 +20,7 @@ import { comprobarCodigo, guardarCodigo, leerCodigo } from '@/lib/acceso';
 import { sugerenciasDelCerebro } from '@/lib/productor/cerebro';
 import { tituloDelPaso } from '@/lib/productor/plan';
 import { haptic } from './theme';
+import { GpuControl } from './GpuControl';
 import { IconSend, IconSpark, Sheet, T, TextButton, hintText, label } from './ui';
 
 const TRABAJANDO: Record<PasoDelMusico, string> = {
@@ -86,6 +87,12 @@ export function ProductorSheet({
       ) : null}
 
       {pideCodigo && !sinClave ? <PedirCodigo onGuardado={codigoGuardado} /> : null}
+
+      {/* Para lo que toca con IA (cuerdas, metales, canciones) hace falta la GPU:
+          se enciende desde aquí mismo, sin ir a RunPod. */}
+      {!sinClave && !pideCodigo && musico.ia?.gpu && (!musico.ia.disponible || musico.gpu?.estado === 'encendiendo') ? (
+        <GpuControl musico={musico} compacto />
+      ) : null}
 
       {turnos.length === 0 && !sinClave ? (
         <div style={{ padding: '4px 0 20px' }}>

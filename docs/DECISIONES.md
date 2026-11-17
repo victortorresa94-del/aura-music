@@ -139,3 +139,21 @@ Es lo mínimo antes de poner claves en un enlace público.
 **Siguiente:** entrar con la cuenta de Aura (Firebase `aether-app-59bd1`),
 guardar las ideas en `users/{uid}/auraMusicProjects` y compartir el cerebro de
 Aura a través de aura-mcp.
+
+## 0015 · La GPU se enciende desde la app y se apaga sola (17-nov-2026)
+
+El dueño: «¿la GPU gasta aunque no la use? se me han cobrado 10 $ por nada…
+quisiera usarla solo cuando uso la IA; un botón en la app». Ahora:
+- `scripts/acestep-gpu.sh` lleva un vigilante: cada petición deja una marca y
+  tras 15 minutos sin ninguna para el pod con `runpodctl pod stop`.
+- «Encender la GPU» (músico y productor) llama a `/api/gpu`, que con la API v2
+  de RunPod enciende el pod y, ya encendido, arranca ACE-Step dentro con
+  `/exec`: baja la última versión del script desde la propia app
+  (`public/acestep-gpu.sh`, copiado en `prebuild`) y le pasa la clave de
+  Vercel. Nadie vuelve a subir nada a Jupyter ni a copiar claves del pod.
+**Descartado (por ahora):** RunPod Serverless. Cobra solo por segundo de
+trabajo, pero hay que montar una imagen y un handler; con el apagado solo, el
+coste de estar quieto ya es como mucho 15 minutos.
+**Descartado:** cambiar el comando de arranque del pod para lanzar ACE-Step.
+Exige tocar la plantilla y, si se hace mal, el pod no arranca; `/exec` no
+toca nada del pod.

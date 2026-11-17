@@ -12,3 +12,6 @@ Thumbs.db
 public/_prueba/
 
 .vercel
+
+# Copia del script de la GPU para servirlo (se genera en prebuild)
+public/acestep-gpu.sh

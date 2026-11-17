@@ -40,6 +40,8 @@ export interface EstadoIA {
   candado: boolean;
   /** Hay clave de Anthropic en el servidor: el productor puede pensar. */
   productor: boolean;
+  /** La GPU de RunPod se puede encender desde la app. */
+  gpu: boolean;
   /** Hay servidor configurado y responde. */
   disponible: boolean;
   /** Hay servidor configurado (aunque esté apagado). */
@@ -57,7 +59,20 @@ interface EstadoServidor {
   proveedor: string | null;
   candado?: boolean;
   productor?: boolean;
+  gpu?: boolean;
 }
+
+/** Cómo va la GPU mientras se enciende o se apaga desde la app. */
+export interface EstadoGpu {
+  estado: 'apagada' | 'encendiendo' | 'lista' | 'error';
+  detalle?: string;
+  /** Cuándo se pidió encenderla, para enseñar cuánto lleva. */
+  desde?: number;
+}
+
+/** Lo que se espera a que la GPU esté lista antes de rendirse: arrancar y cargar el modelo. */
+const PACIENCIA_GPU = 8 * 60_000;
+const CADA_GPU = 5000;
 
 /** Lo que se le pide al músico «al momento». */
 export type PeticionMomento =
@@ -124,6 +139,8 @@ export function useMusico(studio: Studio, ciclo?: CicloBajo) {
   const [paso, setPaso] = useState<Paso | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ia, setIa] = useState<EstadoIA | null>(null);
+  const [gpu, setGpu] = useState<EstadoGpu | null>(null);
+  const encendiendoRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
 
   /**
@@ -150,6 +167,7 @@ export function useMusico(studio: Studio, ciclo?: CicloBajo) {
         setIa({
           candado: Boolean(d.candado),
           productor: Boolean(d.productor),
+          gpu: Boolean(d.gpu),
           configurado: d.ia,
           disponible: d.ia && d.conectado !== false,
           prueba: Boolean(d.prueba),
@@ -157,7 +175,15 @@ export function useMusico(studio: Studio, ciclo?: CicloBajo) {
         });
       })
       .catch(() =>
-        setIa({ candado: false, productor: false, configurado: false, disponible: false, prueba: false, proveedor: null }),
+        setIa({
+          candado: false,
+          productor: false,
+          gpu: false,
+          configurado: false,
+          disponible: false,
+          prueba: false,
+          proveedor: null,
+        }),
       );
   }, []);
 
@@ -403,6 +429,61 @@ export function useMusico(studio: Studio, ciclo?: CicloBajo) {
     [engine, ciclo, recibir, addGeneratedTrack, project.tracks, project.bpm, setBpm, setStatus],
   );
 
+  /**
+   * Enciende la GPU desde la app y espera a que ACE-Step conteste. El pod
+   * cobra mientras está encendido; se apaga solo tras 15 minutos sin
+   * pedidos (scripts/acestep-gpu.sh). Pregunta cada 5 segundos: cada
+   * pregunta empuja un paso (encender el pod, arrancar ACE-Step dentro).
+   */
+  const encenderGpu = useCallback(async () => {
+    if (encendiendoRef.current) return;
+    encendiendoRef.current = true;
+    const desde = Date.now();
+    setGpu({ estado: 'encendiendo', detalle: 'Encendiendo el pod', desde });
+    try {
+      while (Date.now() - desde < PACIENCIA_GPU) {
+        const r = await pedirConCodigo('/api/gpu', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ accion: 'encender' }),
+        });
+        const d = (await r.json()) as { gpu?: EstadoGpu['estado']; detalle?: string; error?: string };
+        if (!r.ok || !d.gpu) throw new Error(d.error ?? 'No he podido encender la GPU.');
+        if (d.gpu === 'lista') {
+          setGpu({ estado: 'lista' });
+          comprobarIA();
+          setStatus('GPU lista: ya puedes pedir pistas con IA');
+          return;
+        }
+        if (d.gpu === 'error') throw new Error(d.detalle ?? 'RunPod dice que el pod tiene un problema.');
+        setGpu({ estado: 'encendiendo', detalle: d.detalle, desde });
+        await new Promise((resolve) => window.setTimeout(resolve, CADA_GPU));
+      }
+      throw new Error('La GPU tarda demasiado en estar lista. Mira el pod en RunPod.');
+    } catch (e) {
+      setGpu({ estado: 'error', detalle: (e as Error).message });
+    } finally {
+      encendiendoRef.current = false;
+    }
+  }, [comprobarIA, setStatus]);
+
+  const apagarGpu = useCallback(async () => {
+    try {
+      const r = await pedirConCodigo('/api/gpu', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accion: 'apagar' }),
+      });
+      const d = (await r.json()) as { error?: string };
+      if (!r.ok) throw new Error(d.error ?? 'No he podido apagar la GPU.');
+      setGpu({ estado: 'apagada' });
+      comprobarIA();
+      setStatus('GPU apagada: ya no cobra');
+    } catch (e) {
+      setGpu({ estado: 'error', detalle: (e as Error).message });
+    }
+  }, [comprobarIA, setStatus]);
+
   const cancelar = useCallback(() => abortRef.current?.abort(), []);
 
   return {
@@ -417,6 +498,9 @@ export function useMusico(studio: Studio, ciclo?: CicloBajo) {
     tocarConIA,
     crearCancion,
     cancelar,
+    gpu,
+    encenderGpu,
+    apagarGpu,
   };
 }
 
