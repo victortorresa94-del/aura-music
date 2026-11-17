@@ -186,7 +186,12 @@ y Deshacer vuelve a él al momento.
   sola cuando llegan las muestras.
 - **Si cambia el tempo**, las pistas de notas se rehacen a tu tempo nuevo y el
   clip se escala para seguir en su compás: el audio grabado no puede, las
-  notas sí.
+  notas sí. Por eso el productor puede cambiar el tempo aunque haya pistas de
+  notas (solo lo frena el audio grabado).
+- **El productor cuadra.** Paso nuevo `cuadrar` (pista, fuerza, swing,
+  humanizar): Claude ve cada pista tocada en la pantalla con su diagnóstico
+  («vas 14 ms por detrás; donde más, en el 3») y puede proponer «¿lo cuadro al
+  70 %?». La app solo acepta nombres de pistas de notas que existen.
 **Descartado:** sonar las notas en directo desde el motor (un secuenciador
 dentro de `engine.ts`). Habría que tocar `scheduleProject`, `renderMix` y lo
 que monte la sesión del mezclador, y el WAV necesitaría su propio camino.
@@ -199,4 +204,4 @@ dice un tercero), las muestras de Iowa (licencia propia, no estándar),
 jRhodes3 (CC BY-NC) y Ovation Guitar (sin licencia).
 **Pendiente:** piano roll; plantillas de groove sacadas del Groove MIDI
 Dataset (CC BY 4.0); repetición de nota en los pads; teclados MIDI en Android;
-medir la latencia real en un iPhone; un paso `cuadrar` en el productor.
+medir la latencia real en un iPhone.

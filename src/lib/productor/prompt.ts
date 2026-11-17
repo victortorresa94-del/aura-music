@@ -35,6 +35,7 @@ Tu trabajo es convertir cada pedido en un plan corto que la app ejecuta sola. So
 2. con_ia: ACE-Step, un modelo de música, escucha su toma y toca encima un instrumento real (bajo, batería, guitarra, teclado, cuerdas, metales, percusión o sinte). Tarda de 10 a 60 segundos y necesita que la IA esté encendida. La descripción va en inglés y concreta.
 3. tempo: cambia el tempo del proyecto. Solo si todavía no hay tomas grabadas: el audio grabado no se estira.
 4. cancion: ACE-Step crea una canción entera desde cero, sin toma, de ${SEGUNDOS_CANCION.min} a ${SEGUNDOS_CANCION.max} segundos, con o sin letra. Necesita la IA encendida.
+5. cuadrar: lleva a la rejilla una pista que tocó en la pantalla (pads, teclado, acordes o bajo), con la fuerza y el swing que digas, y si quieres le da un poco de mano. No borra lo tocado: se puede quitar. Solo vale para las pistas que dicen «tocada en la pantalla».
 
 Reglas:
 - Como mucho ${MAX_PASOS} pasos por pedido. Si pide «pistas sueltas» o «dos pistas», es un paso por instrumento.
@@ -44,6 +45,7 @@ Reglas:
 - Elige estilos y ritmos que encajen con el tempo, el compás y lo que sabes de sus gustos. Un ritmo flamenco no va sobre una balada pop salvo que lo pida.
 - Si el pedido no se puede hacer con estos pasos (mezclar, masterizar, cambiar una nota concreta), no inventes: dilo en la respuesta y propón lo más cercano.
 - Si solo charla o pregunta, contesta sin pasos.
+- Si una pista tocada en la pantalla va descuadrada (lo dice su diagnóstico) y pide arreglarla, usa cuadrar; si no lo pide, puedes proponerlo en la respuesta, como un productor: «lo has tocado bien pero arrastras en el 3; ¿lo cuadro al 70 %?».
 - La respuesta va en español de España, corta (una a tres frases), directa y cálida, como un productor que sabe lo que hace. Sin rayas largas. Habla de música, no de la app.
 - En «recuerda» apunta solo gustos nuevos y duraderos que deduzcas de verdad («le tira la rumba», «prefiere bajos con poco adorno»), nunca el pedido literal.
 - En «sugerencias», dos o tres siguientes pedidos que tengan sentido ahora, escritos como los diría él.
@@ -60,7 +62,15 @@ export const ContextoSchema = z.object({
     ritmo: z.string().max(80).nullable(),
   }),
   pistas: z
-    .array(z.object({ nombre: z.string().max(120), ia: z.boolean(), segundos: z.number().min(0).max(3600) }))
+    .array(
+      z.object({
+        nombre: z.string().max(120),
+        ia: z.boolean(),
+        segundos: z.number().min(0).max(3600),
+        // Pilar B: si se tocó en la pantalla, con qué y cómo va de tiempo.
+        notas: z.object({ instrumento: z.string().max(60), diagnostico: z.string().max(240).nullable() }).nullable().optional(),
+      }),
+    )
     .max(40),
   toma: z
     .object({
@@ -100,7 +110,7 @@ export function armarMensaje(p: PeticionProductor): string {
   );
   partes.push(
     pistas.length
-      ? `Pistas: ${pistas.map((t) => `${t.nombre} (${Math.round(t.segundos)} s${t.ia ? ', la ha puesto la máquina' : ', grabada por él'})`).join('; ')}.`
+      ? `Pistas: ${pistas.map((t) => `${t.nombre} (${Math.round(t.segundos)} s${t.notas ? `, tocada en la pantalla con ${t.notas.instrumento}${t.notas.diagnostico ? `: ${t.notas.diagnostico}` : ''}` : t.ia ? ', la ha puesto la máquina' : ', grabada por él'})`).join('; ')}.`
       : 'Todavía no hay pistas.',
   );
   partes.push(

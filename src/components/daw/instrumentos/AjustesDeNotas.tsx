@@ -6,7 +6,7 @@ import type { Studio } from '@/hooks/useStudio';
 import type { Track } from '@/lib/daw/types';
 import { INSTRUMENTOS, getInstrumento } from '@/lib/instrumentos/registro';
 import { AJUSTES_SIN_TOCAR, type AjustesGroove, type InstrumentoId } from '@/lib/instrumentos/tipos';
-import { diagnosticar, PLANTILLAS, rejillaSugerida } from '@/lib/musico/groove';
+import { ajustesParaCuadrar, describirDiagnostico, diagnosticar, PLANTILLAS } from '@/lib/musico/groove';
 import { haptic, T } from '../theme';
 import { Field, Segmented, Slider, Toggle, hintText, label } from '../ui';
 import { BotonBarra } from './Teclado';
@@ -58,11 +58,7 @@ export function AjustesDeNotas({ studio, track }: { studio: Studio; track: Track
   const cuadrarPorDefecto = () => {
     // La IA elige la rejilla escuchando lo que tocaste; la fuerza se queda en
     // el 70 %, que corrige sin dejarlo de máquina.
-    const rejilla = rejillaSugerida(notas.bruto, inicioBeat);
-    aplicar(
-      { ...borrador, cuadrar: { rejilla, fuerza: 0.7, swing: 0, ventana: 1, plantilla: null } },
-      'Cuadrado al 70 %',
-    );
+    aplicar(ajustesParaCuadrar(notas.bruto, borrador, { fuerza: 0.7, swing: 0, humanizar: false, inicioBeat }), 'Cuadrado al 70 %');
   };
 
   const cuadrar = borrador.cuadrar;
@@ -252,12 +248,7 @@ export function AjustesDeNotas({ studio, track }: { studio: Studio; track: Track
 }
 
 function textoDiagnostico(d: ReturnType<typeof diagnosticar>): string {
-  const lado = d.desvioMs > 4 ? `vas ${d.desvioMs} ms por detrás` : d.desvioMs < -4 ? `vas ${-d.desvioMs} ms por delante` : 'vas a tiempo';
-  const peor =
-    d.peorPulso && Math.abs(d.peorPulso.ms) >= 12
-      ? `; donde más te vas es en el ${d.peorPulso.pulso} (${d.peorPulso.ms > 0 ? '+' : '−'}${Math.abs(d.peorPulso.ms)} ms)`
-      : '';
-  return `Te he escuchado: ${lado}, con ${d.irregularidadMs} ms de baile de media${peor}. Cuadrar lo arregla sin dejarlo de máquina.`;
+  return `Te he escuchado: ${describirDiagnostico(d)}. Cuadrar lo arregla sin dejarlo de máquina.`;
 }
 
 function Deslizador({

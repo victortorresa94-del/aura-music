@@ -240,6 +240,30 @@ export function rejillaSugerida(golpes: Golpe[], inicioBeat: number): number {
   return 0.25;
 }
 
+/**
+ * Los ajustes de «Cuadrar» a partir de lo que pide alguien (el botón de la
+ * pista o el productor): la rejilla la elige la escucha, la fuerza y el swing
+ * vienen de fuera, y lo demás que hubiera se respeta.
+ */
+export function ajustesParaCuadrar(
+  bruto: Golpe[],
+  actuales: AjustesGroove,
+  o: { fuerza: number; swing: number; humanizar: boolean; inicioBeat: number; semilla?: number },
+): AjustesGroove {
+  const entre0y1 = (v: number) => Math.max(0, Math.min(1, Number.isFinite(v) ? v : 0));
+  return {
+    ...actuales,
+    cuadrar: {
+      rejilla: rejillaSugerida(bruto, o.inicioBeat),
+      fuerza: entre0y1(o.fuerza),
+      swing: entre0y1(o.swing),
+      ventana: 1,
+      plantilla: null,
+    },
+    humanizar: o.humanizar ? { cantidad: 0.45, semilla: o.semilla ?? 1 } : actuales.humanizar,
+  };
+}
+
 export interface Diagnostico {
   /** Desvío medio con signo frente a la rejilla, en ms (+ = tarde). */
   desvioMs: number;
@@ -282,4 +306,15 @@ export function diagnosticar(
     if (!peorPulso || Math.abs(media) > Math.abs(peorPulso.ms)) peorPulso = { pulso, ms: Math.round(media) };
   }
   return { desvioMs: Math.round(suma / n), irregularidadMs: Math.round(sumaAbs / n), peorPulso };
+}
+
+/** El diagnóstico en una frase de músico: «vas 12 ms por detrás, con 18 ms de baile; donde más, en el 3 (+28 ms)». */
+export function describirDiagnostico(d: Diagnostico): string {
+  const lado =
+    d.desvioMs > 4 ? `vas ${d.desvioMs} ms por detrás` : d.desvioMs < -4 ? `vas ${-d.desvioMs} ms por delante` : 'vas a tiempo';
+  const peor =
+    d.peorPulso && Math.abs(d.peorPulso.ms) >= 12
+      ? `; donde más te vas es en el ${d.peorPulso.pulso} (${d.peorPulso.ms > 0 ? '+' : '−'}${Math.abs(d.peorPulso.ms)} ms)`
+      : '';
+  return `${lado}, con ${d.irregularidadMs} ms de baile de media${peor}`;
 }

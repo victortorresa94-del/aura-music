@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { Golpe } from '@/lib/instrumentos/tipos';
 import {
+  ajustesParaCuadrar,
   cuantizar,
+  describirDiagnostico,
   diagnosticar,
   humanizar,
   PLANTILLAS,
@@ -144,6 +146,21 @@ describe('rejillaSugerida y diagnosticar', () => {
 
   it('con pocos golpes no se arriesga: semicorcheas', () => {
     expect(rejillaSugerida([g(0), g(0.147)], 0)).toBe(0.25);
+  });
+
+  it('los ajustes de «Cuadrar» eligen la rejilla y respetan lo demás', () => {
+    const corcheas = Array.from({ length: 8 }, (_, i) => g(i * 0.5 + (i % 2 ? ms(9) : -ms(6))));
+    const ajustes = ajustesParaCuadrar(corcheas, { limpiar: false, cuadrar: null, humanizar: null }, { fuerza: 1.4, swing: 0.2, humanizar: true, inicioBeat: 0, semilla: 5 });
+    expect(ajustes.limpiar).toBe(false);
+    expect(ajustes.cuadrar).toMatchObject({ rejilla: 0.5, fuerza: 1, swing: 0.2, plantilla: null });
+    expect(ajustes.humanizar?.semilla).toBe(5);
+  });
+
+  it('describe el diagnóstico como lo diría un músico', () => {
+    expect(describirDiagnostico({ desvioMs: 14, irregularidadMs: 20, peorPulso: { pulso: 3, ms: 31 } })).toBe(
+      'vas 14 ms por detrás, con 20 ms de baile de media; donde más te vas es en el 3 (+31 ms)',
+    );
+    expect(describirDiagnostico({ desvioMs: 1, irregularidadMs: 6, peorPulso: null })).toBe('vas a tiempo, con 6 ms de baile de media');
   });
 
   it('dice en qué pulso arrastras', () => {
