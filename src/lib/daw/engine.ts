@@ -18,6 +18,16 @@ import type { Project, StudioSettings, Track, TransportState } from './types';
 import { projectDuration } from './types';
 
 const LEAD_TIME = 0.12;
+/** Lo que se espera a que iOS despierte el audio antes de darlo por atascado. */
+const RESUME_MS = 1200;
+
+/** El audio del sistema no arranca: hay que volver a tocar para rehacerlo. */
+export class AudioBloqueado extends Error {
+  constructor() {
+    super('El audio del móvil se ha quedado bloqueado. Toca otra vez y lo despierto.');
+    this.name = 'AudioBloqueado';
+  }
+}
 const SCHEDULER_INTERVAL = 25;
 const SCHEDULER_LOOKAHEAD = 0.2;
 const FADE_TIME = 0.006;
@@ -46,6 +56,8 @@ export class StudioEngine {
   private buffers = new Map<string, AudioBuffer>();
   private sources: AudioBufferSourceNode[] = [];
   private trackGains = new Map<string, GainNode>();
+  /** El contexto no arrancó tras volver de otra app: el próximo toque lo rehace. */
+  private contextoAtascado = false;
 
   private recorder: Recorder | null = null;
   private stream: MediaStream | null = null;
@@ -145,7 +157,8 @@ export class StudioEngine {
    * cuanto la ejecución cruza una promesa.
    */
   unlockSync(): AudioContext {
-    if (!this.ctx || this.ctx.state === 'closed' || isInterrupted(this.ctx)) {
+    if (!this.ctx || this.ctx.state === 'closed' || isInterrupted(this.ctx) || this.contextoAtascado) {
+      this.contextoAtascado = false;
       // Los AudioBuffer no pertenecen a ningún contexto, así que las pistas
       // grabadas sobreviven al cambio. El worklet sí se vuelve a registrar.
       const previous = this.ctx;
@@ -162,9 +175,32 @@ export class StudioEngine {
     return ctx;
   }
 
+  /**
+   * Nunca se queda esperando para siempre. En iOS 26, al volver de otra app,
+   * `resume()` a veces no vuelve nunca (WebKit 291892): antes eso dejaba el
+   * play colgado y, con él, el candado del transporte, así que el botón ya no
+   * respondía hasta recargar (17-nov-2026, el dueño: «no me va el play en el
+   * móvil»). Ahora se espera como mucho RESUME_MS; si el contexto no arranca,
+   * se marca como atascado y el siguiente toque lo rehace entero dentro del
+   * gesto, que es lo único que iOS acepta.
+   */
   async ensureContext(): Promise<AudioContext> {
     const ctx = this.unlockSync();
-    if (ctx.state !== 'running') await ctx.resume().catch(() => undefined);
+    if (ctx.state !== 'running') {
+      await Promise.race([
+        ctx.resume().catch(() => undefined),
+        new Promise((resolve) => setTimeout(resolve, RESUME_MS)),
+      ]);
+      // TS cree que el estado no cambia tras el await; en el navegador sí.
+      if ((ctx.state as AudioContextState) !== 'running') this.contextoAtascado = true;
+    }
+    return ctx;
+  }
+
+  /** Para el transporte: sin el audio en marcha no se arranca, se avisa. */
+  private async contextoEnMarcha(): Promise<AudioContext> {
+    const ctx = await this.ensureContext();
+    if (ctx.state !== 'running') throw new AudioBloqueado();
     return ctx;
   }
 
@@ -298,7 +334,7 @@ export class StudioEngine {
 
   async play(project: Project, settings: StudioSettings, from?: number) {
     if (this.state !== 'stopped') await this.stop();
-    const ctx = await this.ensureContext();
+    const ctx = await this.contextoEnMarcha();
     this.reviewReturn = null;
     this.project = project;
     this.settings = settings;
@@ -326,7 +362,7 @@ export class StudioEngine {
 
   async record(project: Project, settings: StudioSettings, from?: number) {
     if (this.state !== 'stopped') await this.stop();
-    const ctx = await this.ensureContext();
+    const ctx = await this.contextoEnMarcha();
     if (!this.recorder) throw new Error('Micrófono no disponible');
 
     this.project = project;

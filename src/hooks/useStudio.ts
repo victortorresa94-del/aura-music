@@ -9,7 +9,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { computePeaks } from '@/lib/daw/audio';
-import { StudioEngine, type RecordingTake } from '@/lib/daw/engine';
+import { AudioBloqueado, StudioEngine, type RecordingTake } from '@/lib/daw/engine';
 import { detectarTempo, type TempoResult } from '@/lib/daw/analysis/tempo';
 import { detectarTonalidad, type KeyResult } from '@/lib/daw/analysis/key';
 import {
@@ -525,6 +525,10 @@ export function useStudio() {
     lockRef.current = true;
     try {
       await action();
+    } catch (error) {
+      // iOS dejó el audio sin arrancar: se avisa y el siguiente toque lo rehace.
+      if (error instanceof AudioBloqueado) setStatus(error.message);
+      else throw error;
     } finally {
       lockRef.current = false;
     }
