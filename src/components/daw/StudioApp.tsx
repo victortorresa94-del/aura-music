@@ -4,6 +4,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMusico } from '@/hooks/useMusico';
 import { useProductor } from '@/hooks/useProductor';
 import { useStudio } from '@/hooks/useStudio';
+import { usePwa } from '@/hooks/usePwa';
+import { AvisosPwa } from '@/components/pwa/AvisosPwa';
+import { GuiaInstalarIphone } from '@/components/pwa/GuiaInstalar';
 import { getCompas } from '@/lib/daw/rhythm/compases';
 import { getGroove } from '@/lib/daw/rhythm/grooves';
 import { MusicoSheet } from './MusicoSheet';
@@ -106,14 +109,8 @@ export default function StudioApp() {
     return () => window.clearTimeout(timer);
   }, [ready, record, autoGrabar]);
 
-  // Service worker: la app abre sin cobertura una vez visitada.
-  useEffect(() => {
-    if (!('serviceWorker' in navigator)) return;
-    if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') return;
-    navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {
-      /* sin service worker la app sigue funcionando, solo que sin offline */
-    });
-  }, []);
+  // PWA (pilar E): service worker, versiones nuevas, compartir y espacio.
+  const pwa = usePwa(studio);
 
   useEffect(() => {
     if (!status) return;
@@ -378,6 +375,9 @@ export default function StudioApp() {
       />
 
       <FirstRun studio={studio} suprimida={autoGrabar} onRecord={() => void record()} />
+      {/* PWA (pilar E): avisos bajo la cabecera y, en iPhone sin instalar, cómo instalarla. */}
+      <AvisosPwa studio={studio} pwa={pwa} onAbrirAjustes={() => setSheet('settings')} />
+      <GuiaInstalarIphone />
 
       <style>{`
         ${THEME_CSS}

@@ -78,11 +78,17 @@ export class StudioEngine {
   private project: Project | null = null;
   private settings: StudioSettings | null = null;
   private stopping: Promise<void> | null = null;
+  /** PWA (pilar E): el último resume() no devolvió el sonido; el siguiente toque rehace el contexto. */
+  private rehacerEnSiguienteToque = false;
+  /** PWA: el audio ha llegado a sonar en esta sesión. Antes de eso, dormido es lo normal. */
+  private haSonado = false;
 
   onTick: ((info: TickInfo) => void) | null = null;
   onLevel: ((level: number) => void) | null = null;
   onTakeReady: ((take: RecordingTake) => void) | null = null;
   onStateChange: ((state: TransportState) => void) | null = null;
+  /** PWA: el audio no ha vuelto tras un toque; el siguiente lo rehace. */
+  onContextoDormido: (() => void) | null = null;
 
   /* ------------------------------------------------------------------ */
   /* Contexto                                                            */
@@ -104,6 +110,10 @@ export class StudioEngine {
       window.AudioContext ||
       (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     const ctx = new Ctor({ latencyHint: 'interactive' });
+    // PWA: solo se vigila un contexto que se ha dormido, no uno que nunca ha sonado.
+    ctx.addEventListener('statechange', () => {
+      if (ctx.state === 'running') this.haSonado = true;
+    });
 
     const master = ctx.createGain();
     master.gain.value = 1;
@@ -145,7 +155,11 @@ export class StudioEngine {
    * cuanto la ejecución cruza una promesa.
    */
   unlockSync(): AudioContext {
-    if (!this.ctx || this.ctx.state === 'closed' || isInterrupted(this.ctx)) {
+    // PWA: también se rehace si el toque anterior no consiguió despertarlo
+    // (ver `vigilarReanudacion`). Nunca a media toma: se llevaría el micro.
+    const dormido = this.rehacerEnSiguienteToque && this.state === 'stopped';
+    if (!this.ctx || this.ctx.state === 'closed' || isInterrupted(this.ctx) || dormido) {
+      this.rehacerEnSiguienteToque = false;
       // Los AudioBuffer no pertenecen a ningún contexto, así que las pistas
       // grabadas sobreviven al cambio. El worklet sí se vuelve a registrar.
       const previous = this.ctx;
@@ -159,12 +173,39 @@ export class StudioEngine {
     const ctx = this.ctx!;
     void ctx.resume();
     primeContext(ctx);
+    this.vigilarReanudacion(ctx);
     return ctx;
+  }
+
+  /**
+   * PWA (pilar E). Al volver a la app en un iPhone el contexto a veces se
+   * queda 'suspended' o 'interrupted' aunque se le pida resume() dentro del
+   * toque, y todo suena mudo. Se le da un segundo; si sigue dormido, el
+   * SIGUIENTE toque lo rehace entero (rehacerlo ahora, fuera del gesto, daría
+   * otro contexto igual de dormido).
+   */
+  private vigilarReanudacion(ctx: AudioContext) {
+    // Al abrir la app el contexto nace dormido hasta el primer toque: eso no
+    // es un fallo y no hay nada que rehacer.
+    if (ctx.state === 'running' || !this.haSonado || typeof window === 'undefined') return;
+    window.setTimeout(() => {
+      if (this.ctx !== ctx || ctx.state === 'running') return;
+      this.rehacerEnSiguienteToque = true;
+      this.onContextoDormido?.();
+    }, 1000);
   }
 
   async ensureContext(): Promise<AudioContext> {
     const ctx = this.unlockSync();
-    if (ctx.state !== 'running') await ctx.resume().catch(() => undefined);
+    // Con un tope de un segundo: en iOS un resume() sobre un contexto
+    // interrumpido puede no resolverse nunca, y el transporte se quedaba
+    // bloqueado esperándolo (ningún botón respondía).
+    if (ctx.state !== 'running') {
+      await Promise.race([
+        ctx.resume().catch(() => undefined),
+        new Promise((resolve) => setTimeout(resolve, 1000)),
+      ]);
+    }
     return ctx;
   }
 
@@ -373,16 +414,21 @@ export class StudioEngine {
    * toques seguidos al botón podrían cerrar la misma toma dos veces y crear
    * una pista fantasma. La primera llamada manda; las demás esperan.
    */
-  async stop(): Promise<void> {
+  async stop(opciones: { inmediata?: boolean } = {}): Promise<void> {
     if (this.stopping) return this.stopping;
     if (this.state === 'stopped') return;
-    this.stopping = this.doStop().finally(() => {
+    this.stopping = this.doStop(opciones.inmediata === true).finally(() => {
       this.stopping = null;
     });
     return this.stopping;
   }
 
-  private async doStop(): Promise<void> {
+  /**
+   * `inmediata` (PWA): la app se va a segundo plano a media toma. No se espera
+   * la cola de la última nota: iOS congela la página en nada y lo que importa
+   * es sacar lo grabado y guardarlo antes.
+   */
+  private async doStop(inmediata = false): Promise<void> {
     const wasRecording = this.state === 'recording' || this.state === 'countin';
     const ctx = this.ctx;
     const endPosition = wasRecording
@@ -397,7 +443,7 @@ export class StudioEngine {
       // La cola de la interpretación todavía está viajando por el sistema:
       // si cortamos ahora, la última nota se queda a medias.
       const tail = Math.min(600, this.recordLatencySeconds * 1000 + 150);
-      await new Promise((resolve) => setTimeout(resolve, tail));
+      if (!inmediata) await new Promise((resolve) => setTimeout(resolve, tail));
       const { samples, sampleRate } = this.recorder.stop();
       // Se vuelve a modo reproducción antes de que pueda darle al play.
       setAudioSession('playback');
