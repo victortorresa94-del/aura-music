@@ -8,6 +8,7 @@ import type { Project } from '@/lib/daw/types';
 import type { Studio } from '@/hooks/useStudio';
 import { CampoCopias, CampoEspacio, CampoInstalar } from '@/components/pwa/AjustesPwa';
 import type { ThemeMode } from './theme';
+import { CreditosDeSonidos } from './instrumentos';
 import { inputStyle } from './TrackPanel';
 import { Field, IconButton, IconTrash, Readout, Segmented, Sheet, Slider, T, TextButton, Toggle, hintText, label, numeric, tabular } from './ui';
 
@@ -416,6 +417,9 @@ export function SettingsSheet({
       </Field>
 
       <CampoInstalar />
+
+      {/* Pilar B: de dónde salen los sonidos de los instrumentos (CC BY exige el crédito a la vista). */}
+      <CreditosDeSonidos />
 
       {/* Lo de cuando algo no suena: abajo, que se busca solo cuando hace falta. */}
       <Field

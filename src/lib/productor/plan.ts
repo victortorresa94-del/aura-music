@@ -49,6 +49,15 @@ export const PasoSchema = z.discriminatedUnion('tipo', [
     tonalidad: z.string().nullable().describe('En inglés, como «A minor», o null.'),
     porque,
   }),
+  // Pilar B: cuadrar una pista tocada en la pantalla (ver src/lib/musico/groove).
+  z.object({
+    tipo: z.literal('cuadrar'),
+    pista: z.string().describe('Nombre exacto de una pista tocada en la pantalla.'),
+    fuerza: z.number().describe('De 0 a 100: cuánto se lleva a la rejilla. 70 corrige sin dejarlo de máquina.'),
+    swing: z.number().describe('De 0 a 100. 0 es recto; a partir de 30 ya se nota.'),
+    humanizar: z.boolean().describe('Además, un poco de mano: desvíos pequeños y con memoria.'),
+    porque,
+  }),
 ]);
 
 export const PlanSchema = z.object({
@@ -70,6 +79,8 @@ export interface SituacionDelPlan {
   /** Hay tomas grabadas: el tempo ya no se toca, lo marca el audio. */
   hayTomas: boolean;
   bpm: number;
+  /** Pilar B: nombres de las pistas tocadas en la pantalla, las únicas que se cuadran. */
+  pistasDeNotas?: string[];
 }
 
 const ESTILOS_BAJO = new Set<string>(ESTILOS.map((e) => e.id));
@@ -119,6 +130,16 @@ export function normalizarPlan(plan: Plan, situacion: SituacionDelPlan): Plan {
           porque: recortar(paso.porque, 200),
         });
         break;
+      case 'cuadrar':
+        // Solo lo tocado en la pantalla: el audio grabado no tiene notas que mover.
+        if (!situacion.pistasDeNotas?.includes(paso.pista)) break;
+        pasos.push({
+          ...paso,
+          fuerza: Math.round(limitar(Number.isFinite(paso.fuerza) ? paso.fuerza : 70, 0, 100)),
+          swing: Math.round(limitar(Number.isFinite(paso.swing) ? paso.swing : 0, 0, 100)),
+          porque: recortar(paso.porque, 200),
+        });
+        break;
     }
   }
   return {
@@ -144,6 +165,8 @@ export function tituloDelPaso(paso: Paso): string {
       return `Tempo a ${paso.bpm} BPM`;
     case 'cancion':
       return `Canción de ${paso.segundos} s${paso.letra ? ' con letra' : ''}`;
+    case 'cuadrar':
+      return `Cuadrar ${paso.pista} al ${paso.fuerza} %${paso.humanizar ? ' y humanizar' : ''}`;
   }
 }
 

@@ -1,0 +1,82 @@
+{
+  "id": "guitarra",
+  "nombre": "Guitarra española de nailon (FreePats Spanish Classical Guitar)",
+  "autor": "Proyecto FreePats (freepats.zenvoid.org)",
+  "origen": "https://freepats.zenvoid.org/Guitar/SpanishClassicalGuitar/SpanishClassicalGuitar-SFZ+FLAC-20190618.7z",
+  "licencia": "CC0-1.0",
+  "urlLicencia": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "creditos": "",
+  "archivos": [
+    {
+      "nombre": "40.mp3",
+      "midi": 40,
+      "bytes": 19359
+    },
+    {
+      "nombre": "43.mp3",
+      "midi": 43,
+      "bytes": 17564
+    },
+    {
+      "nombre": "47.mp3",
+      "midi": 47,
+      "bytes": 16443
+    },
+    {
+      "nombre": "50.mp3",
+      "midi": 50,
+      "bytes": 16603
+    },
+    {
+      "nombre": "53.mp3",
+      "midi": 53,
+      "bytes": 17252
+    },
+    {
+      "nombre": "56.mp3",
+      "midi": 56,
+      "bytes": 16340
+    },
+    {
+      "nombre": "60.mp3",
+      "midi": 60,
+      "bytes": 15614
+    },
+    {
+      "nombre": "64.mp3",
+      "midi": 64,
+      "bytes": 18474
+    },
+    {
+      "nombre": "67.mp3",
+      "midi": 67,
+      "bytes": 17409
+    },
+    {
+      "nombre": "70.mp3",
+      "midi": 70,
+      "bytes": 16003
+    },
+    {
+      "nombre": "73.mp3",
+      "midi": 73,
+      "bytes": 12417
+    },
+    {
+      "nombre": "76.mp3",
+      "midi": 76,
+      "bytes": 11461
+    },
+    {
+      "nombre": "79.mp3",
+      "midi": 79,
+      "bytes": 11376
+    },
+    {
+      "nombre": "83.mp3",
+      "midi": 83,
+      "bytes": 7890
+    }
+  ],
+  "bytes": 214205
+}

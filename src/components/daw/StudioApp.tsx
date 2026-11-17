@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useInstrumentos } from '@/hooks/useInstrumentos';
 import { useMusico } from '@/hooks/useMusico';
 import { useProductor } from '@/hooks/useProductor';
 import { useStudio } from '@/hooks/useStudio';
@@ -9,6 +10,7 @@ import { AvisosPwa } from '@/components/pwa/AvisosPwa';
 import { GuiaInstalarIphone } from '@/components/pwa/GuiaInstalar';
 import { getCompas } from '@/lib/daw/rhythm/compases';
 import { getGroove } from '@/lib/daw/rhythm/grooves';
+import { TocarPantalla } from './instrumentos';
 import { MusicoSheet } from './MusicoSheet';
 import { ProductorSheet } from './ProductorSheet';
 import { useTheme } from '@/hooks/useTheme';
@@ -47,6 +49,14 @@ export default function StudioApp() {
   }, [groove]);
   const musico = useMusico(studio, ciclo);
   const productor = useProductor(studio, musico, ciclo?.pulsos ?? 4, groove?.nombre ?? null);
+  // Pilar B: los instrumentos que se tocan en la pantalla.
+  const instrumentos = useInstrumentos(studio, ciclo?.pulsos ?? 4);
+  const [tocar, setTocar] = useState(false);
+  const tonoOido = studio.oido?.tonalidad ?? musico.escucha?.tonalidad ?? null;
+  const tonalidadSugerida = useMemo(
+    () => (tonoOido ? { tonica: tonoOido.tonica, modo: tonoOido.modo } : null),
+    [tonoOido],
+  );
   const { ready, project, status, busy, transport, setStatus, loadProjectAudio, engine, record, undo } =
     studio;
   const loadedRef = useRef<string | null>(null);
@@ -276,6 +286,10 @@ export default function StudioApp() {
           beatsPerBar={beatsPerBar}
           onZoom={setPps}
           onOpenTrack={() => setSheet('track')}
+          onTocar={() => {
+            engine?.unlockSync();
+            setTocar(true);
+          }}
         />
 
         {/* Lo que flota sobre la línea de tiempo: el aviso. Es el único
@@ -372,6 +386,14 @@ export default function StudioApp() {
         theme={theme}
         open={sheet === 'settings'}
         onClose={() => setSheet(null)}
+      />
+
+      <TocarPantalla
+        studio={studio}
+        instrumentos={instrumentos}
+        abierta={tocar}
+        onCerrar={() => setTocar(false)}
+        tonalidadSugerida={tonalidadSugerida}
       />
 
       <FirstRun studio={studio} suprimida={autoGrabar} onRecord={() => void record()} />

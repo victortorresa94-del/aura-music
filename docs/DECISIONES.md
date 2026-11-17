@@ -211,3 +211,69 @@ otra URL, que Next sirve igual.
 gasta batería.
 **Solo se comprueba en un iPhone de verdad:** `audioSession`, Wake Lock,
 cortar la toma al salir, la guía de instalar y guardar el zip en Archivos.
+
+## 0017 · Instrumentos en la pantalla: se graban notas y suena su audio (17-nov-2026)
+
+Pilar B, ola 1. Pantalla «Tocar» con pads (808, 909 y cajón), teclado,
+tiras de acordes y bajo. Lo que tocas se guarda como NOTAS en bruto
+(`Track.notas`: `{beat, dur, nota, vel}` en pulsos, con el instrumento y los
+ajustes) y la pista apunta a un audio hecho con esas notas en un
+OfflineAudioContext, con los mismos instrumentos que suenan al tocar
+(`src/lib/instrumentos/render.ts`). Así el motor, la mezcla y el WAV la tratan
+como cualquier toma sin saber nada de notas, y el mezclador de la sesión A le
+pone efectos igual que a una voz. Cuadrar, humanizar, cambiar de sonido o de
+tempo rehace ese audio sin tocar el bruto; el audio anterior se queda guardado
+y Deshacer vuelve a él al momento.
+- **Al tocar**, el sonido sale del `pointerdown` nativo, sin pasar por React:
+  medido en el PC, de 0,5 a 1,5 ms de código entre el dedo y el `start()`.
+  Cada golpe se coloca con `getOutputTimestamp`: se apunta lo que estabas
+  OYENDO al tocar, no la hora del reloj. Encima va la calibración propia del
+  toque («Toca 8 veces con la claqueta», mediana por dispositivo en
+  `localStorage`), distinta de la del micro.
+- **Grabar** usa `engine.play` con dos opciones nuevas (claqueta delante y no
+  pararse al final del proyecto) y `engine.posicionEn(t)`. La captura está
+  siempre encendida: «Recuperar lo último» convierte en pista lo que tocaste
+  sin grabar desde el último silencio de 4 s.
+- **«La IA lo graba bien»** (`src/lib/musico/groove/`, TS puro con tests):
+  quitar dobles golpes de menos de 30 ms, cuantizar con fuerza, swing y
+  ventana, plantillas de groove propias en un JSON, humanizar con ruido 1/f
+  (Voss-McCartney) que mueve juntos los golpes simultáneos, y un diagnóstico
+  («vas 12 ms por detrás; donde más, en el 3»). La IA solo elige ajustes: la
+  rejilla que mejor explica lo tocado y el 70 % de fuerza.
+- **Sonidos.** Batería sintetizada (808 y 909 rehechas con nodos: seno que cae
+  para el bombo, seis cuadradas de la 808 para el metal) y cajón con palmas y
+  pitos. Muestras de 5 paquetes, 3,2 MB en total, servidas desde
+  `public/samples/`, bajadas al abrir el instrumento y guardadas en Cache
+  Storage `aura-samples-v1`; la primera carga baja 0 MB. smplr (MIT) las toca
+  con un programador propio que entrega todo al momento (el suyo usa un
+  `setInterval` que pierde notas en un OfflineAudioContext). Licencias
+  comprobadas en la fuente: piano Salamander (CC BY 3.0, crédito en Ajustes),
+  bajo Growlybass de Karoryfer, piano eléctrico TX81Z de VCSL, cuerdas
+  VSCO-2-CE y guitarra de nailon de FreePats (CC0). Detalle y citas en
+  `public/samples/LICENCIAS.md`.
+- **Sin muestras** (sin red la primera vez) suena una síntesis en TypeScript
+  puro (la regla de la 0005): la cuerda de guitarra es Karplus-Strong ampliado
+  (afinada a menos de 6 cents, con test), y el piano, el bajo y el colchón
+  salen del sintetizador del músico. La pista guarda con qué sonó y se rehace
+  sola cuando llegan las muestras.
+- **Si cambia el tempo**, las pistas de notas se rehacen a tu tempo nuevo y el
+  clip se escala para seguir en su compás: el audio grabado no puede, las
+  notas sí. Por eso el productor puede cambiar el tempo aunque haya pistas de
+  notas (solo lo frena el audio grabado).
+- **El productor cuadra.** Paso nuevo `cuadrar` (pista, fuerza, swing,
+  humanizar): Claude ve cada pista tocada en la pantalla con su diagnóstico
+  («vas 14 ms por detrás; donde más, en el 3») y puede proponer «¿lo cuadro al
+  70 %?». La app solo acepta nombres de pistas de notas que existen.
+**Descartado:** sonar las notas en directo desde el motor (un secuenciador
+dentro de `engine.ts`). Habría que tocar `scheduleProject`, `renderMix` y lo
+que monte la sesión del mezclador, y el WAV necesitaría su propio camino.
+**Descartado:** Karplus-Strong en un AudioWorklet. En un OfflineAudioContext
+los mensajes al worklet llegan cuando quieren y el WAV saldría distinto de lo
+que oíste; en TypeScript, la misma función hace las dos cosas y se prueba sin
+navegador.
+**Descartado (licencias):** Splendid Grand Piano (el «dominio público» solo lo
+dice un tercero), las muestras de Iowa (licencia propia, no estándar),
+jRhodes3 (CC BY-NC) y Ovation Guitar (sin licencia).
+**Pendiente:** piano roll; plantillas de groove sacadas del Groove MIDI
+Dataset (CC BY 4.0); repetición de nota en los pads; teclados MIDI en Android;
+medir la latencia real en un iPhone.

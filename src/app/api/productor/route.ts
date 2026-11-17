@@ -55,8 +55,10 @@ export async function POST(request: Request) {
 
     const contexto = peticion.data.contexto;
     const plan = normalizarPlan(respuesta.parsed_output, {
-      hayTomas: contexto.pistas.some((p) => !p.ia),
+      // Las pistas tocadas en la pantalla siguen al tempo (son notas): no cuentan.
+      hayTomas: contexto.pistas.some((p) => !p.ia && !p.notas),
       bpm: contexto.toma?.bpm ?? contexto.proyecto.bpm,
+      pistasDeNotas: contexto.pistas.filter((p) => p.notas).map((p) => p.nombre),
     });
     return json({ plan });
   } catch (error) {
