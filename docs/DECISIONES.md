@@ -163,11 +163,10 @@ al compilar):
   app ofrece «Meter en la idea» (el toque hace falta para arrancar el audio).
 - iPhone: `audioSession` ya estaba bien (`playback` antes de crear el
   contexto, `play-and-record` antes del micro) y el micro ya solo se pedía al
-  grabar. Nuevo: si `resume()` no despierta el contexto en 1 s, el siguiente
-  toque lo rehace, y `ensureContext` ya no se queda esperando para siempre
-  (eso bloqueaba el transporte entero). Wake Lock se vuelve a pedir al volver
-  a la app. Si la app se oculta a media toma, se para sin esperar la cola, se
-  guarda y se avisa al volver.
+  grabar. El contexto que no vuelve tras otra app ya lo arregló `main`
+  (`contextoAtascado` y `AudioBloqueado`); aquí no se duplica. Nuevo: Wake
+  Lock se vuelve a pedir al volver a la app, y si la app se oculta a media
+  toma se para sin esperar la cola, se guarda y se avisa al volver.
 - Instalar: en iPhone sin instalar, una guía antes de la intro, porque no hay
   botón posible y lo grabado en Safari no pasa a la app instalada. En
   Android, aviso con `beforeinstallprompt`. El evento vive en un solo sitio
@@ -192,6 +191,5 @@ guardado y las páginas tienen que ir red primero; por eso la copia va con
 otra URL, que Next sirve igual.
 **Descartado:** comprimir el audio dentro del zip. Apenas encoge y en el móvil
 gasta batería.
-**Solo se comprueba en un iPhone de verdad:** `audioSession`, el contexto que
-no vuelve, Wake Lock, cortar la toma al salir, la guía de instalar y guardar
-el zip en Archivos.
+**Solo se comprueba en un iPhone de verdad:** `audioSession`, Wake Lock,
+cortar la toma al salir, la guía de instalar y guardar el zip en Archivos.

@@ -415,15 +415,10 @@ export function useStudio() {
     engine.onTakeReady = (take) => {
       void handleTake(take);
     };
-    // PWA: el iPhone no ha devuelto el sonido al volver a la app.
-    engine.onContextoDormido = () => {
-      setStatus('El sonido no ha vuelto. Toca otra vez y lo despierto.');
-    };
     return () => {
       engine.onStateChange = null;
       engine.onLevel = null;
       engine.onTakeReady = null;
-      engine.onContextoDormido = null;
     };
   }, [engine, handleTake]);
 
