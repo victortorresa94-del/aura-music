@@ -135,7 +135,7 @@ describe('prompt', () => {
   it('el mensaje cuenta la toma, la IA y el cerebro, y acaba en el pedido', () => {
     const m = armarMensaje(peticion);
     expect(m).toContain('La menor');
-    expect(m).toContain('IA: apagada');
+    expect(m).toContain('ACE-Step en su GPU de RunPod): apagado');
     expect(m).toContain('Le tira la rumba');
     expect(m.trim().endsWith('Ponle un bajo funky')).toBe(true);
   });
