@@ -4,6 +4,7 @@
  * flotante y sin diferencia audible en una maqueta).
  */
 
+import { EVENTO_ALMACENAMIENTO_LLENO, esCuotaLlena } from '@/lib/pwa/espacio';
 import { floatToInt16, int16ToFloat } from './audio';
 import { DEFAULT_SETTINGS, isIOS, type Project, type StudioSettings } from './types';
 
@@ -68,16 +69,31 @@ function openDb(): Promise<IDBDatabase> {
   return dbPromise;
 }
 
+/**
+ * PWA (pilar E): una escritura se da por hecha cuando la transacción se
+ * CONFIRMA, no cuando la petición dice «ok». Si no cabe, el navegador aborta
+ * la transacción después de ese «ok» con `QuotaExceededError`, y antes eso se
+ * perdía: la toma parecía guardada y no lo estaba. Ahora falla de verdad y se
+ * avisa a la app (`EVENTO_ALMACENAMIENTO_LLENO`) venga de donde venga.
+ */
 function tx<T>(store: string, mode: IDBTransactionMode, run: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
-  return openDb().then(
-    (db) =>
-      new Promise<T>((resolve, reject) => {
-        const transaction = db.transaction(store, mode);
-        const request = run(transaction.objectStore(store));
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
-      }),
-  );
+  return openDb()
+    .then(
+      (db) =>
+        new Promise<T>((resolve, reject) => {
+          const transaction = db.transaction(store, mode);
+          const request = run(transaction.objectStore(store));
+          transaction.oncomplete = () => resolve(request.result);
+          transaction.onabort = () => reject(transaction.error ?? request.error);
+          request.onerror = () => reject(request.error);
+        }),
+    )
+    .catch((error: unknown) => {
+      if (mode === 'readwrite' && esCuotaLlena(error) && typeof window !== 'undefined') {
+        window.dispatchEvent(new Event(EVENTO_ALMACENAMIENTO_LLENO));
+      }
+      throw error;
+    });
 }
 
 /* -------------------------------------------------------------------------- */

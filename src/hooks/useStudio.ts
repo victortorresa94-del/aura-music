@@ -32,6 +32,7 @@ import {
   outputLatencyMs,
 } from '@/lib/daw/latency';
 import * as store from '@/lib/daw/storage';
+import { esCuotaLlena } from '@/lib/pwa/espacio';
 import {
   DEFAULT_SETTINGS,
   newId,
@@ -264,9 +265,14 @@ export function useStudio() {
       try {
         await store.putAudio(bufferId, [take.samples], take.sampleRate);
         void store.pedirPersistencia();
-      } catch {
+      } catch (error) {
         sinGuardar = true;
-        setStatus('No he podido guardar la toma en este móvil. Puede que no quede espacio.');
+        // PWA: si es falta de sitio se dice tal cual, con la salida.
+        setStatus(
+          esCuotaLlena(error)
+            ? 'El móvil está lleno: esta toma no se ha guardado. Exporta y borra ideas viejas en Ajustes.'
+            : 'No he podido guardar la toma en este móvil. Puede que no quede espacio.',
+        );
       }
 
       // Aquí es donde se corrige el desfase: la toma se adelanta exactamente
@@ -386,6 +392,8 @@ export function useStudio() {
          sesión en `play-and-record` el altavoz sale bajísimo. */
       window.setTimeout(() => {
         if (!engine || engine.transportState !== 'stopped') return;
+        // PWA: si la toma se cortó al salir de la app, no suena sola al volver.
+        if (document.visibilityState === 'hidden') return;
         void engine.playReview(projectRef.current, settingsRef.current, start);
       }, 320);
     },
@@ -459,6 +467,21 @@ export function useStudio() {
       void wakeLockRef.current.release();
       wakeLockRef.current = null;
     }
+    /* PWA: el sistema suelta el bloqueo al ocultarse la página y no lo
+       devuelve solo. Si vuelves con algo sonando, se pide otra vez. */
+    if (!active || !nav.wakeLock) return;
+    const alVolver = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (wakeLockRef.current && !wakeLockRef.current.released) return;
+      nav.wakeLock
+        ?.request('screen')
+        .then((sentinel) => {
+          wakeLockRef.current = sentinel;
+        })
+        .catch(() => undefined);
+    };
+    document.addEventListener('visibilitychange', alVolver);
+    return () => document.removeEventListener('visibilitychange', alVolver);
   }, [transport]);
 
   /* ---------------------------------------------------------------- */

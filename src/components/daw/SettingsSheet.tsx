@@ -3,19 +3,15 @@
 import { useCallback, useEffect, useState } from 'react';
 import { downloadBlob, encodeWav, slugify } from '@/lib/daw/audio';
 import { listInputDevices } from '@/lib/daw/recorder';
-import { estimateAudioBytes, formatBytes, listProjects } from '@/lib/daw/storage';
+import { listProjects } from '@/lib/daw/storage';
 import type { Project } from '@/lib/daw/types';
 import type { Studio } from '@/hooks/useStudio';
+import { CampoCopias, CampoEspacio, CampoInstalar } from '@/components/pwa/AjustesPwa';
 import type { ThemeMode } from './theme';
 import { inputStyle } from './TrackPanel';
 import { Field, IconButton, IconTrash, Readout, Segmented, Sheet, Slider, T, TextButton, Toggle, hintText, label, numeric, tabular } from './ui';
 
 type CalibrationPhase = 'idle' | 'instructions' | 'running' | 'done';
-
-interface InstallPromptEvent extends Event {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: string }>;
-}
 
 /** De dónde sale la compensación, dicho corto. */
 const ORIGEN: Record<Studio['latencia']['origen'], string> = {
@@ -55,34 +51,16 @@ export function SettingsSheet({
 
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [bytes, setBytes] = useState(0);
   const [phase, setPhase] = useState<CalibrationPhase>('idle');
   const [result, setResult] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
-  const [installEvent, setInstallEvent] = useState<InstallPromptEvent | null>(null);
-  const [installed, setInstalled] = useState(false);
-
-  useEffect(() => {
-    const onPrompt = (event: Event) => {
-      event.preventDefault();
-      setInstallEvent(event as InstallPromptEvent);
-    };
-    const onInstalled = () => {
-      setInstalled(true);
-      setInstallEvent(null);
-    };
-    window.addEventListener('beforeinstallprompt', onPrompt);
-    window.addEventListener('appinstalled', onInstalled);
-    setInstalled(window.matchMedia('(display-mode: standalone)').matches);
-    return () => {
-      window.removeEventListener('beforeinstallprompt', onPrompt);
-      window.removeEventListener('appinstalled', onInstalled);
-    };
-  }, []);
+  // Instalar ya no vive aquí: el evento de Android es uno y lo comparte con
+  // los avisos (src/lib/pwa/instalacion.ts, campo en AjustesPwa).
 
   const refresh = useCallback(async () => {
     setProjects(await listProjects());
-    setBytes(await estimateAudioBytes());
+    // El espacio lo mide CampoEspacio con storage.estimate(): leer todo el
+    // audio a memoria para sumarlo era lento con muchas ideas.
     setDevices(await listInputDevices());
   }, []);
 
@@ -233,9 +211,6 @@ export function SettingsSheet({
       </Field>
 
       <Field title="Ideas guardadas">
-        <div style={{ ...label, marginTop: -6, marginBottom: 10 }}>
-          Ocupan <span style={tabular}>{formatBytes(bytes)}</span> en este móvil
-        </div>
         <div style={{ borderRadius: 14, background: T.fill, boxShadow: `inset 0 1px 0 ${T.rim}`, overflow: 'hidden' }}>
           {projects.map((item, i) => {
             const actual = item.id === project.id;
@@ -307,6 +282,16 @@ export function SettingsSheet({
           ) : null}
         </div>
       </Field>
+
+      {/* PWA (pilar E): la idea en un zip, y cuánto ocupa todo. */}
+      <CampoCopias
+        studio={studio}
+        onImportada={() => {
+          void refresh();
+          onClose();
+        }}
+      />
+      <CampoEspacio abierto={open} />
 
       <Field
         title="Latencia"
@@ -430,32 +415,7 @@ export function SettingsSheet({
         <Segmented ariaLabel="Aspecto" value={theme.mode} options={themes} onChange={theme.setMode} />
       </Field>
 
-      <Field
-        title="Instalar en el móvil"
-        hint={
-          installed
-            ? 'Ya está instalada: se abre a pantalla completa y funciona sin cobertura.'
-            : 'En iPhone: botón de compartir de Safari, y luego «Añadir a pantalla de inicio». En Android te sale el botón de aquí arriba.'
-        }
-      >
-        {installed ? (
-          <span style={{ ...label, color: T.text }}>Instalada</span>
-        ) : installEvent ? (
-          <TextButton
-            tone="solid"
-            full
-            onClick={async () => {
-              await installEvent.prompt();
-              await installEvent.userChoice;
-              setInstallEvent(null);
-            }}
-          >
-            Añadir a la pantalla de inicio
-          </TextButton>
-        ) : (
-          <span style={label}>Desde el menú del navegador</span>
-        )}
-      </Field>
+      <CampoInstalar />
 
       {/* Lo de cuando algo no suena: abajo, que se busca solo cuando hace falta. */}
       <Field

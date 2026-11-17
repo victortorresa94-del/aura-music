@@ -18,11 +18,16 @@ export function formatTime(seconds: number): string {
   return `${String(m).padStart(2, '0')}:${String(whole).padStart(2, '0')}.${tenths}`;
 }
 
+/**
+ * La inversa exacta de `int16ToFloat`: redondea y escala por 32768 en los dos
+ * sentidos. Antes los positivos se escalaban por 32767 y se truncaban, así que
+ * guardar otra vez un audio ya guardado (una idea importada, por ejemplo) le
+ * quitaba un bit. Inaudible, pero «la misma idea» tiene que ser la misma.
+ */
 export function floatToInt16(input: Float32Array): Int16Array {
   const out = new Int16Array(input.length);
   for (let i = 0; i < input.length; i++) {
-    const s = clamp(input[i], -1, 1);
-    out[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+    out[i] = clamp(Math.round(input[i] * 0x8000), -0x8000, 0x7fff);
   }
   return out;
 }

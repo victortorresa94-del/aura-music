@@ -15,3 +15,8 @@ public/_prueba/
 
 # Copia del script de la GPU para servirlo (se genera en prebuild)
 public/acestep-gpu.sh
+
+# Lo genera Serwist al compilar (src/app/sw.ts)
+public/sw.js
+public/sw.js.map
+public/swe-worker-*.js

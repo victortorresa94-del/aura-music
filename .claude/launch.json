@@ -8,6 +8,12 @@
       "port": 3100
     },
     {
+      "name": "aura-music-produccion",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "start", "--", "-p", "3104"],
+      "port": 3104
+    },
+    {
       "name": "acestep-falso",
       "runtimeExecutable": "node",
       "runtimeArgs": ["scripts/acestep-falso.mjs"],

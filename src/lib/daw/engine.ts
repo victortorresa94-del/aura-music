@@ -409,16 +409,21 @@ export class StudioEngine {
    * toques seguidos al botón podrían cerrar la misma toma dos veces y crear
    * una pista fantasma. La primera llamada manda; las demás esperan.
    */
-  async stop(): Promise<void> {
+  async stop(opciones: { inmediata?: boolean } = {}): Promise<void> {
     if (this.stopping) return this.stopping;
     if (this.state === 'stopped') return;
-    this.stopping = this.doStop().finally(() => {
+    this.stopping = this.doStop(opciones.inmediata === true).finally(() => {
       this.stopping = null;
     });
     return this.stopping;
   }
 
-  private async doStop(): Promise<void> {
+  /**
+   * `inmediata` (PWA): la app se va a segundo plano a media toma. No se espera
+   * la cola de la última nota: iOS congela la página en nada y lo que importa
+   * es sacar lo grabado y guardarlo antes.
+   */
+  private async doStop(inmediata = false): Promise<void> {
     const wasRecording = this.state === 'recording' || this.state === 'countin';
     const ctx = this.ctx;
     const endPosition = wasRecording
@@ -433,7 +438,7 @@ export class StudioEngine {
       // La cola de la interpretación todavía está viajando por el sistema:
       // si cortamos ahora, la última nota se queda a medias.
       const tail = Math.min(600, this.recordLatencySeconds * 1000 + 150);
-      await new Promise((resolve) => setTimeout(resolve, tail));
+      if (!inmediata) await new Promise((resolve) => setTimeout(resolve, tail));
       const { samples, sampleRate } = this.recorder.stop();
       // Se vuelve a modo reproducción antes de que pueda darle al play.
       setAudioSession('playback');
