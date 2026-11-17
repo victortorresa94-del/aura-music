@@ -414,6 +414,23 @@ export function useStudio() {
     };
   }, [engine, handleTake]);
 
+  /* Si cambia QUÉ suena mientras suena (una pista nueva del músico o del
+     productor, un clip movido o recortado), el motor lo vuelve a programar
+     sin parar. Volumen, mute y solo no cuentan: esos ya se aplican en
+     caliente y re-programar en cada movimiento del fader daría saltos. */
+  const loQueSuena = useMemo(
+    () =>
+      project.tracks
+        .map((t) => `${t.id}:${t.clip.bufferId}:${t.clip.start}:${t.clip.offset}:${t.clip.duration}:${t.clip.repeats}`)
+        .join('|'),
+    [project.tracks],
+  );
+  const transportRef = useRef(transport);
+  transportRef.current = transport;
+  useEffect(() => {
+    if (transportRef.current === 'playing') engineRef.current?.resync(projectRef.current);
+  }, [loQueSuena]);
+
   useEffect(() => {
     return () => {
       engineRef.current?.dispose();

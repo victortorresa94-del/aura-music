@@ -548,6 +548,53 @@ export class StudioEngine {
     }
   }
 
+  /**
+   * Vuelve a programar lo que suena sin parar la reproducción, desde donde va
+   * el cursor. Hace falta cuando cambia QUÉ suena mientras suena: una pista
+   * que pone el músico o el productor, o un clip que se mueve o se recorta.
+   * Sin esto, lo nuevo no se oía hasta parar y volver a darle al play
+   * (17-nov-2026, el dueño: «no se oye la pista que he añadido»).
+   *
+   * El reloj no se toca, así que la claqueta y el ritmo siguen igual. Las
+   * fuentes nuevas arrancan dentro de LEAD_TIME justo en su punto de la línea
+   * de tiempo y las viejas se paran en ese mismo instante: no hay hueco.
+   * Reutiliza `scheduleProject`, para que lo nuevo pase por la misma cadena
+   * que lo demás.
+   */
+  resync(project: Project) {
+    const ctx = this.ctx;
+    if (!ctx || this.state !== 'playing') return;
+    this.project = project;
+    const when = ctx.currentTime + LEAD_TIME;
+    const from = this.anchorPosition + (when - this.anchorTime);
+
+    const viejas = this.sources;
+    const gananciasViejas = [...this.trackGains.values()];
+    // Vacíos antes de programar: `scheduleProject` limpia lo que haya, y lo
+    // viejo tiene que seguir sonando hasta `when`.
+    this.sources = [];
+    this.trackGains = new Map();
+    this.scheduleProject(project, from, when);
+
+    for (const source of viejas) {
+      try {
+        source.onended = null;
+        source.stop(when);
+      } catch {
+        /* ya parado */
+      }
+    }
+    window.setTimeout(() => {
+      for (const node of [...viejas, ...gananciasViejas]) {
+        try {
+          node.disconnect();
+        } catch {
+          /* ya desconectado */
+        }
+      }
+    }, (LEAD_TIME + 0.25) * 1000);
+  }
+
   setMasterVolume(value: number) {
     const ctx = this.ctx;
     if (this.master && ctx) this.master.gain.setTargetAtTime(value, ctx.currentTime, 0.01);
