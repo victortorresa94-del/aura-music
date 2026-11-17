@@ -16,6 +16,16 @@ import { playVoice } from './rhythm/kit';
 import { golpesEntre, OPCIONES_POR_DEFECTO, type GrooveOptions } from './rhythm/player';
 import type { Project, StudioSettings, Track, TransportState } from './types';
 import { projectDuration } from './types';
+// Mezcla (pilar A): el mismo grafo para escuchar y para exportar.
+import {
+  buildMixGraph,
+  estadoDeMezcla,
+  medirLatenciaDeCadena,
+  pistasQueSuenan,
+  type GrafoMezcla,
+} from './mezcla/grafo';
+import { masterizar, OBJETIVOS, type ResultadoMaster } from './mezcla/masterizar';
+import { masterDe, type ObjetivoMaster } from './mezcla/tipos';
 
 const LEAD_TIME = 0.12;
 const SCHEDULER_INTERVAL = 25;
@@ -39,13 +49,13 @@ export interface TickInfo {
 
 export class StudioEngine {
   ctx: AudioContext | null = null;
+  /** La entrada del master del grafo de mezcla: aquí van el ritmo y el tono de prueba. */
   private master: GainNode | null = null;
-  private limiter: DynamicsCompressorNode | null = null;
+  private mezcla: GrafoMezcla | null = null;
   private clickBus: GainNode | null = null;
 
   private buffers = new Map<string, AudioBuffer>();
   private sources: AudioBufferSourceNode[] = [];
-  private trackGains = new Map<string, GainNode>();
 
   private recorder: Recorder | null = null;
   private stream: MediaStream | null = null;
@@ -105,19 +115,15 @@ export class StudioEngine {
       (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     const ctx = new Ctor({ latencyHint: 'interactive' });
 
-    const master = ctx.createGain();
-    master.gain.value = 1;
-    // Limitador suave: sumar cuatro pistas grabadas a saco satura, y un
-    // recorte digital en una maqueta arruina la escucha.
-    const limiter = ctx.createDynamicsCompressor();
-    limiter.threshold.value = -3;
-    limiter.knee.value = 6;
-    limiter.ratio.value = 12;
-    limiter.attack.value = 0.003;
-    limiter.release.value = 0.2;
-
-    master.connect(limiter);
-    limiter.connect(ctx.destination);
+    // El master (volumen y limitador) y las cadenas de las pistas viven en
+    // el grafo de mezcla, el mismo que monta `renderMix` para exportar.
+    this.mezcla?.desmontar();
+    const mezcla = buildMixGraph(ctx, { salida: ctx.destination, medidores: true });
+    this.mezcla = mezcla;
+    void medirLatenciaDeCadena(ctx.sampleRate).then((segundos) => {
+      if (this.mezcla === mezcla) mezcla.latencia = segundos;
+    });
+    const master = mezcla.entrada;
 
     const clickBus = ctx.createGain();
     clickBus.gain.value = 0.8;
@@ -132,7 +138,6 @@ export class StudioEngine {
 
     this.ctx = ctx;
     this.master = master;
-    this.limiter = limiter;
     this.clickBus = clickBus;
     this.clickHigh = createClickBuffer(ctx, 1800, 0.03, 0.5);
     this.clickLow = createClickBuffer(ctx, 1200, 0.03, 0.35);
@@ -480,31 +485,33 @@ export class StudioEngine {
   /* ------------------------------------------------------------------ */
 
   private audibleTracks(project: Project): Track[] {
-    const hasSolo = project.tracks.some((track) => track.soloed);
-    return project.tracks.filter((track) => (hasSolo ? track.soloed : !track.muted));
+    const suenan = pistasQueSuenan(project.tracks);
+    return project.tracks.filter((track) => suenan.has(track.id));
   }
+
+  /** Canales del audio de una pista: el grafo compensa el panorama de las mono. */
+  private canalesDe = (track: Track): number => this.buffers.get(track.clip.bufferId)?.numberOfChannels ?? 1;
 
   private scheduleProject(project: Project, from: number, when: number) {
     const ctx = this.ctx;
-    const master = this.master;
-    if (!ctx || !master) return;
+    const mezcla = this.mezcla;
+    if (!ctx || !mezcla) return;
 
     this.clearSources();
-    // Se programan TODAS las pistas, también las silenciadas, con la ganancia
+    // Se programan TODAS las pistas, también las silenciadas, con el fader
     // a cero. Así quitar el mute a media reproducción funciona: si no las
     // programáramos, no habría nada que subir hasta volver a dar al play.
-    const audible = new Set(this.audibleTracks(project).map((track) => track.id));
+    mezcla.sincronizar(estadoDeMezcla(project, this.canalesDe));
 
+    // La cadena de cada pista retrasa unos milisegundos (el compresor mira
+    // por delante). Las fuentes salen ese tanto antes y la toma suena justo
+    // donde está en la línea de tiempo, a la par que el click y el ritmo.
+    const salida = when - mezcla.latencia;
     for (const track of project.tracks) {
       const buffer = this.buffers.get(track.clip.bufferId);
-      if (!buffer) continue;
-
-      const gain = ctx.createGain();
-      gain.gain.value = audible.has(track.id) ? track.volume : 0;
-      gain.connect(master);
-      this.trackGains.set(track.id, gain);
-
-      const created = scheduleTrack(ctx, track, buffer, gain, from, when);
+      const entrada = mezcla.entradaDe(track.id);
+      if (!buffer || !entrada) continue;
+      const created = scheduleTrack(ctx, track, buffer, entrada, from, salida);
       this.sources.push(...created);
     }
   }
@@ -520,32 +527,30 @@ export class StudioEngine {
       }
     }
     this.sources = [];
-    for (const gain of this.trackGains.values()) {
-      try {
-        gain.disconnect();
-      } catch {
-        /* ya desconectado */
-      }
-    }
-    this.trackGains.clear();
   }
 
-  setTrackVolume(trackId: string, volume: number) {
-    const gain = this.trackGains.get(trackId);
-    const ctx = this.ctx;
-    if (gain && ctx) gain.gain.setTargetAtTime(volume, ctx.currentTime, 0.01);
+  /** El fader de una pista, en caliente. `suena` = false si está en mute o fuera del solo. */
+  setTrackVolume(trackId: string, volume: number, suena = true) {
+    this.mezcla?.volumenEnVivo(trackId, volume, suena);
   }
 
   /** Aplica en caliente cambios de mute/solo sin cortar la reproducción. */
   refreshMutes(project: Project) {
-    const audible = new Set(this.audibleTracks(project).map((track) => track.id));
-    const ctx = this.ctx;
-    if (!ctx) return;
-    for (const [trackId, gain] of this.trackGains) {
-      const track = project.tracks.find((item) => item.id === trackId);
-      const target = audible.has(trackId) ? (track?.volume ?? 1) : 0;
-      gain.gain.setTargetAtTime(target, ctx.currentTime, 0.015);
-    }
+    this.aplicarMezcla(project);
+  }
+
+  /**
+   * Pone la mezcla del proyecto (faders, mute y solo, efectos, master) en
+   * lo que está sonando. Solo mueve lo que ha cambiado, así que se puede
+   * llamar en cada cambio del proyecto, también al deshacer.
+   */
+  aplicarMezcla(project: Project) {
+    this.mezcla?.sincronizar(estadoDeMezcla(project, this.canalesDe));
+  }
+
+  /** Para los medidores del mezclador. Cambia si iOS obliga a rehacer el contexto. */
+  get grafoMezcla(): GrafoMezcla | null {
+    return this.mezcla;
   }
 
   setMasterVolume(value: number) {
@@ -798,39 +803,83 @@ export class StudioEngine {
   /* Mezcla y exportación                                                */
   /* ------------------------------------------------------------------ */
 
-  async renderMix(project: Project, only?: Track[]): Promise<AudioBuffer> {
+  /**
+   * La mezcla en un WAV, con el mismo grafo que suena al reproducir
+   * (`buildMixGraph`). Con `only`, una pista suelta con su cadena y sus
+   * envíos. La mezcla entera sale masterizada si el master lo pide;
+   * las pistas sueltas nunca: son piezas para acabar en otro sitio.
+   */
+  async renderMix(
+    project: Project,
+    only?: Track[],
+    opciones: { masterizar?: boolean } = {},
+  ): Promise<AudioBuffer> {
+    const crudo = await this.renderizar(project, only);
+    const objetivo = masterDe(project).masterizado;
+    if (only || objetivo === 'no' || opciones.masterizar === false) return crudo;
+    return this.aBuffer(this.masterizarBuffer(crudo, objetivo).canales, crudo.sampleRate);
+  }
+
+  /**
+   * Lo que haría «Masterizar» con la mezcla de ahora: cuánto suena antes y
+   * cuánto sonará el WAV. Mezcla en un contexto sin sonido, así que se puede
+   * pedir con el transporte parado o en marcha.
+   */
+  async analizarMaster(project: Project, objetivo: Exclude<ObjetivoMaster, 'no'>): Promise<ResultadoMaster> {
+    const crudo = await this.renderizar(project);
+    return this.masterizarBuffer(crudo, objetivo);
+  }
+
+  private masterizarBuffer(buffer: AudioBuffer, objetivo: Exclude<ObjetivoMaster, 'no'>): ResultadoMaster {
+    const canales: Float32Array[] = [];
+    for (let c = 0; c < buffer.numberOfChannels; c++) canales.push(buffer.getChannelData(c));
+    return masterizar(canales, buffer.sampleRate, OBJETIVOS[objetivo]);
+  }
+
+  private aBuffer(canales: Float32Array<ArrayBuffer>[], sampleRate: number): AudioBuffer {
+    const salida = new AudioBuffer({ numberOfChannels: canales.length, length: canales[0].length, sampleRate });
+    canales.forEach((datos, c) => salida.copyToChannel(datos, c));
+    return salida;
+  }
+
+  private async renderizar(project: Project, only?: Track[]): Promise<AudioBuffer> {
     const sampleRate = this.contextSampleRate;
     const tracks = only ?? this.audibleTracks(project);
+    const latencia = await medirLatenciaDeCadena(sampleRate);
+    const masterProyecto = masterDe(project);
+    // Las colas de la reverb y del eco también son parte de la canción: el
+    // WAV no se corta en seco al acabar la última pista.
+    const haySala = tracks.some((t) => (t.mezcla?.reverb ?? 0) > 0);
+    const hayEco = tracks.some((t) => (t.mezcla?.eco ?? 0) > 0);
+    const cola = Math.max(0.4, haySala ? 2.5 : 0, hayEco ? 1.5 + masterProyecto.repeticiones * 4 : 0);
     const duration = Math.max(
       0.5,
       tracks.reduce(
         (max, track) => Math.max(max, track.clip.start + track.clip.duration * track.clip.repeats),
         0,
-      ) + 0.4,
+      ) + cola,
     );
 
-    const offline = new OfflineAudioContext(2, Math.ceil(duration * sampleRate), sampleRate);
-    const master = offline.createGain();
-    master.gain.value = 1;
-    const limiter = offline.createDynamicsCompressor();
-    limiter.threshold.value = -3;
-    limiter.knee.value = 6;
-    limiter.ratio.value = 12;
-    limiter.attack.value = 0.003;
-    limiter.release.value = 0.2;
-    master.connect(limiter);
-    limiter.connect(offline.destination);
+    const retraso = Math.round(latencia * sampleRate);
+    const frames = Math.ceil(duration * sampleRate);
+    const offline = new OfflineAudioContext(2, frames + retraso, sampleRate);
+    const grafo = buildMixGraph(offline, { salida: offline.destination });
+    grafo.sincronizar(estadoDeMezcla(project, this.canalesDe, only), true);
 
     for (const track of tracks) {
       const buffer = this.buffers.get(track.clip.bufferId);
-      if (!buffer) continue;
-      const gain = offline.createGain();
-      gain.gain.value = track.volume;
-      gain.connect(master);
-      scheduleTrack(offline, track, buffer, gain, 0, 0);
+      const entrada = grafo.entradaDe(track.id);
+      if (!buffer || !entrada) continue;
+      scheduleTrack(offline, track, buffer, entrada, 0, 0);
     }
 
-    return offline.startRendering();
+    const rendered = await offline.startRendering();
+    // Lo que en directo se compensa adelantando las fuentes, aquí se quita
+    // del principio: la muestra 0 del WAV es el segundo 0 de la idea.
+    if (retraso === 0) return rendered;
+    const salida = new AudioBuffer({ numberOfChannels: 2, length: frames, sampleRate });
+    for (let c = 0; c < 2; c++) salida.copyToChannel(rendered.getChannelData(c).subarray(retraso, retraso + frames), c);
+    return salida;
   }
 
   dispose() {
@@ -840,6 +889,8 @@ export class StudioEngine {
     this.clearSources();
     this.releaseInput();
     this.buffers.clear();
+    this.mezcla?.desmontar();
+    this.mezcla = null;
     void this.ctx?.close();
     this.ctx = null;
   }

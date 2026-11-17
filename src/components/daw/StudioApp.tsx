@@ -15,7 +15,11 @@ import { Timeline } from './Timeline';
 import { RhythmSheet } from './RhythmSheet';
 import { ClickSheet, TrackSheet, TrackStrip } from './TrackPanel';
 import { Transport } from './Transport';
-import { IconButton, IconChevronDown, IconClose, IconSettings, IconSpark, IconUndo, label, numeric } from './ui';
+import { IconButton, IconChevronDown, IconClose, IconSpark, IconUndo, label, numeric } from './ui';
+// Mezcla (pilar A)
+import { useMezcla } from '@/hooks/useMezcla';
+import { Mezclador } from './mezclador/Mezclador';
+import { IconoMezclador } from './mezclador/icono';
 
 /**
  * Cómo se nombra el ciclo en la cabecera, en lo que ocupa una firma de compás.
@@ -44,6 +48,10 @@ export default function StudioApp() {
   }, [groove]);
   const musico = useMusico(studio, ciclo);
   const productor = useProductor(studio, musico, ciclo?.pulsos ?? 4, groove?.nombre ?? null);
+  // El mezclador: su hook vive siempre (lleva la mezcla al motor, también al
+  // deshacer); la pantalla solo se monta al abrirla.
+  const mezcla = useMezcla(studio);
+  const [mezclador, setMezclador] = useState(false);
   const { ready, project, status, busy, transport, setStatus, loadProjectAudio, engine, record, undo } =
     studio;
   const loadedRef = useRef<string | null>(null);
@@ -263,11 +271,15 @@ export default function StudioApp() {
         <IconButton title="Productor" onClick={() => setSheet('productor')}>
           <IconSpark size={21} color={T.ai} />
         </IconButton>
+        {/* El mezclador ocupa el sitio del engranaje: los ajustes ya se
+            abren tocando el nombre del proyecto (y desde la latencia del
+            dock), y en 375 px no cabía un botón más sin dejar el nombre
+            en dos letras. */}
+        <IconButton title="Mezclador" onClick={() => setMezclador(true)}>
+          <IconoMezclador size={21} color={T.text} />
+        </IconButton>
         <IconButton title="Deshacer" onClick={undo}>
           <IconUndo size={20} color={T.text} />
-        </IconButton>
-        <IconButton title="Ajustes" onClick={() => setSheet('settings')}>
-          <IconSettings size={20} color={T.text} />
         </IconButton>
       </header>
 
@@ -375,6 +387,14 @@ export default function StudioApp() {
         theme={theme}
         open={sheet === 'settings'}
         onClose={() => setSheet(null)}
+      />
+
+      <Mezclador
+        studio={studio}
+        mezcla={mezcla}
+        tema={theme.resolved}
+        open={mezclador}
+        onClose={() => setMezclador(false)}
       />
 
       <FirstRun studio={studio} suprimida={autoGrabar} onRecord={() => void record()} />

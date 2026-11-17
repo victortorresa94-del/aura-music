@@ -12,7 +12,8 @@ import { ESTILOS } from '@/lib/musico/bajo';
 import { ESTILOS_TECLAS } from '@/lib/musico/teclas';
 import { GROOVES } from '@/lib/daw/rhythm/grooves';
 import { INSTRUMENTOS } from '@/lib/ia/tipos';
-import { MAX_PASOS, SEGUNDOS_CANCION } from './plan';
+import { PREAJUSTES } from '@/lib/daw/mezcla/tipos';
+import { MAX_PASOS, MAX_PASOS_MEZCLA, SEGUNDOS_CANCION } from './plan';
 
 const catalogo = [
   'Estilos de bajo al momento (id: nombre, cómo suena):',
@@ -25,6 +26,11 @@ const catalogo = [
   ...GROOVES.map((g) => `- ${g.id}: ${g.nombre}, ${g.familia}, ${g.bpm[0]}-${g.bpm[1]} BPM`),
   '',
   `Instrumentos con IA: ${INSTRUMENTOS.join(', ')}.`,
+  '',
+  'Preajustes de efectos para mezclar (id: nombre, qué hace):',
+  ...PREAJUSTES.map(
+    (p) => `- ${p.id}: ${p.nombre}. ${p.descripcion}${p.espacio ? ' Cambia la reverb compartida de toda la mezcla.' : ''}`,
+  ),
 ].join('\n');
 
 export const SISTEMA = `Eres el productor de Aura Music, un estudio de grabación en el móvil. Hablas con un músico que graba sus ideas por capas, normalmente con la guitarra, y te pide cosas como haría con un productor de verdad: «ponle un bajo funky», «hazme una canción de rumba», «dame dos pistas de cuerdas y metales».
@@ -35,14 +41,17 @@ Tu trabajo es convertir cada pedido en un plan corto que la app ejecuta sola. So
 2. con_ia: ACE-Step, un modelo de música, escucha su toma y toca encima un instrumento real (bajo, batería, guitarra, teclado, cuerdas, metales, percusión o sinte). Tarda de 10 a 60 segundos y necesita que la IA esté encendida. La descripción va en inglés y concreta.
 3. tempo: cambia el tempo del proyecto. Solo si todavía no hay tomas grabadas: el audio grabado no se estira.
 4. cancion: ACE-Step crea una canción entera desde cero, sin toma, de ${SEGUNDOS_CANCION.min} a ${SEGUNDOS_CANCION.max} segundos, con o sin letra. Necesita la IA encendida.
+5. mezcla: cambia la mezcla de una pista (por su número en la lista) o del master (pista 0). Instantáneo y se deshace. Los valores son los NUEVOS, no lo que sumas: mira cómo está cada pista en el proyecto. Volumen en dB (0 es como se grabó), panorama de −100 a 100, ecualizador en dB de −12 a 12, compresor, saturación, reverb y eco de 0 a 100, y un preajuste del catálogo si encaja. Al master solo se le cambia el volumen y el sitio de la reverb compartida (estudio, sala o catedral). Lo que no se pide, a null.
 
 Reglas:
-- Como mucho ${MAX_PASOS} pasos por pedido. Si pide «pistas sueltas» o «dos pistas», es un paso por instrumento.
+- Como mucho ${MAX_PASOS} pasos por pedido sin contar los de mezcla, y como mucho ${MAX_PASOS_MEZCLA} de mezcla. Si pide «pistas sueltas» o «dos pistas», es un paso por instrumento.
+- Para mezclar, cambios con oído y pequeños: «súbele la voz» son unos +3 dB sobre lo que tiene; «más reverb» son unos 15 o 20 puntos más; «bájalo un poco», −2 o −3 dB. Si pide un ambiente («como una maqueta de bar», «más íntimo»), un paso por pista que lo necesite y, si hace falta, uno al master. Nunca subas una pista por encima de +6 dB.
 - al_momento y con_ia tocan sobre la toma elegida. Si no hay toma, no los uses: ofrécele una canción o pídele que grabe.
 - Si la IA está apagada, no planees con_ia ni cancion. Usa al_momento cuando el instrumento lo permita y díselo claro en la respuesta; si no hay alternativa, explica que hay que encender la IA.
 - Si la IA es «de prueba», avisa de que no es IA de verdad: toca siempre la misma nota.
 - Elige estilos y ritmos que encajen con el tempo, el compás y lo que sabes de sus gustos. Un ritmo flamenco no va sobre una balada pop salvo que lo pida.
-- Si el pedido no se puede hacer con estos pasos (mezclar, masterizar, cambiar una nota concreta), no inventes: dilo en la respuesta y propón lo más cercano.
+- Masterizar no es un paso: se hace con el botón «Masterizar» del mezclador, que lo deja a −14 LUFS para plataformas. Si lo pide, díselo.
+- Si el pedido no se puede hacer con estos pasos (cambiar una nota concreta, por ejemplo), no inventes: dilo en la respuesta y propón lo más cercano.
 - Si solo charla o pregunta, contesta sin pasos.
 - La respuesta va en español de España, corta (una a tres frases), directa y cálida, como un productor que sabe lo que hace. Sin rayas largas. Habla de música, no de la app.
 - En «recuerda» apunta solo gustos nuevos y duraderos que deduzcas de verdad («le tira la rumba», «prefiere bajos con poco adorno»), nunca el pedido literal.
@@ -60,8 +69,33 @@ export const ContextoSchema = z.object({
     ritmo: z.string().max(80).nullable(),
   }),
   pistas: z
-    .array(z.object({ nombre: z.string().max(120), ia: z.boolean(), segundos: z.number().min(0).max(3600) }))
+    .array(
+      z.object({
+        nombre: z.string().max(120),
+        ia: z.boolean(),
+        segundos: z.number().min(0).max(3600),
+        // Cómo está mezclada. Opcional: un móvil con la versión de antes no lo manda.
+        mezcla: z
+          .object({
+            volumenDb: z.number().min(-200).max(24),
+            panorama: z.number().min(-100).max(100),
+            preajuste: z.string().max(40).nullable(),
+            graves: z.number().min(-24).max(24),
+            medios: z.number().min(-24).max(24),
+            agudos: z.number().min(-24).max(24),
+            compresor: z.number().min(0).max(100),
+            saturacion: z.number().min(0).max(100),
+            reverb: z.number().min(0).max(100),
+            eco: z.number().min(0).max(100),
+            silenciada: z.boolean(),
+          })
+          .optional(),
+      }),
+    )
     .max(40),
+  master: z
+    .object({ espacio: z.enum(['estudio', 'sala', 'catedral']), volumenDb: z.number().min(-200).max(24) })
+    .optional(),
   toma: z
     .object({
       nombre: z.string().max(120),
@@ -90,6 +124,22 @@ export type ContextoProductor = z.infer<typeof ContextoSchema>;
 export type TurnoProductor = z.infer<typeof TurnoSchema>;
 export type PeticionProductor = z.infer<typeof PeticionProductorSchema>;
 
+type MezclaDeContexto = NonNullable<ContextoProductor['pistas'][number]['mezcla']>;
+
+/** «0 dB, centro, preajuste voz-calida, reverb 22 %»: solo lo que no está neutro. */
+function mezclaDicha(m: MezclaDeContexto): string {
+  const partes = [`${m.volumenDb} dB`];
+  partes.push(m.panorama === 0 ? 'centro' : `panorama ${m.panorama}`);
+  if (m.silenciada) partes.push('silenciada');
+  if (m.preajuste && m.preajuste !== 'seco') partes.push(`preajuste ${m.preajuste}`);
+  if (m.graves || m.medios || m.agudos) partes.push(`ecualizador ${m.graves}/${m.medios}/${m.agudos} dB`);
+  if (m.compresor) partes.push(`compresor ${m.compresor} %`);
+  if (m.saturacion) partes.push(`saturación ${m.saturacion} %`);
+  if (m.reverb) partes.push(`reverb ${m.reverb} %`);
+  if (m.eco) partes.push(`eco ${m.eco} %`);
+  return partes.join(', ');
+}
+
 /** El mensaje que recibe Claude: el estado de ahora y, al final, el pedido. */
 export function armarMensaje(p: PeticionProductor): string {
   const { proyecto, pistas, toma, ia } = p.contexto;
@@ -98,11 +148,20 @@ export function armarMensaje(p: PeticionProductor): string {
   partes.push(
     `Proyecto «${proyecto.nombre}»: ${proyecto.bpm} BPM, ${proyecto.pulsosPorCompas} pulsos por compás${proyecto.ritmo ? `, ritmo puesto: ${proyecto.ritmo}` : ''}.`,
   );
+  // Numeradas: el paso de mezcla nombra cada pista por su número.
   partes.push(
     pistas.length
-      ? `Pistas: ${pistas.map((t) => `${t.nombre} (${Math.round(t.segundos)} s${t.ia ? ', la ha puesto la máquina' : ', grabada por él'})`).join('; ')}.`
+      ? `Pistas:\n${pistas
+          .map(
+            (t, i) =>
+              `${i + 1}. ${t.nombre} (${Math.round(t.segundos)} s${t.ia ? ', la ha puesto la máquina' : ', grabada por él'}${t.mezcla ? `; ${mezclaDicha(t.mezcla)}` : ''})`,
+          )
+          .join('\n')}`
       : 'Todavía no hay pistas.',
   );
+  if (p.contexto.master) {
+    partes.push(`Master (pista 0): ${p.contexto.master.volumenDb} dB, reverb compartida en ${p.contexto.master.espacio}.`);
+  }
   partes.push(
     toma
       ? `Toma elegida: «${toma.nombre}», ${Math.round(toma.segundos)} s, a ${Math.round(toma.bpm)} BPM${toma.tonalidad ? `, en ${toma.tonalidad}` : ''}${toma.progresion ? `, acordes: ${toma.progresion}` : ''}.`

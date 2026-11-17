@@ -57,6 +57,7 @@ export async function POST(request: Request) {
     const plan = normalizarPlan(respuesta.parsed_output, {
       hayTomas: contexto.pistas.some((p) => !p.ia),
       bpm: contexto.toma?.bpm ?? contexto.proyecto.bpm,
+      pistas: contexto.pistas.map((p) => p.nombre),
     });
     return json({ plan });
   } catch (error) {

@@ -6,6 +6,8 @@
  * y ajustar volumen. Nada más.
  */
 
+import type { AjustesMaster, MezclaPista } from './mezcla/tipos';
+
 export interface Clip {
   /** Clave del audio en el almacén (IndexedDB / mapa de buffers en memoria). */
   bufferId: string;
@@ -35,6 +37,11 @@ export interface Track {
    * que en este estudio es el color de lo generado.
    */
   ia?: boolean;
+  /**
+   * Panorama, ecualizador, compresor, saturación y envíos (el mezclador).
+   * Las pistas de antes no lo traen y suenan neutras: léelo con `mezclaDe`.
+   */
+  mezcla?: MezclaPista;
 }
 
 export interface Project {
@@ -44,6 +51,8 @@ export interface Project {
   tracks: Track[];
   createdAt: number;
   updatedAt: number;
+  /** Reverb, eco, limitador y masterizado. Ausente en las ideas de antes: léelo con `masterDe`. */
+  master?: AjustesMaster;
 }
 
 /**
