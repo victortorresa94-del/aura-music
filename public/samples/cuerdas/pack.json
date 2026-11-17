@@ -1,0 +1,87 @@
+{
+  "id": "cuerdas",
+  "nombre": "Sección de cuerdas sostenidas (VS Chamber Orchestra: Community Edition)",
+  "autor": "Versilian Studios (Sam Gossner y Simon Dalzell)",
+  "origen": "https://github.com/sgossner/VSCO-2-CE/tree/master/Strings",
+  "licencia": "CC0-1.0",
+  "urlLicencia": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "creditos": "",
+  "archivos": [
+    {
+      "nombre": "36.mp3",
+      "midi": 36,
+      "bytes": 43299
+    },
+    {
+      "nombre": "40.mp3",
+      "midi": 40,
+      "bytes": 42545
+    },
+    {
+      "nombre": "43.mp3",
+      "midi": 43,
+      "bytes": 43012
+    },
+    {
+      "nombre": "47.mp3",
+      "midi": 47,
+      "bytes": 43792
+    },
+    {
+      "nombre": "50.mp3",
+      "midi": 50,
+      "bytes": 43039
+    },
+    {
+      "nombre": "52.mp3",
+      "midi": 52,
+      "bytes": 42701
+    },
+    {
+      "nombre": "55.mp3",
+      "midi": 55,
+      "bytes": 48993
+    },
+    {
+      "nombre": "59.mp3",
+      "midi": 59,
+      "bytes": 44574
+    },
+    {
+      "nombre": "62.mp3",
+      "midi": 62,
+      "bytes": 44365
+    },
+    {
+      "nombre": "65.mp3",
+      "midi": 65,
+      "bytes": 46341
+    },
+    {
+      "nombre": "69.mp3",
+      "midi": 69,
+      "bytes": 43482
+    },
+    {
+      "nombre": "72.mp3",
+      "midi": 72,
+      "bytes": 45821
+    },
+    {
+      "nombre": "76.mp3",
+      "midi": 76,
+      "bytes": 58530
+    },
+    {
+      "nombre": "79.mp3",
+      "midi": 79,
+      "bytes": 61624
+    },
+    {
+      "nombre": "83.mp3",
+      "midi": 83,
+      "bytes": 62670
+    }
+  ],
+  "bytes": 714788
+}

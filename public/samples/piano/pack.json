@@ -1,0 +1,222 @@
+{
+  "id": "piano",
+  "nombre": "Piano de cola (Salamander Grand Piano V3, Yamaha C5)",
+  "autor": "Alexander Holm",
+  "origen": "https://github.com/sfzinstruments/SalamanderGrandPiano/tree/master/Samples",
+  "licencia": "CC-BY-3.0",
+  "urlLicencia": "https://creativecommons.org/licenses/by/3.0/",
+  "creditos": "Salamander Grand Piano V3, de Alexander Holm, con licencia CC BY 3.0 (https://archive.org/details/SalamanderGrandPianoV3). Modificado: notas recortadas, pasadas a mono, reafinadas al temperamento igual, normalizadas y convertidas a MP3.",
+  "archivos": [
+    {
+      "nombre": "36-p.mp3",
+      "midi": 36,
+      "bytes": 39389
+    },
+    {
+      "nombre": "36-f.mp3",
+      "midi": 36,
+      "bytes": 39414
+    },
+    {
+      "nombre": "39-p.mp3",
+      "midi": 39,
+      "bytes": 38374
+    },
+    {
+      "nombre": "39-f.mp3",
+      "midi": 39,
+      "bytes": 38166
+    },
+    {
+      "nombre": "42-p.mp3",
+      "midi": 42,
+      "bytes": 38815
+    },
+    {
+      "nombre": "42-f.mp3",
+      "midi": 42,
+      "bytes": 38035
+    },
+    {
+      "nombre": "45-p.mp3",
+      "midi": 45,
+      "bytes": 40013
+    },
+    {
+      "nombre": "45-f.mp3",
+      "midi": 45,
+      "bytes": 37722
+    },
+    {
+      "nombre": "48-p.mp3",
+      "midi": 48,
+      "bytes": 36397
+    },
+    {
+      "nombre": "48-f.mp3",
+      "midi": 48,
+      "bytes": 34305
+    },
+    {
+      "nombre": "51-p.mp3",
+      "midi": 51,
+      "bytes": 36183
+    },
+    {
+      "nombre": "51-f.mp3",
+      "midi": 51,
+      "bytes": 34502
+    },
+    {
+      "nombre": "54-p.mp3",
+      "midi": 54,
+      "bytes": 39155
+    },
+    {
+      "nombre": "54-f.mp3",
+      "midi": 54,
+      "bytes": 36866
+    },
+    {
+      "nombre": "57-p.mp3",
+      "midi": 57,
+      "bytes": 39831
+    },
+    {
+      "nombre": "57-f.mp3",
+      "midi": 57,
+      "bytes": 36814
+    },
+    {
+      "nombre": "60-p.mp3",
+      "midi": 60,
+      "bytes": 37228
+    },
+    {
+      "nombre": "60-f.mp3",
+      "midi": 60,
+      "bytes": 31526
+    },
+    {
+      "nombre": "63-p.mp3",
+      "midi": 63,
+      "bytes": 33329
+    },
+    {
+      "nombre": "63-f.mp3",
+      "midi": 63,
+      "bytes": 29651
+    },
+    {
+      "nombre": "66-p.mp3",
+      "midi": 66,
+      "bytes": 36865
+    },
+    {
+      "nombre": "66-f.mp3",
+      "midi": 66,
+      "bytes": 33035
+    },
+    {
+      "nombre": "69-p.mp3",
+      "midi": 69,
+      "bytes": 38583
+    },
+    {
+      "nombre": "69-f.mp3",
+      "midi": 69,
+      "bytes": 35136
+    },
+    {
+      "nombre": "72-p.mp3",
+      "midi": 72,
+      "bytes": 40403
+    },
+    {
+      "nombre": "72-f.mp3",
+      "midi": 72,
+      "bytes": 34696
+    },
+    {
+      "nombre": "75-p.mp3",
+      "midi": 75,
+      "bytes": 38088
+    },
+    {
+      "nombre": "75-f.mp3",
+      "midi": 75,
+      "bytes": 33615
+    },
+    {
+      "nombre": "78-p.mp3",
+      "midi": 78,
+      "bytes": 35559
+    },
+    {
+      "nombre": "78-f.mp3",
+      "midi": 78,
+      "bytes": 30819
+    },
+    {
+      "nombre": "81-p.mp3",
+      "midi": 81,
+      "bytes": 41417
+    },
+    {
+      "nombre": "81-f.mp3",
+      "midi": 81,
+      "bytes": 35998
+    },
+    {
+      "nombre": "84-p.mp3",
+      "midi": 84,
+      "bytes": 42250
+    },
+    {
+      "nombre": "84-f.mp3",
+      "midi": 84,
+      "bytes": 38061
+    },
+    {
+      "nombre": "87-p.mp3",
+      "midi": 87,
+      "bytes": 41600
+    },
+    {
+      "nombre": "87-f.mp3",
+      "midi": 87,
+      "bytes": 39051
+    },
+    {
+      "nombre": "90-p.mp3",
+      "midi": 90,
+      "bytes": 41678
+    },
+    {
+      "nombre": "90-f.mp3",
+      "midi": 90,
+      "bytes": 38478
+    },
+    {
+      "nombre": "93-p.mp3",
+      "midi": 93,
+      "bytes": 39805
+    },
+    {
+      "nombre": "93-f.mp3",
+      "midi": 93,
+      "bytes": 33901
+    },
+    {
+      "nombre": "96-p.mp3",
+      "midi": 96,
+      "bytes": 39337
+    },
+    {
+      "nombre": "96-f.mp3",
+      "midi": 96,
+      "bytes": 35455
+    }
+  ],
+  "bytes": 1559545
+}

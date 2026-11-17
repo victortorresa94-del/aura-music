@@ -6,6 +6,8 @@
  * y ajustar volumen. Nada más.
  */
 
+import type { PistaDeNotas } from '@/lib/instrumentos/tipos';
+
 export interface Clip {
   /** Clave del audio en el almacén (IndexedDB / mapa de buffers en memoria). */
   bufferId: string;
@@ -35,6 +37,13 @@ export interface Track {
    * que en este estudio es el color de lo generado.
    */
   ia?: boolean;
+  /**
+   * Pilar B: si la pista se tocó en la pantalla, sus notas en bruto, los
+   * ajustes y el instrumento (ver `src/lib/instrumentos/tipos.ts`). El clip
+   * apunta al audio hecho con ellas, así que el motor la reproduce y la
+   * exporta como cualquier otra. Las pistas sin este campo son audio.
+   */
+  notas?: PistaDeNotas;
 }
 
 export interface Project {

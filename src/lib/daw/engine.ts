@@ -37,6 +37,17 @@ export interface TickInfo {
   countInRemaining: number;
 }
 
+/**
+ * Pilar B (instrumentos): opciones para reproducir mientras se graba lo que
+ * tocas en la pantalla. No hay micro, así que no pasa por `record`.
+ */
+export interface OpcionesReproduccion {
+  /** Pulsos de claqueta antes de arrancar (la cuenta atrás). */
+  claquetaPulsos?: number;
+  /** No parar al llegar al final del proyecto: se está tocando algo nuevo. */
+  sinFin?: boolean;
+}
+
 export class StudioEngine {
   ctx: AudioContext | null = null;
   private master: GainNode | null = null;
@@ -78,6 +89,8 @@ export class StudioEngine {
   private project: Project | null = null;
   private settings: StudioSettings | null = null;
   private stopping: Promise<void> | null = null;
+  /** Pilar B: grabando notas, el transporte no se para solo al final del proyecto. */
+  private sinFin = false;
 
   onTick: ((info: TickInfo) => void) | null = null;
   onLevel: ((level: number) => void) | null = null;
@@ -274,6 +287,15 @@ export class StudioEngine {
     return this.recordStartPosition;
   }
 
+  /**
+   * Pilar B: la posición de la línea de tiempo que corresponde a un instante
+   * del reloj de audio, sin recortar la claqueta (sale negativa antes del
+   * arranque). Es lo que coloca cada nota tocada en la pantalla en su sitio.
+   */
+  posicionEn(tiempoContexto: number): number {
+    return this.anchorPosition + (tiempoContexto - this.anchorTime);
+  }
+
   /** Segundos que faltan para que termine la claqueta. */
   get countInRemaining(): number {
     if (!this.ctx || this.state !== 'countin') return 0;
@@ -296,7 +318,7 @@ export class StudioEngine {
     this.reviewReturn = from;
   }
 
-  async play(project: Project, settings: StudioSettings, from?: number) {
+  async play(project: Project, settings: StudioSettings, from?: number, opciones: OpcionesReproduccion = {}) {
     if (this.state !== 'stopped') await this.stop();
     const ctx = await this.ensureContext();
     this.reviewReturn = null;
@@ -304,7 +326,12 @@ export class StudioEngine {
     this.settings = settings;
 
     const start = from ?? this.idlePosition;
-    const t0 = ctx.currentTime + LEAD_TIME;
+    // Pilar B: la claqueta va delante del arranque, como en `record`.
+    const claquetaPulsos = Math.max(0, Math.round(opciones.claquetaPulsos ?? 0));
+    const claqueta = claquetaPulsos * (60 / project.bpm);
+    if (claquetaPulsos > 0) this.scheduleCountIn(project.bpm, ctx.currentTime + LEAD_TIME, claquetaPulsos);
+    this.sinFin = !!opciones.sinFin;
+    const t0 = ctx.currentTime + LEAD_TIME + claqueta;
     this.anchorTime = t0;
     this.anchorPosition = start;
     this.setTempo(project.bpm);
@@ -392,6 +419,7 @@ export class StudioEngine {
     this.stopMetronome();
     this.silenceGroove();
     this.stopClock();
+    this.sinFin = false;
 
     if (wasRecording && this.recorder && ctx) {
       // La cola de la interpretación todavía está viajando por el sistema:
@@ -451,7 +479,7 @@ export class StudioEngine {
 
       this.emitTick();
 
-      if (this.state === 'playing' && this.project) {
+      if (this.state === 'playing' && this.project && !this.sinFin) {
         const end = projectDuration(this.project);
         if (end > 0 && this.position >= end + 0.15) {
           void this.stop();
