@@ -3,6 +3,8 @@
 import { useRef, useState } from 'react';
 import type { Studio } from '@/hooks/useStudio';
 import { AjustesDeNotas } from './instrumentos';
+import { SeccionClaqueta } from './claqueta/SeccionClaqueta';
+import { CuadrarToma } from './cuadrar/CuadrarToma';
 import { haptic, trackTint } from './theme';
 import {
   Field,
@@ -244,6 +246,8 @@ export function TrackSheet({
 
       {/* Pilar B: si se tocó en la pantalla, cuadrar, humanizar y cambiar el sonido. */}
       {selectedTrack.notas ? <AjustesDeNotas studio={studio} track={selectedTrack} /> : null}
+      {/* Y si es audio (guitarra, voz), cuadrarla al tempo sin perder la original. */}
+      {selectedTrack.notas ? null : <CuadrarToma studio={studio} track={selectedTrack} />}
 
       <Field
         title="Repetir el bloque"
@@ -461,7 +465,7 @@ export function ClickSheet({
   open: boolean;
   onClose: () => void;
 }) {
-  const { project, settings, setBpm, updateSettings, toggleMetronome, engine } = studio;
+  const { project, settings, setBpm, updateSettings, engine } = studio;
   const tapsRef = useRef<number[]>([]);
   const [tapHint, setTapHint] = useState('Marcar el tempo');
 
@@ -507,30 +511,19 @@ export function ClickSheet({
         </div>
       </Field>
 
-      <Field title="Metrónomo">
-        <Toggle
-          checked={settings.metronome}
-          onChange={() => toggleMetronome()}
-          title="Click"
-          detail="Suena en cada pulso mientras reproduces y grabas."
-        />
-        <div style={{ marginTop: 8 }}>
-          <TextButton full onClick={() => engine?.previewClick(true)}>
-            Probar el click
-          </TextButton>
-        </div>
-      </Field>
+      {/* La claqueta de varias formas: sonido, cada cuánto, acento, volumen y ritmo de fondo. */}
+      <SeccionClaqueta studio={studio} />
 
       <Field
         title="Compases de entrada"
-        hint="Los clicks que suenan antes de que empiece a grabar, para que entres a tiempo."
+        hint="La cuenta antes de grabar, con el mismo sonido que la claqueta, para que entres a tiempo."
       >
         <Segmented
           ariaLabel="Compases de entrada"
           value={settings.countInBars}
           options={[0, 1, 2].map((bars) => ({
             value: bars,
-            text: bars === 0 ? 'Sin cuenta' : `${bars} compás${bars > 1 ? 'es' : ''}`,
+            text: bars === 0 ? 'Sin cuenta' : `${bars} ${bars > 1 ? 'compases' : 'compás'}`,
           }))}
           onChange={(bars) => updateSettings({ countInBars: bars })}
         />

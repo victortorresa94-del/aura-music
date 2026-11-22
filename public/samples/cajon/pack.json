@@ -1,0 +1,301 @@
+{
+  "id": "cajon",
+  "nombre": "Cajón flamenco con palmas y pitos (VCSL y Body percussion)",
+  "obra": "Versilian Community Sample Library (VCSL), Cajon",
+  "autor": "Versilian Studios",
+  "origen": "https://github.com/sgossner/VCSL/tree/master/Idiophones/Struck%20Idiophones/Cajon",
+  "licencia": "CC0-1.0",
+  "urlLicencia": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "creditos": "",
+  "fuentes": [
+    {
+      "obra": "Versilian Community Sample Library (VCSL)",
+      "autor": "Versilian Studios",
+      "origen": "https://github.com/sgossner/VCSL",
+      "licencia": "CC0-1.0",
+      "urlLicencia": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "creditos": "",
+      "notas": [
+        36,
+        37,
+        38
+      ]
+    },
+    {
+      "obra": "Body percussion",
+      "autor": "D. Smolken",
+      "origen": "https://github.com/sfzinstruments/body_percussion",
+      "licencia": "CC0-1.0",
+      "urlLicencia": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "creditos": "",
+      "notas": [
+        39,
+        42,
+        46
+      ]
+    }
+  ],
+  "archivos": [
+    {
+      "nombre": "36-v1-r1.mp3",
+      "midi": 36,
+      "vel": [
+        1,
+        48
+      ],
+      "rr": 1,
+      "bytes": 5836
+    },
+    {
+      "nombre": "36-v1-r2.mp3",
+      "midi": 36,
+      "vel": [
+        1,
+        48
+      ],
+      "rr": 2,
+      "bytes": 5472
+    },
+    {
+      "nombre": "36-v2-r1.mp3",
+      "midi": 36,
+      "vel": [
+        49,
+        96
+      ],
+      "rr": 1,
+      "bytes": 5316
+    },
+    {
+      "nombre": "36-v2-r2.mp3",
+      "midi": 36,
+      "vel": [
+        49,
+        96
+      ],
+      "rr": 2,
+      "bytes": 5862
+    },
+    {
+      "nombre": "36-v3-r1.mp3",
+      "midi": 36,
+      "vel": [
+        97,
+        127
+      ],
+      "rr": 1,
+      "bytes": 5915
+    },
+    {
+      "nombre": "36-v3-r2.mp3",
+      "midi": 36,
+      "vel": [
+        97,
+        127
+      ],
+      "rr": 2,
+      "bytes": 6330
+    },
+    {
+      "nombre": "37-v1-r1.mp3",
+      "midi": 37,
+      "vel": [
+        1,
+        80
+      ],
+      "rr": 1,
+      "bytes": 4870
+    },
+    {
+      "nombre": "37-v1-r2.mp3",
+      "midi": 37,
+      "vel": [
+        1,
+        80
+      ],
+      "rr": 2,
+      "bytes": 4767
+    },
+    {
+      "nombre": "37-v2-r1.mp3",
+      "midi": 37,
+      "vel": [
+        81,
+        127
+      ],
+      "rr": 1,
+      "bytes": 5106
+    },
+    {
+      "nombre": "37-v2-r2.mp3",
+      "midi": 37,
+      "vel": [
+        81,
+        127
+      ],
+      "rr": 2,
+      "bytes": 5523
+    },
+    {
+      "nombre": "38-v1-r1.mp3",
+      "midi": 38,
+      "vel": [
+        1,
+        48
+      ],
+      "rr": 1,
+      "bytes": 5989
+    },
+    {
+      "nombre": "38-v1-r2.mp3",
+      "midi": 38,
+      "vel": [
+        1,
+        48
+      ],
+      "rr": 2,
+      "bytes": 4898
+    },
+    {
+      "nombre": "38-v2-r1.mp3",
+      "midi": 38,
+      "vel": [
+        49,
+        96
+      ],
+      "rr": 1,
+      "bytes": 5445
+    },
+    {
+      "nombre": "38-v2-r2.mp3",
+      "midi": 38,
+      "vel": [
+        49,
+        96
+      ],
+      "rr": 2,
+      "bytes": 5081
+    },
+    {
+      "nombre": "38-v3-r1.mp3",
+      "midi": 38,
+      "vel": [
+        97,
+        127
+      ],
+      "rr": 1,
+      "bytes": 6619
+    },
+    {
+      "nombre": "38-v3-r2.mp3",
+      "midi": 38,
+      "vel": [
+        97,
+        127
+      ],
+      "rr": 2,
+      "bytes": 5472
+    },
+    {
+      "nombre": "39-v1-r1.mp3",
+      "midi": 39,
+      "vel": [
+        1,
+        80
+      ],
+      "rr": 1,
+      "bytes": 6491
+    },
+    {
+      "nombre": "39-v1-r2.mp3",
+      "midi": 39,
+      "vel": [
+        1,
+        80
+      ],
+      "rr": 2,
+      "bytes": 6179
+    },
+    {
+      "nombre": "39-v2-r1.mp3",
+      "midi": 39,
+      "vel": [
+        81,
+        127
+      ],
+      "rr": 1,
+      "bytes": 6831
+    },
+    {
+      "nombre": "39-v2-r2.mp3",
+      "midi": 39,
+      "vel": [
+        81,
+        127
+      ],
+      "rr": 2,
+      "bytes": 6726
+    },
+    {
+      "nombre": "42-v1-r1.mp3",
+      "midi": 42,
+      "vel": [
+        1,
+        80
+      ],
+      "rr": 1,
+      "bytes": 6151
+    },
+    {
+      "nombre": "42-v1-r2.mp3",
+      "midi": 42,
+      "vel": [
+        1,
+        80
+      ],
+      "rr": 2,
+      "bytes": 6123
+    },
+    {
+      "nombre": "42-v2-r1.mp3",
+      "midi": 42,
+      "vel": [
+        81,
+        127
+      ],
+      "rr": 1,
+      "bytes": 6491
+    },
+    {
+      "nombre": "42-v2-r2.mp3",
+      "midi": 42,
+      "vel": [
+        81,
+        127
+      ],
+      "rr": 2,
+      "bytes": 6596
+    },
+    {
+      "nombre": "46-v1-r1.mp3",
+      "midi": 46,
+      "vel": [
+        1,
+        127
+      ],
+      "rr": 1,
+      "bytes": 6286
+    },
+    {
+      "nombre": "46-v1-r2.mp3",
+      "midi": 46,
+      "vel": [
+        1,
+        127
+      ],
+      "rr": 2,
+      "bytes": 6338
+    }
+  ],
+  "bytes": 152713
+}

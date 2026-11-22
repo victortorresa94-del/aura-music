@@ -43,7 +43,9 @@ export function AjustesDeNotas({ studio, track }: { studio: Studio; track: Track
   if (!notas) return null;
   const def = getInstrumento(notas.instrumento);
   const esBateria = !!def.pads;
-  const alternativas = INSTRUMENTOS.filter((i) => !!i.pads === esBateria);
+  // Los sonidos que se ofrecen: los de su clase (batería con batería), sin los
+  // retirados; si la pista usa uno retirado, se sigue enseñando el suyo.
+  const alternativas = INSTRUMENTOS.filter((i) => !!i.pads === esBateria && (!i.oculto || i.id === notas.instrumento));
 
   const aplicar = (ajustes: AjustesGroove, aviso?: string) => {
     setBorrador(ajustes);

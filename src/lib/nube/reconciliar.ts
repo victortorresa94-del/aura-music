@@ -17,6 +17,7 @@
  * Todo puro, con tests en `nube.test.ts`.
  */
 
+import { audiosDePista } from '@/lib/daw/cuadrar/toma';
 import type { Project } from '@/lib/daw/types';
 
 /** Lo que importa de una versión para decidir. */
@@ -37,9 +38,13 @@ export type Accion =
   | { tipo: 'subir-borrado' }
   | { tipo: 'choque'; gana: 'local' | 'remoto'; copia: boolean };
 
-/** Los audios de una idea, sin repetir (dos pistas pueden compartir uno). */
+/**
+ * Los audios de una idea, sin repetir (dos pistas pueden compartir uno). Con
+ * los de una toma cuadrada al tempo, también la versión que no suena: la
+ * original no se borra nunca (`cuadrar/toma.ts`) y tiene que viajar con la idea.
+ */
 export function buffersDe(proyecto: Pick<Project, 'tracks'>): string[] {
-  return [...new Set(proyecto.tracks.map((pista) => pista.clip.bufferId))];
+  return [...new Set(proyecto.tracks.flatMap((pista) => audiosDePista(pista)))];
 }
 
 /** ¿Tiene `a` algún audio que `b` no tiene? */

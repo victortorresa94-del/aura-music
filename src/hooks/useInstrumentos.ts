@@ -17,18 +17,22 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Studio } from '@/hooks/useStudio';
 import * as store from '@/lib/daw/storage';
 import { newId, type Track } from '@/lib/daw/types';
-import { Atril } from '@/lib/instrumentos/directo';
+import { Atril, ReproductorDeBucle } from '@/lib/instrumentos/directo';
 import {
+  colocarEnBucle,
   colocarEnRejilla,
   porInstrumento,
   recuperarFrase,
+  vueltaDe,
+  type ClipDeNotas,
   type EventoTocado,
 } from '@/lib/instrumentos/grabacion';
+import { golpesParaPista, type Loop, type NivelLoop } from '@/lib/instrumentos/loops';
 import { getInstrumento } from '@/lib/instrumentos/registro';
 import { renderizarNotas } from '@/lib/instrumentos/render';
-import { AJUSTES_SIN_TOCAR, type InstrumentoId, type PistaDeNotas } from '@/lib/instrumentos/tipos';
+import { AJUSTES_SIN_TOCAR, type AjustesGroove, type InstrumentoId, type PistaDeNotas } from '@/lib/instrumentos/tipos';
 import { leerToqueMs } from '@/lib/instrumentos/toque';
-import { procesarGolpes } from '@/lib/musico/groove';
+import { ajustesParaCuadrar, procesarGolpes } from '@/lib/musico/groove';
 
 export type EstadoTocar = 'libre' | 'claqueta' | 'grabando';
 
@@ -101,16 +105,6 @@ function alargar(samples: Float32Array, largo: number): Float32Array {
   return salida;
 }
 
-const NOMBRES: Record<InstrumentoId, string> = {
-  'bateria-808': 'Batería 808',
-  'bateria-909': 'Batería 909',
-  cajon: 'Cajón',
-  piano: 'Piano',
-  'piano-electrico': 'Piano eléctrico',
-  cuerdas: 'Cuerdas',
-  guitarra: 'Guitarra',
-  bajo: 'Bajo',
-};
 
 export function useInstrumentos(studio: Studio, pulsosPorCompas: number) {
   const { engine, project, settings, transport } = studio;
@@ -144,99 +138,223 @@ export function useInstrumentos(studio: Studio, pulsosPorCompas: number) {
   }, [atril, engine, transport]);
 
   /* ---------------------------------------------------------------- */
-  /* De eventos a pistas                                               */
+  /* De notas a pistas                                                 */
   /* ---------------------------------------------------------------- */
 
-  const crearPistas = useCallback(
-    async (eventos: EventoTocado[], posiciones: number[]): Promise<number> => {
+  /**
+   * Una pista de notas nueva a partir de un clip ya colocado: lo tocado, lo
+   * recuperado o un loop de la biblioteca. Devuelve el id de la pista.
+   */
+  const crearPista = useCallback(
+    async (o: {
+      instrumento: InstrumentoId;
+      clip: ClipDeNotas;
+      ajustes?: AjustesGroove;
+      repeticiones?: number;
+      /** Un loop de la biblioteca lo ha puesto la máquina: va en verde. */
+      ia?: boolean;
+      nombre?: string;
+    }): Promise<string | null> => {
       const s = studioRef.current;
-      if (!s.engine || eventos.length === 0) return 0;
+      if (!s.engine) return null;
       const bpm = s.project.bpm;
-      let creadas = 0;
-      for (const [instrumento, grupo] of porInstrumento(eventos, posiciones)) {
-        const def = getInstrumento(instrumento);
-        const clip = colocarEnRejilla(grupo.eventos, grupo.posiciones, { bpm, pulsosPorCompas, cola: !def.pads });
-        if (!clip) continue;
-        const pulso = 60 / bpm;
-        const golpes = procesarGolpes(clip.golpes, AJUSTES_SIN_TOCAR, { bpm, inicioBeat: clip.inicio / pulso });
-        const render = await renderizarNotas({
-          golpes,
-          instrumento,
-          bpm,
-          sampleRate: s.engine.contextSampleRate,
-          decodificador: s.engine.ctx,
-        });
-        const duracion = clip.pulsos * pulso;
-        const minimo = Math.ceil(duracion * render.sampleRate);
-        const samples = render.samples.length >= minimo ? render.samples : alargar(render.samples, minimo);
-        const track: Track | null = studioRef.current.addGeneratedTrack({
-          name: NOMBRES[instrumento],
-          samples,
-          sampleRate: render.sampleRate,
-          start: clip.inicio,
-          repeats: 1,
-          volume: 0.9,
-        });
-        if (!track) continue;
-        const notas: PistaDeNotas = {
-          instrumento,
-          bruto: clip.golpes,
-          golpes,
-          ajustes: AJUSTES_SIN_TOCAR,
-          bpm,
-          pulsosPorCompas,
-          sonido: render.sonido,
-        };
-        // La has tocado tú: no es verde. Y el clip, en compases enteros para
-        // que se pueda repetir sin costuras.
-        studioRef.current.updateTrack(
-          track.id,
-          { ia: false, notas, clip: { ...track.clip, duration: duracion } },
-          { history: false },
-        );
-        creadas++;
-      }
-      return creadas;
+      const pulso = 60 / bpm;
+      const def = getInstrumento(o.instrumento);
+      const ajustes = o.ajustes ?? AJUSTES_SIN_TOCAR;
+      const golpes = procesarGolpes(o.clip.golpes, ajustes, { bpm, inicioBeat: o.clip.inicio / pulso });
+      const render = await renderizarNotas({
+        golpes,
+        instrumento: o.instrumento,
+        bpm,
+        sampleRate: s.engine.contextSampleRate,
+        decodificador: s.engine.ctx,
+      });
+      const duracion = o.clip.pulsos * pulso;
+      const minimo = Math.ceil(duracion * render.sampleRate);
+      const samples = render.samples.length >= minimo ? render.samples : alargar(render.samples, minimo);
+      const track: Track | null = studioRef.current.addGeneratedTrack({
+        name: o.nombre ?? def.nombre,
+        samples,
+        sampleRate: render.sampleRate,
+        start: o.clip.inicio,
+        repeats: Math.max(1, o.repeticiones ?? 1),
+        volume: 0.9,
+      });
+      if (!track) return null;
+      const notas: PistaDeNotas = {
+        instrumento: o.instrumento,
+        bruto: o.clip.golpes,
+        golpes,
+        ajustes,
+        bpm,
+        pulsosPorCompas,
+        sonido: render.sonido,
+      };
+      // Lo tocado por ti no es verde; un loop de la biblioteca, sí. Y el clip,
+      // en compases enteros para que se repita sin costuras.
+      studioRef.current.updateTrack(
+        track.id,
+        { ia: !!o.ia, notas, clip: { ...track.clip, duration: duracion } },
+        { history: false },
+      );
+      return track.id;
     },
     [pulsosPorCompas],
   );
+
+  const crearPistas = useCallback(
+    async (eventos: EventoTocado[], posiciones: number[]): Promise<string[]> => {
+      const s = studioRef.current;
+      if (!s.engine || eventos.length === 0) return [];
+      const ids: string[] = [];
+      for (const [instrumento, grupo] of porInstrumento(eventos, posiciones)) {
+        const def = getInstrumento(instrumento);
+        const clip = colocarEnRejilla(grupo.eventos, grupo.posiciones, { bpm: s.project.bpm, pulsosPorCompas, cola: !def.pads });
+        if (!clip) continue;
+        const id = await crearPista({ instrumento, clip });
+        if (id) ids.push(id);
+      }
+      return ids;
+    },
+    [crearPista, pulsosPorCompas],
+  );
+
+  /* ---------------------------------------------------------------- */
+  /* «¿Ha quedado bien?»                                               */
+  /* ---------------------------------------------------------------- */
+
+  /**
+   * Después de cada toma, la pregunta. Si era un loop, ya viene cuadrado al
+   * 70 % (fuerza y swing por defecto) y se ofrece dejarlo como lo tocaste o
+   * cuadrarlo más; si no, cuadrarlo. Nunca se pierde lo tocado: el bruto se
+   * queda en la pista, y «Deshacer» la quita entera con el Deshacer de
+   * siempre.
+   */
+  const [resultado, setResultado] = useState<Resultado | null>(null);
+
+  const cuadrarResultado = useCallback(
+    async (fuerza: number | null) => {
+      const s = studioRef.current;
+      if (!resultado) return;
+      for (const id of resultado.trackIds) {
+        const track = s.project.tracks.find((t) => t.id === id);
+        if (!track?.notas) continue;
+        const inicioBeat = (track.clip.start * s.project.bpm) / 60;
+        const ajustes =
+          fuerza === null
+            ? { ...track.notas.ajustes, cuadrar: null }
+            : ajustesParaCuadrar(track.notas.bruto, track.notas.ajustes, { fuerza, swing: track.notas.ajustes.cuadrar?.swing ?? 0, humanizar: false, inicioBeat });
+        await rehacerPistaDeNotas(studioRef.current, id, { ajustes });
+      }
+      // La tarjeta ya dice cómo ha quedado: sin aviso abajo, que sería decirlo dos veces.
+      setResultado((r) => (r ? { ...r, fuerza } : r));
+    },
+    [resultado],
+  );
+
+  const cerrarResultado = useCallback(() => setResultado(null), []);
+
+  const deshacerResultado = useCallback(() => {
+    const s = studioRef.current;
+    if (!resultado) return;
+    for (const id of resultado.trackIds) s.deleteTrack(id);
+    setResultado(null);
+  }, [resultado]);
 
   /* ---------------------------------------------------------------- */
   /* Grabar                                                            */
   /* ---------------------------------------------------------------- */
 
+  /** Lo que hace falta mientras se graba en bucle. */
+  const bucleRef = useRef<{ desde: number; largo: number; compases: number; inicios: number[]; reproductor: ReproductorDeBucle | null } | null>(null);
+  const [vuelta, setVuelta] = useState(0);
+
   const grabar = useCallback(
-    async (claqueta: boolean) => {
+    async (claqueta: boolean, bucleCompases = 0) => {
       const s = studioRef.current;
       if (!s.engine || !atril) return;
       const motor = s.engine;
       if (motor.transportState !== 'stopped') await s.stop();
+      setResultado(null);
       const pulso = 60 / s.project.bpm;
       const compas = pulso * pulsosPorCompas;
       // Se graba desde el principio del compás donde está el cursor.
       const desde = Math.max(0, Math.floor(motor.position / compas + 1e-6) * compas);
+      const largo = bucleCompases > 0 ? bucleCompases * compas : 0;
       desdeRef.current = desde;
       atril.empezarToma();
       setEstado('claqueta');
+      setVuelta(0);
       await motor.play(s.project, { ...s.settings, metronome: claqueta }, desde, {
         claquetaPulsos: Math.max(0, s.settings.countInBars) * pulsosPorCompas,
         sinFin: true,
+        bucle: largo > 0 ? { inicio: desde, fin: desde + largo } : undefined,
       });
       // Sin esperar al efecto de React: el primer golpe ya tiene que saber dónde cae.
       atril.posicion = (t) => motor.posicionEn(t);
-      const cuenta = motor.ctx ? Math.max(0, -motor.posicionEn(motor.ctx.currentTime) + desde) : 0;
+      const ctx = motor.ctx;
+      const cuenta = ctx ? Math.max(0, -motor.posicionEn(ctx.currentTime) + desde) : 0;
       window.setTimeout(() => setEstado((e) => (e === 'claqueta' ? 'grabando' : e)), cuenta * 1000);
+
+      if (largo > 0 && ctx) {
+        // Modo loop: cada vuelta se suma a lo anterior. Lo de las vueltas ya
+        // terminadas suena solo mientras tocas la siguiente.
+        const inicioPrimera = ctx.currentTime + cuenta;
+        const estadoBucle = { desde, largo, compases: bucleCompases, inicios: [inicioPrimera], reproductor: null as ReproductorDeBucle | null };
+        bucleRef.current = estadoBucle;
+        motor.onVuelta = (cuando) => {
+          estadoBucle.inicios.push(cuando);
+          window.setTimeout(() => setVuelta(estadoBucle.inicios.length - 1), Math.max(0, (cuando - ctx.currentTime) * 1000));
+        };
+        estadoBucle.reproductor = new ReproductorDeBucle(atril, ctx, {
+          id: 'bateria-acustica',
+          largo: largo / pulso,
+          bpm: s.project.bpm,
+          fase: (t) => (motor.posicionEn(t) - desde) / pulso,
+          golpes: (t) => {
+            const ahora = vueltaDe(t, estadoBucle.inicios);
+            return atril.eventosDeLaToma
+              .filter((e) => vueltaDe(e.t, estadoBucle.inicios) < ahora)
+              .map((e) => {
+                const pos = e.pos ?? motor.posicionEn(e.t);
+                const dentro = (((pos - desde) % largo) + largo) % largo;
+                return { beat: dentro / pulso, dur: (e.dur ?? 0.1) / pulso, nota: e.nota, vel: e.vel, instrumento: e.instrumento };
+              });
+          },
+        });
+      } else {
+        bucleRef.current = null;
+      }
     },
     [atril, pulsosPorCompas],
   );
+
+  /** Quita la última vuelta que tenga algo (la que acabas de tocar, o la de antes). */
+  const deshacerVuelta = useCallback(() => {
+    const b = bucleRef.current;
+    if (!b || !atril) return;
+    const vueltas = atril.eventosDeLaToma.map((e) => vueltaDe(e.t, b.inicios));
+    if (vueltas.length === 0) {
+      studioRef.current.setStatus('Todavía no hay nada que quitar');
+      return;
+    }
+    const ultima = Math.max(...vueltas);
+    atril.quitarDeLaToma((e) => vueltaDe(e.t, b.inicios) === ultima);
+    studioRef.current.setStatus(`Quitada la vuelta ${ultima + 1}`);
+  }, [atril]);
 
   const parar = useCallback(async () => {
     const s = studioRef.current;
     if (!s.engine || !atril) return;
     const grabando = atril.grabando;
+    const bucle = bucleRef.current;
+    bucle?.reproductor?.parar();
+    s.engine.onVuelta = null;
+    bucleRef.current = null;
     await s.engine.stop();
     atril.posicion = null;
     setEstado('libre');
+    setVuelta(0);
     if (!grabando) return;
     s.engine.seek(desdeRef.current);
     const eventos = atril.terminarToma();
@@ -245,9 +363,37 @@ export function useInstrumentos(studio: Studio, pulsosPorCompas: number) {
       return;
     }
     const posiciones = eventos.map((e) => e.pos ?? s.engine!.posicionEn(e.t));
-    const creadas = await crearPistas(eventos, posiciones);
-    if (creadas > 0) s.setStatus(creadas === 1 ? 'Toma guardada como pista de notas' : `${creadas} pistas de notas guardadas`);
-  }, [atril, crearPistas]);
+
+    if (!bucle) {
+      const ids = await crearPistas(eventos, posiciones);
+      if (ids.length > 0) setResultado({ origen: 'toma', trackIds: ids, fuerza: null });
+      return;
+    }
+
+    // Un loop: se pliega en sus compases, se cuadra solo y se repite hasta
+    // llenar unos ocho compases (el bloque se puede alargar o acortar luego).
+    const ids: string[] = [];
+    const pulso = 60 / s.project.bpm;
+    for (const [instrumento, grupo] of porInstrumento(eventos, posiciones)) {
+      const clip = colocarEnBucle(grupo.eventos, grupo.posiciones, { bpm: s.project.bpm, desde: bucle.desde, largo: bucle.largo });
+      if (!clip) continue;
+      const ajustes = ajustesParaCuadrar(clip.golpes, AJUSTES_SIN_TOCAR, {
+        fuerza: 0.7,
+        swing: 0,
+        humanizar: false,
+        inicioBeat: bucle.desde / pulso,
+      });
+      const id = await crearPista({
+        instrumento,
+        clip,
+        ajustes,
+        repeticiones: Math.max(1, Math.round(8 / bucle.compases)),
+        nombre: `${getInstrumento(instrumento).nombre} · loop`,
+      });
+      if (id) ids.push(id);
+    }
+    if (ids.length > 0) setResultado({ origen: 'loop', trackIds: ids, fuerza: 0.7 });
+  }, [atril, crearPistas, crearPista]);
 
   /** Reproducir el proyecto para tocar encima (sin grabar, pero capturando). */
   const escuchar = useCallback(async () => {
@@ -268,9 +414,79 @@ export function useInstrumentos(studio: Studio, pulsosPorCompas: number) {
     const frase = recuperarFrase(atril.captura, { cursor: s.engine.position, bpm: s.project.bpm });
     if (!frase) return;
     atril.vaciarCaptura();
-    const creadas = await crearPistas(frase.eventos, frase.posiciones);
-    if (creadas > 0) s.setStatus('Recuperado: lo último que tocaste ya es una pista');
+    const ids = await crearPistas(frase.eventos, frase.posiciones);
+    if (ids.length > 0) setResultado({ origen: 'recuperado', trackIds: ids, fuerza: null });
   }, [atril, crearPistas]);
+
+  /* ---------------------------------------------------------------- */
+  /* Biblioteca de loops                                               */
+  /* ---------------------------------------------------------------- */
+
+  const escuchaRef = useRef<ReproductorDeBucle | null>(null);
+  const [escuchando, setEscuchando] = useState<string | null>(null);
+
+  const pararEscucha = useCallback(() => {
+    escuchaRef.current?.parar();
+    escuchaRef.current = null;
+    setEscuchando(null);
+  }, []);
+
+  /**
+   * Escuchar un loop antes de ponerlo, a tu tempo. Si el proyecto está
+   * sonando, entra pegado a su rejilla; si no, empieza ya.
+   */
+  const escucharLoop = useCallback(
+    (loop: Loop, o: { nivel: NivelLoop; tonica: number }) => {
+      const s = studioRef.current;
+      if (!atril || !s.engine) return;
+      pararEscucha();
+      atril.preparar(loop.instrumento);
+      const ctx = atril.contexto();
+      const pulso = 60 / s.project.bpm;
+      const { golpes, pulsos } = golpesParaPista(loop, { veces: loop.compases, nivel: o.nivel, tonica: o.tonica });
+      const motor = s.engine;
+      const sonando = motor.transportState === 'playing';
+      const t0 = ctx.currentTime + 0.06;
+      escuchaRef.current = new ReproductorDeBucle(atril, ctx, {
+        id: loop.instrumento,
+        largo: pulsos,
+        bpm: s.project.bpm,
+        fase: sonando ? (t) => motor.posicionEn(t) / pulso : (t) => (t - t0) / pulso,
+        golpes: () => golpes,
+      });
+      setEscuchando(loop.id);
+    },
+    [atril, pararEscucha],
+  );
+
+  /** Poner un loop: entra como pista de notas en el compás del cursor, repetido `veces` ciclos. */
+  const ponerLoop = useCallback(
+    async (loop: Loop, o: { nivel: NivelLoop; veces: number; tonica: number }) => {
+      const s = studioRef.current;
+      if (!s.engine) return;
+      pararEscucha();
+      const pulso = 60 / s.project.bpm;
+      const compas = pulso * pulsosPorCompas;
+      const desde = Math.max(0, Math.floor(s.engine.position / compas + 1e-6) * compas);
+      const { golpes, pulsos } = golpesParaPista(loop, o);
+      const sufijo = o.nivel === 'bombo' ? ' · solo bombo' : o.nivel === 'bombo-caja' ? ' · bombo y caja' : '';
+      const id = await crearPista({
+        instrumento: loop.instrumento,
+        clip: { inicio: desde, golpes, pulsos },
+        ia: true,
+        nombre: `${loop.nombre}${sufijo}`,
+      });
+      if (id) {
+        setResultado({
+          origen: 'biblioteca',
+          trackIds: [id],
+          fuerza: null,
+          nombre: `${loop.nombre} · ${o.veces} ${o.veces === 1 ? 'compás' : 'compases'} a ${s.project.bpm} BPM`,
+        });
+      }
+    },
+    [crearPista, pararEscucha, pulsosPorCompas],
+  );
 
   /* ---------------------------------------------------------------- */
   /* Mantener las pistas al día                                        */
@@ -305,9 +521,34 @@ export function useInstrumentos(studio: Studio, pulsosPorCompas: number) {
     escuchar,
     recuperar,
     hayCaptura: (atril?.captura.length ?? 0) > 0,
+    // Modo loop
+    vuelta,
+    deshacerVuelta,
+    // «¿Ha quedado bien?»
+    resultado,
+    cuadrarResultado,
+    deshacerResultado,
+    cerrarResultado,
+    // Biblioteca de loops
+    escuchando,
+    escucharLoop,
+    pararEscucha,
+    ponerLoop,
     pulsosPorCompas,
     settings,
   };
 }
 
 export type Instrumentos = ReturnType<typeof useInstrumentos>;
+
+/**
+ * Lo último que ha entrado en la canción desde «Tocar», para preguntar si ha
+ * quedado bien. `fuerza` es cuánto está cuadrado (null: tal cual se tocó).
+ */
+export interface Resultado {
+  origen: 'toma' | 'loop' | 'recuperado' | 'biblioteca';
+  trackIds: string[];
+  fuerza: number | null;
+  /** Para un loop de la biblioteca: qué se ha puesto. */
+  nombre?: string;
+}

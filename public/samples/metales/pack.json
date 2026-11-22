@@ -1,0 +1,265 @@
+{
+  "id": "metales",
+  "nombre": "Metales sostenidos: trombón y trompeta (VS Chamber Orchestra: Community Edition)",
+  "obra": "VSCO 2 CE: OldTrombone (Sustain), notas 41 a 60; Trumpet (sus), notas 63 a 84",
+  "autor": "Versilian Studios (Sam Gossner y Simon Dalzell)",
+  "origen": "https://github.com/sgossner/VSCO-2-CE/tree/master/Brass",
+  "licencia": "CC0-1.0",
+  "urlLicencia": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "creditos": "",
+  "archivos": [
+    {
+      "nombre": "41-v1.mp3",
+      "midi": 41,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 36950
+    },
+    {
+      "nombre": "41-v2.mp3",
+      "midi": 41,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 45426
+    },
+    {
+      "nombre": "45-v1.mp3",
+      "midi": 45,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 47017
+    },
+    {
+      "nombre": "45-v2.mp3",
+      "midi": 45,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 61145
+    },
+    {
+      "nombre": "48-v1.mp3",
+      "midi": 48,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 39525
+    },
+    {
+      "nombre": "48-v2.mp3",
+      "midi": 48,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 53126
+    },
+    {
+      "nombre": "51-v1.mp3",
+      "midi": 51,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 39514
+    },
+    {
+      "nombre": "51-v2.mp3",
+      "midi": 51,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 67278
+    },
+    {
+      "nombre": "53-v1.mp3",
+      "midi": 53,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 37388
+    },
+    {
+      "nombre": "53-v2.mp3",
+      "midi": 53,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 58081
+    },
+    {
+      "nombre": "57-v1.mp3",
+      "midi": 57,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 34497
+    },
+    {
+      "nombre": "57-v2.mp3",
+      "midi": 57,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 44551
+    },
+    {
+      "nombre": "60-v1.mp3",
+      "midi": 60,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 39943
+    },
+    {
+      "nombre": "60-v2.mp3",
+      "midi": 60,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 52537
+    },
+    {
+      "nombre": "63-v1.mp3",
+      "midi": 63,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 41069
+    },
+    {
+      "nombre": "63-v2.mp3",
+      "midi": 63,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 49195
+    },
+    {
+      "nombre": "67-v1.mp3",
+      "midi": 67,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 35161
+    },
+    {
+      "nombre": "67-v2.mp3",
+      "midi": 67,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 41533
+    },
+    {
+      "nombre": "70-v1.mp3",
+      "midi": 70,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 37996
+    },
+    {
+      "nombre": "70-v2.mp3",
+      "midi": 70,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 39685
+    },
+    {
+      "nombre": "74-v1.mp3",
+      "midi": 74,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 35260
+    },
+    {
+      "nombre": "74-v2.mp3",
+      "midi": 74,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 34456
+    },
+    {
+      "nombre": "77-v1.mp3",
+      "midi": 77,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 40206
+    },
+    {
+      "nombre": "77-v2.mp3",
+      "midi": 77,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 43926
+    },
+    {
+      "nombre": "81-v1.mp3",
+      "midi": 81,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 37472
+    },
+    {
+      "nombre": "81-v2.mp3",
+      "midi": 81,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 43353
+    },
+    {
+      "nombre": "84-v1.mp3",
+      "midi": 84,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 38254
+    },
+    {
+      "nombre": "84-v2.mp3",
+      "midi": 84,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 45304
+    }
+  ],
+  "bytes": 1219848
+}

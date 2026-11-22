@@ -6,6 +6,7 @@ import type { Studio } from '@/hooks/useStudio';
 import { cssColor, haptic, trackTint } from './theme';
 import { IconImport, IconMore, T, hintText, numeric } from './ui';
 import { IconTocar, NotasClip } from './instrumentos';
+import { Repeat } from '@phosphor-icons/react';
 
 /** Ancho de la columna de pistas en el móvil. En pantallas anchas crece. */
 export const HEADER_W = 128;
@@ -697,6 +698,7 @@ export function Timeline({
   onZoom,
   beatsPerBar = 4,
   onTocar,
+  onLoops,
 }: {
   studio: Studio;
   pps: number;
@@ -704,6 +706,8 @@ export function Timeline({
   onOpenTrack: () => void;
   /** Pilar B: abre la pantalla «Tocar». Sin él, no sale el botón. */
   onTocar?: () => void;
+  /** Abre «Tocar» directamente en «Loops». Sin él, no sale el botón. */
+  onLoops?: () => void;
   /** Pellizco, Ctrl/⌘ + rueda o las teclas + y −. Sin él no hay zoom. */
   onZoom?: (pps: number) => void;
   /** Pulsos por compás para la regla: 4, o el ciclo del ritmo que suene. */
@@ -1041,7 +1045,7 @@ export function Timeline({
         {recording ? <RecordingRow studio={studio} pps={pps} headerW={headerW} laneStyle={laneStyle} /> : null}
 
         {project.tracks.length === 0 && !recording ? (
-          <EmptyState onImport={studio.importFile} width={viewport} onTocar={onTocar} />
+          <EmptyState onImport={studio.importFile} width={viewport} onTocar={onTocar} onLoops={onLoops} />
         ) : (
           <>
             <AddTrackRow onImport={studio.importFile} headerW={headerW} laneWidth={laneWidth} laneStyle={laneStyle} wide={headerW > HEADER_W} onTocar={onTocar} />
@@ -1150,6 +1154,41 @@ function BotonTocar({ onTocar, prominent }: { onTocar: () => void; prominent?: b
     >
       <IconTocar size={prominent ? 18 : 16} color="currentColor" />
       {prominent ? 'Tocar un instrumento' : 'Tocar'}
+    </button>
+  );
+}
+
+/** Empieza por un ritmo: abre «Tocar» en «Loops», que siempre van al tempo de la idea. */
+function BotonLoops({ onLoops }: { onLoops: () => void }) {
+  return (
+    <button
+      type="button"
+      className="daw-press daw-hover"
+      onClick={() => {
+        haptic(8);
+        onLoops();
+      }}
+      title="Poner un loop de batería, bajo o percusión al tempo de la idea"
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 8,
+        minHeight: 48,
+        padding: '0 18px',
+        border: 'none',
+        borderRadius: 12,
+        background: T.fill,
+        boxShadow: `inset 0 1px 0 ${T.rim}`,
+        color: T.text,
+        fontFamily: T.fontBody,
+        fontSize: 15,
+        fontWeight: 600,
+        whiteSpace: 'nowrap',
+        cursor: 'pointer',
+      }}
+    >
+      <Repeat size={18} color="currentColor" aria-hidden />
+      Poner un loop
     </button>
   );
 }
@@ -1275,10 +1314,12 @@ function EmptyState({
   onImport,
   width,
   onTocar,
+  onLoops,
 }: {
   onImport: (file: File) => void | Promise<void>;
   width: number;
   onTocar?: () => void;
+  onLoops?: () => void;
 }) {
   return (
     <div
@@ -1319,6 +1360,7 @@ function EmptyState({
       {/* Pilar B: sin micro también se empieza, tocando en la pantalla. */}
       <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 8 }}>
         {onTocar ? <BotonTocar onTocar={onTocar} prominent /> : null}
+        {onLoops ? <BotonLoops onLoops={onLoops} /> : null}
         <ImportButton onImport={onImport} text="Importar un audio" prominent />
       </div>
       <svg width="22" height="56" viewBox="0 0 22 56" fill="none" aria-hidden style={{ marginTop: 24, opacity: 0.55 }}>

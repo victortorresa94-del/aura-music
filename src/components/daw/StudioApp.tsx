@@ -26,6 +26,7 @@ import { useNube } from '@/hooks/useNube';
 import { IndicadorNube } from '@/components/cuenta/Cuenta';
 // Mezcla (pilar A)
 import { useMezcla } from '@/hooks/useMezcla';
+import { useClaqueta } from '@/hooks/useClaqueta';
 import { Mezclador } from './mezclador/Mezclador';
 import { IconoMezclador } from './mezclador/icono';
 
@@ -63,6 +64,8 @@ export default function StudioApp() {
   // Pilar B: los instrumentos que se tocan en la pantalla.
   const instrumentos = useInstrumentos(studio, ciclo?.pulsos ?? 4);
   const [tocar, setTocar] = useState(false);
+  // Si «Tocar» se abre desde «Poner un loop», entra directamente en «Loops».
+  const [tocarEnLoops, setTocarEnLoops] = useState(false);
   const tonoOido = studio.oido?.tonalidad ?? musico.escucha?.tonalidad ?? null;
   const tonalidadSugerida = useMemo(
     () => (tonoOido ? { tonica: tonoOido.tonica, modo: tonoOido.modo } : null),
@@ -147,6 +150,8 @@ export default function StudioApp() {
 
   const recording = transport === 'recording' || transport === 'countin';
   const beatsPerBar = ciclo?.pulsos ?? 4;
+  // La claqueta: el motor sabe siempre cómo tiene que sonar y dónde va el 1.
+  useClaqueta(studio, beatsPerBar);
   const compas = nombreDelCompas(beatsPerBar);
   const pistas = project.tracks.length;
 
@@ -311,6 +316,12 @@ export default function StudioApp() {
           onOpenTrack={() => setSheet('track')}
           onTocar={() => {
             engine?.unlockSync();
+            setTocarEnLoops(false);
+            setTocar(true);
+          }}
+          onLoops={() => {
+            engine?.unlockSync();
+            setTocarEnLoops(true);
             setTocar(true);
           }}
         />
@@ -426,6 +437,7 @@ export default function StudioApp() {
         abierta={tocar}
         onCerrar={() => setTocar(false)}
         tonalidadSugerida={tonalidadSugerida}
+        enLoops={tocarEnLoops}
       />
 
       <FirstRun studio={studio} suprimida={autoGrabar} onRecord={() => void record()} />

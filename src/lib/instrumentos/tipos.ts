@@ -27,13 +27,30 @@ export interface Golpe {
 }
 
 export type InstrumentoId =
+  | 'bateria-acustica'
   | 'bateria-808'
   | 'bateria-909'
   | 'cajon'
+  | 'percusion-latina'
   | 'piano'
   | 'piano-electrico'
+  | 'organo'
+  | 'organo-electrico'
   | 'cuerdas'
+  | 'pizzicato'
+  | 'metales'
+  | 'marimba'
+  | 'pad'
+  | 'sinte'
   | 'guitarra'
+  | 'guitarra-acero'
+  | 'bajo-dedos'
+  | 'bajo-pua'
+  | 'contrabajo'
+  | 'bajo-sub'
+  | 'bajo-808'
+  | 'bajo-analogico'
+  /** El bajo de la primera versión (Growlybass): solo para pistas viejas. */
   | 'bajo';
 
 /** Cuadrar: llevar los golpes hacia la rejilla sin dejarlos de máquina. */

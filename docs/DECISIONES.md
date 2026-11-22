@@ -313,6 +313,135 @@ masterizar, y el WAV sale masterizado); medidores con estado de React.
 unos segundos en canciones largas (pasarlo a un Worker); chorus y ranuras
 de efectos libres, que el plan pedía y aquí no caben aún.
 
+## 0019 · Instrumentos 2.0: batería de verdad, seis bajos y un icono para cada cosa (22-nov-2026)
+
+El dueño, tras probarlo en su iPhone: «el bajo suena feote, deberíamos tener
+varios tipos de bajo», «el crash suena poco real», «un icono tipo Aura para
+cada cosa» y «obviamente quisiera poder grabar».
+- **Batería acústica con muestras reales** (Karoryfer Big Rusty Drums, CC0):
+  hasta 3 capas de fuerza y 2 golpes alternos (round robin) por pieza, crash
+  y ride de 4,5 s, charles cerrado, de pedal y abierto, y el cerrado apaga el
+  abierto como el pie en el pedal. Palmas, pandereta, cencerro, shaker y
+  claves de la VCSL (CC0). Cajón de la VCSL con palmas y pitos de D. Smolken
+  (CC0) y percusión latina (VCSL y los timbales de Virtuosity Drums, CC0). Un
+  kit al que le falte una pieza la toca con la síntesis más parecida. La 808
+  y la 909 se quedan, con un platillo nuevo de caída en dos tramos.
+- **Seis bajos**, recordados en el móvil y compartidos con el músico al
+  momento: con dedos (Swagbass de Karoryfer, cuerdas planas, el de por
+  defecto), con púa (Pastabass), contrabajo (D. Smolken), sub, 808 (cae y
+  satura) y analógico (sierra con filtro). Los tres últimos son síntesis con
+  nodos de Web Audio (`osciladores.ts`), que sostienen mientras pisas y
+  suenan igual en el WAV. El Growlybass de antes queda oculto, solo para
+  abrir pistas viejas.
+- **Más instrumentos:** órgano de tubos (VCSL, con bucle en la parte
+  sostenida), órgano eléctrico de ruedas (síntesis), metales y cuerdas en
+  pizzicato (VSCO-2-CE), marimba (VCSL), guitarra acústica de acero (Jeff
+  Learman, CC0), pad y sinte solista (síntesis). Todo CC0, 6,3 MB nuevos;
+  cada paquete se baja al abrirlo. Citas de licencia en
+  `public/samples/LICENCIAS.md`.
+- **Las cuerdas de «Acordes» no se tocan** (sonido protegido por el dueño):
+  mismo paquete, mismos ajustes y su sitio en la tercera baldosa, detrás de
+  Española y Piano.
+- **«Tocar» con iconos:** Phosphor (MIT), como Aura, en duotono apagado y
+  relleno al elegir; los que Phosphor no tiene (batería, cajón, congas, caja
+  de ritmos, órgano, cuerdas, metales, marimba, bajo) dibujados con su mismo
+  trazo. Familias y sonidos en baldosas con icono, nombre y una línea de cómo
+  suena. Siempre en tinta: el verde sigue siendo solo de la máquina.
+- **Grabar, inconfundible:** botón rojo con la palabra escrita y el estado
+  dentro («Grabar», «Entra en 3», «Parar · 2.3»); las demás herramientas
+  llevan icono y etiqueta. La claqueta pasa a «Ajustes del toque».
+**Descartado (licencias o sonido):** SM Drums y Ovation (sin licencia), la
+guitarra de acero de FreePats (GPL), Terkelsen Marimba (sin licencia),
+Unruly Drums (todo con bordonero), Black And Blue y Meatbass (demasiado
+oscuros para el altavoz del móvil), Fashionbass (demasiado brillante).
+**Pendiente:** el número de la cuenta atrás dentro del botón se pinta con
+rAF y no se ha visto en un iPhone; tampoco cómo se oyen de verdad el bucle
+del órgano, las capas de la batería y el retardo del MP3 en Safari.
+## 0020 · La claqueta de varias formas y cuadrar tomas de audio (22-nov-2026)
+
+El dueño: «el tic-toc nunca me ha funcionado muy bien… quisiera ponerlo a
+negras y en modo bombo, o ponerle ritmos básicos de fondo para grabar, como
+rumba suave», y «quiero grabar pistas y que se regraben al tiempo».
+**Claqueta** (`src/lib/daw/claqueta/`): sonido (tic-tac, bombo, bombo y caja,
+shaker, palmas, baqueta) con las voces del kit de ritmos, cada cuánto
+(blancas, negras, corcheas, tresillos) con acento en el 1 que se puede
+quitar, volumen propio y un ritmo de fondo (rumba suave, pop, balada,
+bulería, bossa) con «Cuánto» y «Fuerza» bajos. Va por el bus de la claqueta:
+no pasa por la mezcla, no se graba y no se exporta. La cuenta atrás usa el
+mismo sonido. En la hoja de tempo, a dos toques; cada opción suena al
+tocarla y se recuerda (`StudioSettings.claqueta`, opcional: sin ella, el
+tic-tac de siempre, idéntico). El motor sigue llevando un puntero al
+siguiente paso, así que mover el tempo a media toma no da saltos, y la
+latencia aprendida mide igual (la rejilla son los pulsos, suene lo que suene).
+**Cuadrar tomas de audio** (`src/lib/daw/cuadrar/`): busca los ataques con
+`detectarGolpes`, corta 5 ms antes de cada uno, acerca cada trozo a la
+rejilla del proyecto con la fuerza elegida (50-100 %) y los une con fundidos
+de 4 ms. Si queda un hueco o un trozo pisa al siguiente, lo estira o lo
+encoge con WSOLA (entre 0,7 y 1,45 veces) sin cambiar el tono. Lo que cae
+lejos de la rejilla no se mueve. No destructivo: la pista guarda la toma
+original y la cuadrada (`Track.cuadre`); «Como la toqué / Cuadrada» a un
+toque, «Dejar como la toqué» y Deshacer. El recolector de audio cuenta la
+original como viva. El paso «cuadrar» del productor vale ahora también para
+tomas de audio (solo con la fuerza).
+**Descartado:** una voz que cuenta «un, dos, tres, cuatro». El navegador no
+puede programar `speechSynthesis` en el reloj de audio (llega cuando quiere,
+100-500 ms tarde) y una voz sintetizada a mano no se entendía; queda para
+cuando haya muestras grabadas con licencia.
+**Descartado:** reutilizar el ritmo de la hoja de Ritmos como fondo. Ese va
+por la mezcla y es material musical; el de la claqueta es una señal de
+servicio con su volumen.
+
+
+## 0021 · Loops al tempo de la canción: biblioteca, grabar en bucle y «¿Ha quedado bien?» (22-nov-2026)
+
+El dueño: «quiero poder crear loops al BPM ya configurado en la canción muy
+fácilmente, seleccionando loops de bombos o cogiendo esos sonidos y
+grabándolos, pero que luego se sincronicen al BPM o me den la opción si no
+ha quedado bien».
+- **Los loops son notas, no audio.** Cada patrón es una lista de golpes en
+  pulsos sobre un kit o un bajo de los que ya hay, así que suena siempre a tu
+  tempo y en tu compás, se oye igual en el WAV y si cambias el BPM se rehace
+  solo, como cualquier pista de notas. Nada que estirar ni que licenciar.
+- **Biblioteca en una quinta baldosa, «Loops»**, al lado de Batería, Teclado,
+  Acordes y Bajo. Batería (rock, funk, reguetón, lo-fi con swing, disco,
+  balada con ride, trap en la 808, rock con entrada de toms), bajo (raíz a
+  corcheas, raíz y quinta, octavas, dembow en 808, tumbao en contrabajo, 808
+  largo; en la tónica de tu idea) y percusión (shaker, pandereta, congas,
+  clave de son). Los ritmos de `rhythm/grooves` (bulerías, soleá, rumba,
+  tangos, bolero, bossa, pop, balada 6/8) entran convertidos desde la misma
+  fuente, sin copiarlos: flamenco en el cajón y latino en la percusión.
+- **Pocos toques:** ▶ lo escucha al momento (pegado a la rejilla si la canción
+  suena), «Bombo / Con caja / Todo» quita piezas en la batería, «2, 4 u 8
+  compases» y «Poner», que lo mete en verde en el compás del cursor. Se avisa
+  si el tempo no le va («Pensado para 85 a 110 BPM»), pero no se impide.
+- **Grabar un loop tú:** la herramienta «Loop» de arriba cambia entre no, 1,
+  2 y 4 compases (se recuerda). Grabando así, el transporte da la vuelta a
+  esos compases como una groovebox: lo de las vueltas anteriores suena solo
+  mientras tocas la siguiente, la etiqueta dice «Vuelta 3» y «Escuchar» pasa
+  a ser «Quitar», que borra la última vuelta con algo. El motor solo gana un
+  modo bucle pequeño y comentado (`opciones.bucle` y `onVuelta`), con el
+  mismo cambio de ancla que ya usaba `resync`.
+- **Que cuadre al tempo, y que puedas decir que no.** Al parar, el loop se
+  pliega en sus compases, se cuadra al 70 % (la fuerza y el swing de siempre)
+  y se repite hasta llenar unos ocho compases. Sale «¿Ha quedado bien?» con
+  «Dejar como lo toqué», «Cuadrar más» (al 100 %) y «Deshacer». Una toma
+  normal sale tal cual, con «Cuadrar». Cuadrar se calcula siempre desde lo
+  que tocaste, que se guarda en la pista: nunca se pierde. La tarjeta va en
+  el flujo, sobre el instrumento y sin taparlo.
+- **También con el teclado del ordenador y con MIDI.** `useTecladoPC` toca lo
+  abierto por `atril.tocar`, igual que el dedo y que `useTecladoMidi`: los
+  pads en 1234 / QWER / ASDF / ZXCV en su sitio de la pantalla, el teclado
+  como un piano en la fila de en medio, Z y X para la octava, Intro graba y
+  Espacio escucha. Explicado en «Ajustes del toque». Arreglada de paso la
+  fuerza del MIDI, que llegaba de 0 a 1 en vez de 1 a 127.
+- **El bucle que suena mientras grabas** (`ReproductorDeBucle`) programa
+  120 ms por delante cada 25 ms; si el temporizador se duerme, salta lo
+  atrasado en vez de tocarlo todo junto. Tiene test con reloj falso.
+**Pendiente:** no se ha oído en un iPhone. Falta comprobar que la vuelta del
+bucle no se note con el proyecto lleno (el motor reprograma 200 ms antes del
+final; un bloqueo más largo del hilo principal en ese momento la retrasaría)
+y que el pulgar llega bien a «Quitar» mientras toca.
+
 ## 0022 · Tu cuenta de Aura y las mismas ideas en el móvil y en el PC (22-nov-2026)
 
 Pilar D, ola 2 (fase 1). En Ajustes, «Tu cuenta de Aura»: entrar con Google
@@ -352,7 +481,8 @@ de antes. Pasos del usuario en `docs/CUENTA.md`.
   vuelve). El audio va antes que el documento: otro dispositivo nunca ve una
   idea sin su audio. Lo que nadie usa se borra de la nube a los 30 días, y
   `deleteProject` ya no borra un audio que use otra idea (las copias de un
-  choque comparten los de la original).
+  choque comparten los de la original). De una toma cuadrada al tempo (0020)
+  viajan los dos audios, el que suena y el original, que no se borra nunca.
 - **La idea abierta no cambia por debajo.** Si llega una versión nueva y no
   la has tocado desde que se cargó, se recarga sola; si la has tocado, Ajustes
   pregunta «Cargar la del PC» o «Seguir con la mía», con la misma regla de la

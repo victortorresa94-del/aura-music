@@ -107,6 +107,16 @@ describe('qué hacer con cada idea', () => {
     expect(buffersDe(idea('p', 1, ['a', 'b', 'a']))).toEqual(['a', 'b']);
   });
 
+  it('una toma cuadrada al tempo viaja con su original, que no se borra nunca', () => {
+    const p = idea('p', 1, ['buf_cuadrado']);
+    (p.tracks[0] as unknown as { cuadre: unknown }).cuadre = {
+      original: { bufferId: 'buf_original' },
+      cuadrado: { bufferId: 'buf_cuadrado' },
+      escuchando: 'cuadrado',
+    };
+    expect(buffersDe(p).sort()).toEqual(['buf_cuadrado', 'buf_original']);
+  });
+
   it('la copia lleva otro id, la hora de ahora y dice de dónde viene', () => {
     const copia = copiaDeLaPerdedora(idea('prj_1', 10), 'iPhone', 99, () => 'prj_copia');
     expect(copia.id).toBe('prj_copia');

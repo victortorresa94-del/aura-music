@@ -1,0 +1,148 @@
+{
+  "id": "guitarra-acero",
+  "nombre": "Guitarra acústica de cuerdas de acero (Martin HD-28, Discord SFZ GM Bank)",
+  "obra": "026-Acoustic Guitar (steel), muestras MartinGM2 (Martin HD-28 Vintage Series de 2017)",
+  "autor": "Jeff Learman, para el Discord SFZ GM Bank",
+  "origen": "https://github.com/sfzinstruments/Discord-SFZ-GM-Bank/tree/master/Discord%20GM/Melodic/026-Acoustic%20Guitar%20(steel)",
+  "licencia": "CC0-1.0",
+  "urlLicencia": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "creditos": "",
+  "archivos": [
+    {
+      "nombre": "40.mp3",
+      "midi": 40,
+      "vel": [
+        1,
+        127
+      ],
+      "bytes": 29135
+    },
+    {
+      "nombre": "43.mp3",
+      "midi": 43,
+      "vel": [
+        1,
+        127
+      ],
+      "bytes": 17539
+    },
+    {
+      "nombre": "46.mp3",
+      "midi": 46,
+      "vel": [
+        1,
+        127
+      ],
+      "bytes": 31400
+    },
+    {
+      "nombre": "49.mp3",
+      "midi": 49,
+      "vel": [
+        1,
+        127
+      ],
+      "bytes": 26644
+    },
+    {
+      "nombre": "52.mp3",
+      "midi": 52,
+      "vel": [
+        1,
+        127
+      ],
+      "bytes": 27186
+    },
+    {
+      "nombre": "55.mp3",
+      "midi": 55,
+      "vel": [
+        1,
+        127
+      ],
+      "bytes": 22698
+    },
+    {
+      "nombre": "58.mp3",
+      "midi": 58,
+      "vel": [
+        1,
+        127
+      ],
+      "bytes": 29354
+    },
+    {
+      "nombre": "61.mp3",
+      "midi": 61,
+      "vel": [
+        1,
+        127
+      ],
+      "bytes": 29177
+    },
+    {
+      "nombre": "64.mp3",
+      "midi": 64,
+      "vel": [
+        1,
+        127
+      ],
+      "bytes": 23960
+    },
+    {
+      "nombre": "68.mp3",
+      "midi": 68,
+      "vel": [
+        1,
+        127
+      ],
+      "bytes": 19033
+    },
+    {
+      "nombre": "71.mp3",
+      "midi": 71,
+      "vel": [
+        1,
+        127
+      ],
+      "bytes": 15173
+    },
+    {
+      "nombre": "74.mp3",
+      "midi": 74,
+      "vel": [
+        1,
+        127
+      ],
+      "bytes": 11962
+    },
+    {
+      "nombre": "77.mp3",
+      "midi": 77,
+      "vel": [
+        1,
+        127
+      ],
+      "bytes": 17311
+    },
+    {
+      "nombre": "80.mp3",
+      "midi": 80,
+      "vel": [
+        1,
+        127
+      ],
+      "bytes": 15482
+    },
+    {
+      "nombre": "83.mp3",
+      "midi": 83,
+      "vel": [
+        1,
+        127
+      ],
+      "bytes": 9119
+    }
+  ],
+  "bytes": 325173
+}
