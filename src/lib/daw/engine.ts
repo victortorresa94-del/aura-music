@@ -227,7 +227,7 @@ export class StudioEngine {
       const previous = this.ctx;
       if (previous) {
         this.releaseInput();
-        void previous.close().catch(() => undefined);
+        if (previous.state !== 'closed') void previous.close().catch(() => undefined);
       }
       this.buildContext();
     }
@@ -302,7 +302,8 @@ export class StudioEngine {
     this.recorder = null;
     this.stream = null;
     setAudioSession('playback');
-    void this.ctx?.resume();
+    // Un contexto ya cerrado rechaza resume(): que no salte como error sin atender.
+    if (this.ctx && this.ctx.state !== 'closed') void this.ctx.resume().catch(() => undefined);
   }
 
   get inputStream(): MediaStream | null {
