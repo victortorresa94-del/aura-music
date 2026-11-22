@@ -11,6 +11,8 @@ import { ESTILO_MANDOS } from './cabecera/ControlesPista';
 import { EVENTO_VER_CURSOR, EVENTO_ZOOM } from '@/hooks/useEdicion';
 import { alPulso, TROZO_MINIMO } from '@/lib/daw/edicion';
 import { IconTocar, NotasClip } from './instrumentos';
+// Grabar en bucle: el ciclo en la regla y en las pistas.
+import { BotonCiclo, useArrastreDeCiclo, ZonaEnPistas, ZonaEnRegla } from './bucle/Ciclo';
 import { Repeat } from '@phosphor-icons/react';
 
 /** Ancho de la columna de pistas en el móvil. En pantallas anchas crece. */
@@ -606,7 +608,17 @@ function Ruler({
   headRef,
   onSeek,
   onScrub,
+  cicloArrastre,
+  children,
 }: {
+  /** Grabar en bucle: Mayús + arrastrar con el ratón marca el ciclo. */
+  cicloArrastre?: {
+    onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void;
+    onPointerMove: (event: React.PointerEvent<HTMLDivElement>) => void;
+    onPointerUp: () => void;
+  };
+  /** Lo que se dibuja encima de la regla (la zona del ciclo). */
+  children?: React.ReactNode;
   showHead: boolean;
   width: number;
   pps: number;
@@ -639,9 +651,15 @@ function Ruler({
 
   return (
     <div
-      title="Clic para llevar el cursor ahí. Con el ratón, arrastra."
+      title="Clic para llevar el cursor ahí. Con el ratón, arrastra. Con Mayús, marca el ciclo."
       onPointerDown={(event) => {
         if (event.button !== 0) return;
+        // Grabar en bucle: Mayús + arrastrar con el ratón marca el ciclo,
+        // sin mover el cursor. Sin Mayús, la regla es la de siempre.
+        if (event.shiftKey && cicloArrastre) {
+          cicloArrastre.onPointerDown(event);
+          return;
+        }
         const rect = event.currentTarget.getBoundingClientRect();
         onSeek(Math.max(0, (event.clientX - rect.left) / pps));
         // Con el ratón se arrastra el cursor por la regla, atrás o adelante.
@@ -652,17 +670,20 @@ function Ruler({
         }
       }}
       onPointerMove={(event) => {
+        cicloArrastre?.onPointerMove(event);
         if (!arrastre.current) return;
         const rect = event.currentTarget.getBoundingClientRect();
         onScrub(Math.max(0, (event.clientX - rect.left) / pps));
       }}
       onPointerUp={(event) => {
+        cicloArrastre?.onPointerUp();
         if (!arrastre.current) return;
         arrastre.current = false;
         const rect = event.currentTarget.getBoundingClientRect();
         onSeek(Math.max(0, (event.clientX - rect.left) / pps));
       }}
       onPointerCancel={() => {
+        cicloArrastre?.onPointerUp();
         arrastre.current = false;
       }}
       style={{
@@ -695,6 +716,7 @@ function Ruler({
           {i + 1}
         </span>
       ))}
+      {children}
       <div
         ref={headRef}
         aria-hidden
@@ -780,6 +802,8 @@ export function Timeline({
   const laneWidth = Math.max((duration + 12) * pps, viewport - headerW + 200, 600);
   const beatSeconds = 60 / project.bpm;
   const recording = transport === 'recording' || transport === 'countin';
+  // Grabar en bucle: arrastrar por la regla con el ratón marca el ciclo.
+  const arrastreDeCiclo = useArrastreDeCiclo(studio, pps, beatsPerBar);
   const haySolo = project.tracks.some((track) => track.soloed);
 
   const pauseFollow = () => {
@@ -949,8 +973,12 @@ export function Timeline({
             boxShadow: `inset 0 -1px 0 ${T.border}`,
           }}
         >
-          <div style={{ ...headerCell(headerW), zIndex: 7, height: RULER_H, background: T.surface }} />
+          <div style={{ ...headerCell(headerW), zIndex: 7, height: RULER_H, background: T.surface }}>
+            {/* Grabar en bucle: el ciclo es de la regla, así que su botón vive al lado. */}
+            <BotonCiclo studio={studio} pulsosPorCompas={beatsPerBar} />
+          </div>
           <Ruler
+            cicloArrastre={arrastreDeCiclo}
             width={laneWidth}
             pps={pps}
             bpm={project.bpm}
@@ -960,8 +988,13 @@ export function Timeline({
             headRef={headRef}
             onSeek={seek}
             onScrub={scrub}
-          />
+          >
+            <ZonaEnRegla studio={studio} pps={pps} pulsosPorCompas={beatsPerBar} />
+          </Ruler>
         </div>
+
+        {/* Grabar en bucle: la zona del ciclo, sombreada debajo de los clips. */}
+        <ZonaEnPistas studio={studio} pps={pps} izquierda={headerW} arriba={RULER_H} />
 
         {/* Pistas */}
         {project.tracks.map((track, index) => {

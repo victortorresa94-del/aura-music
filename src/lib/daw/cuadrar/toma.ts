@@ -59,7 +59,13 @@ const enPista = (project: Project, trackId: string, cambio: (t: Track) => Track)
 
 /** Pone la toma cuadrada a sonar y guarda las dos versiones. */
 export function conCuadre(project: Project, trackId: string, cuadre: CuadreDeToma): Project {
-  return enPista(project, trackId, (t) => ({ ...conRegion(t, cuadre.cuadrado), cuadre: { ...cuadre, escuchando: 'cuadrado' } }));
+  return enPista(project, trackId, (t) => {
+    // Una pista con tomas del ciclo se cuadra con la toma que sonaba: el
+    // audio cuadrado es solo ese trozo, así que las demás tomas se sueltan
+    // (siguen en Deshacer).
+    const { tomas: _sueltas, ...pista } = t;
+    return { ...conRegion(pista, cuadre.cuadrado), cuadre: { ...cuadre, escuchando: 'cuadrado' } };
+  });
 }
 
 /** Antes o después, sin perder ninguna. */
