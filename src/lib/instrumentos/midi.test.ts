@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { leerMidi, notaParaInstrumento, velocidad } from './midi';
+import { claveDeTeclado } from '@/hooks/useTecladoMidi';
 
 describe('teclado MIDI', () => {
   it('entiende notas, sueltas y el pedal', () => {
@@ -38,5 +39,14 @@ describe('teclado MIDI', () => {
     expect(notaParaInstrumento(bajo, 72)).toBe(60);
     expect(notaParaInstrumento(bajo, 70)).toBe(58);
     expect(notaParaInstrumento(bajo, 16)).toBe(28);
+  });
+});
+
+
+describe('el mismo teclado no se engancha dos veces', () => {
+  it('quita los añadidos de Windows', () => {
+    expect(claveDeTeclado('GO:KEYS')).toBe(claveDeTeclado('MIDIIN2 (GO:KEYS)'));
+    expect(claveDeTeclado('GO:KEYS')).toBe(claveDeTeclado('2- GO:KEYS'));
+    expect(claveDeTeclado('GO:KEYS')).not.toBe(claveDeTeclado('Launchkey Mini'));
   });
 });

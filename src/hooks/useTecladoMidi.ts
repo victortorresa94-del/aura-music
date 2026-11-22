@@ -38,6 +38,7 @@ export function useTecladoMidi({ activo, atril, def }: { activo: boolean; atril:
   const sonando = useRef(new Map<number, Soltar>());
   const retenidas = useRef(new Map<number, Soltar>());
   const pedal = useRef(false);
+  const ultimoGolpe = useRef(new Map<number, number>());
 
   const soltarTodo = useCallback(() => {
     for (const soltar of sonando.current.values()) soltar();
@@ -52,6 +53,11 @@ export function useTecladoMidi({ activo, atril, def }: { activo: boolean; atril:
     if (!abierto || !a || !evento.data) return;
     const mensaje = leerMidi(evento.data);
     if (mensaje.tipo === 'nota') {
+      // La misma tecla dos veces en menos de 8 ms es el mismo golpe llegando
+      // por dos sitios, no dos golpes: el segundo no suena.
+      const antes = ultimoGolpe.current.get(mensaje.nota) ?? -Infinity;
+      ultimoGolpe.current.set(mensaje.nota, evento.timeStamp);
+      if (evento.timeStamp - antes < 8) return;
       const nota = notaParaInstrumento(d, mensaje.nota);
       // Repetir la misma tecla sin haberla soltado: se suelta la anterior.
       sonando.current.get(mensaje.nota)?.();
@@ -80,9 +86,19 @@ export function useTecladoMidi({ activo, atril, def }: { activo: boolean; atril:
   const engancharEntradas = useCallback(
     (acceso: MIDIAccess) => {
       const nombres: string[] = [];
+      // Windows (con su servicio de MIDI 2.0) y algunos teclados enseñan el
+      // MISMO teclado dos veces: con las dos enganchadas, cada nota sonaba
+      // doble. Se escucha una sola entrada por teclado.
+      const vistos = new Set<string>();
       acceso.inputs.forEach((entrada) => {
+        const clave = claveDeTeclado(entrada.name);
+        if (entrada.state !== 'connected' || vistos.has(clave)) {
+          entrada.onmidimessage = null;
+          return;
+        }
+        vistos.add(clave);
         entrada.onmidimessage = alMensaje;
-        if (entrada.state === 'connected') nombres.push(entrada.name || 'Teclado MIDI');
+        nombres.push(entrada.name || 'Teclado MIDI');
       });
       setMidi((m) => ({ ...m, estado: 'listo', dispositivos: nombres }));
     },
@@ -142,4 +158,14 @@ export function useTecladoMidi({ activo, atril, def }: { activo: boolean; atril:
   );
 
   return { midi, conectar };
+}
+
+/** El nombre de un teclado sin los añadidos de Windows («MIDIIN2 (…)», números), para no engancharlo dos veces. */
+export function claveDeTeclado(nombre: string | null | undefined): string {
+  return (nombre ?? '')
+    .toLowerCase()
+    .replace(/midi(in|out)\d*\s*\(([^)]*)\)/g, '$2')
+    .replace(/\d+\s*-\s*/g, '')
+    .replace(/[^a-z0-9]+/g, '')
+    .replace(/\d+$/, '');
 }

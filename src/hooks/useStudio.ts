@@ -512,6 +512,7 @@ export function useStudio() {
       await engine.armInput({
         deviceId: settingsRef.current.inputDeviceId,
         echoCancellation: settingsRef.current.echoCancellation,
+        canal: settingsRef.current.canalEntrada ?? 'juntas',
       });
       setMicStatus('ready');
       // Si nunca se ha calibrado, al menos partimos de la estimación que da
@@ -542,6 +543,7 @@ export function useStudio() {
         await engine.reopenInput({
           deviceId: patch.inputDeviceId ?? settingsRef.current.inputDeviceId,
           echoCancellation: patch.echoCancellation ?? settingsRef.current.echoCancellation,
+          canal: patch.canalEntrada ?? settingsRef.current.canalEntrada ?? 'juntas',
         });
         setMicStatus('ready');
       } catch {

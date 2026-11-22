@@ -278,7 +278,7 @@ export class StudioEngine {
     // salida al auricular de llamadas.
     setAudioSession('play-and-record');
     const stream = await openMicrophone(options);
-    const recorder = await Recorder.create(ctx, stream);
+    const recorder = await Recorder.create(ctx, stream, options.canal ?? 'juntas');
     recorder.onLevel = (level) => this.onLevel?.(level);
     this.stream = stream;
     this.recorder = recorder;
