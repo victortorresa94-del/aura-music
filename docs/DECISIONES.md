@@ -586,14 +586,17 @@ de cada pista».
   128 px y sigue en el mezclador.
 - **Elegida = la fila más opaca** (cabecera y calle) y el filo de tinta en el
   clip. Sin franja de color a un lado: el color aquí significa algo.
-- **Atajos en un módulo propio.** `lib/daw/atajos.ts` dice qué tecla es cada
-  atajo y su nombre en español (la lista `ATAJOS`, para el menú Editar y
-  Ayuda → Atajos); `hooks/useAtajos.ts` dice qué hace cada uno y da
-  `ejecutar(id)` para que el menú y la tecla llamen a lo mismo. No cuentan
-  escribiendo en un campo, ni con «Tocar» abierto (el teclado toca notas);
-  con una hoja o el mezclador encima solo Espacio, Deshacer y Rehacer.
-  Ctrl y ⌘ valen lo mismo. Ctrl+R y Ctrl+S siguen siendo del navegador (y
-  del menú Archivo): R y S graban y cortan solo sin modificador.
+- **Atajos en la misma tabla que los menús.** Los de un DAW (Espacio, R,
+  S, M, Mayús+S, Supr, flechas, Inicio, Fin, Ctrl+C/X/V/D, + y −) se suman a
+  `lib/daw/menus/comandos.ts` (0023 de menús): un solo registro para la
+  barra, el menú del móvil, la chuleta de Ayuda y el teclado. Lo que hacen
+  vive en `hooks/useEdicion.ts`, al que delega `useArchivo().ejecutar`.
+  `atajoPermitido` decide dónde valen: las teclas sueltas que editan la
+  línea de tiempo solo con el estudio a la vista (no con una hoja, el
+  mezclador o «Tus ideas» encima), y con «Tocar» abierto tampoco Espacio,
+  porque el teclado toca notas. En un deslizador, las flechas lo mueven a
+  él. Ctrl+S sigue siendo Guardar y Ctrl+R del navegador: S y R solas
+  cortan y graban.
 - **Una pista sigue siendo un clip.** Cortar en el cursor (S) deja la segunda
   mitad en una pista nueva justo debajo, con la misma mezcla; pegar (Ctrl+V)
   crea una pista con el clip en el cursor. Es lo mismo que al grabar, cada

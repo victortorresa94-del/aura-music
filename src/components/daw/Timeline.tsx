@@ -8,7 +8,7 @@ import { cssColor, haptic, trackTint } from './theme';
 import { IconImport, T, hintText, numeric } from './ui';
 import { CabeceraPista, botonPlano, headerCell, nombreVisible } from './cabecera/CabeceraPista';
 import { ESTILO_MANDOS } from './cabecera/ControlesPista';
-import { EVENTO_VER_CURSOR, EVENTO_ZOOM } from '@/hooks/useAtajos';
+import { EVENTO_VER_CURSOR, EVENTO_ZOOM } from '@/hooks/useEdicion';
 import { alPulso, TROZO_MINIMO } from '@/lib/daw/edicion';
 import { IconTocar, NotasClip } from './instrumentos';
 import { Repeat } from '@phosphor-icons/react';
