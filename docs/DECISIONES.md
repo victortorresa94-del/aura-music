@@ -491,3 +491,37 @@ hiper digital, 0 real, y muchas percusiones en general».
 de 6 a 14 dB más fuerte que con la síntesis, que era muy floja; si molesta,
 se baja con el volumen de la claqueta. La VCSL no trae slap de conga: el
 tumbao del bolero usa el golpe apagado del quinto.
+
+## 0024 · La barra de tiempo en «Tocar» (22-nov-2026)
+
+El dueño, con el bajo y el GO:KEYS a 1786 px: «cuando grabo MIDI también
+debería ver la barra de tiempo, poder echar pa' atrás, etc.».
+- **Una tira de tiempo bajo GRABAR** (`TiraDeTiempo.tsx`), en las cinco
+  pestañas: compases numerados, el cursor (rojo grabando), la zona del loop
+  y, en pequeño, las notas. Lo que estás grabando sale en tinta, plegado al
+  loop si grabas en bucle; las pistas del mismo instrumento, en gris; las
+  demás pistas de notas, atenuadas; el audio, como una raya abajo. Caben
+  unos 28 px por compás: 8 en un móvil y hasta 32 en un PC, por páginas que
+  siguen al cursor.
+- **Mover el cursor sin salir de «Tocar»:** tocar o arrastrar en la tira lo
+  lleva a ese compás (con captura del puntero, también si el dedo se sale), y
+  los botones van al principio y un compás atrás o adelante. Las flechas e
+  Inicio solo funcionan con el foco en la tira, para no cruzarse con los
+  atajos del estudio. GRABAR empieza donde está el cursor, al principio de
+  su compás, con la cuenta atrás de siempre.
+- **Sin tocar el motor:** `irA` (en `useInstrumentos`) usa lo que ya tenía
+  `engine.ts`. Parado, `seek`. Escuchando, para, salta y vuelve a sonar
+  «sin fin», porque el `seek` del estudio lo relanzaría con fin. Grabando no
+  se mueve: se perdería la toma.
+- **«¿Ha quedado bien?», en una fila:** «Tal cual / Cuadrado / Del todo»,
+  deshacer y vale. Se monta encima de la fila de sonidos, con su misma
+  altura, así que el teclado no se mueve ni un píxel. Antes era una tarjeta
+  de 131 px que lo empujaba hacia abajo. La pregunta escrita sale de 480 px
+  en adelante.
+- **En PC, una columna:** todo «Tocar» va en unos 940 px centrados, GRABAR
+  no pasa de 360 px y «Ajustes» se va al final. Las filas de teclas tienen
+  tope de 240 px de alto, pegadas abajo, y las tiras de acordes de 520 px en
+  total. En el móvil no cambia nada.
+**Pendiente:** verlo en el iPhone y con el GO:KEYS. El cursor se mueve con
+rAF y el panel del navegador de pruebas estaba oculto, así que el
+movimiento no se ha visto; lo demás se ha medido en el DOM.
