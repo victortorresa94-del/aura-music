@@ -57,7 +57,10 @@ export function useTecladoMidi({ activo, atril, def }: { activo: boolean; atril:
       sonando.current.get(mensaje.nota)?.();
       retenidas.current.get(mensaje.nota)?.();
       retenidas.current.delete(mensaje.nota);
-      sonando.current.set(mensaje.nota, a.tocar(d.id, nota, mensaje.vel, evento.timeStamp));
+      // `velocidad()` da la fuerza de 0 a 1; el atril la quiere de 1 a 127, como
+      // el dedo. Sin pasarla, cada nota MIDI sonaba casi muda.
+      const fuerza = Math.max(1, Math.round(mensaje.vel * 127));
+      sonando.current.set(mensaje.nota, a.tocar(d.id, nota, fuerza, evento.timeStamp));
       setMidi((m) => (m.ultima === nota ? m : { ...m, ultima: nota }));
     } else if (mensaje.tipo === 'suelta') {
       const soltar = sonando.current.get(mensaje.nota);

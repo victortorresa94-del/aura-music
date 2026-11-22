@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowCounterClockwise, GearSix, Play, Stop, X } from '@phosphor-icons/react';
+import { ArrowCounterClockwise, ArrowUUpLeft, GearSix, Play, Repeat, Stop, X } from '@phosphor-icons/react';
 import type { Instrumentos } from '@/hooks/useInstrumentos';
 import type { Studio } from '@/hooks/useStudio';
 import { getPaquete } from '@/lib/instrumentos/packs';
@@ -23,12 +23,25 @@ import { BaldosaFamilia, BaldosaInstrumento } from './Baldosas';
 import { Pads } from './Pads';
 import { BotonBarra, Teclado, type ModoTeclado, type TamanoTeclas } from './Teclado';
 import { ChipMidi } from './ChipMidi';
+import { BibliotecaLoops } from './Loops';
+import { TarjetaResultado } from './TarjetaResultado';
 import { useTecladoMidi } from '@/hooks/useTecladoMidi';
+import { useTecladoPC } from '@/hooks/useTecladoPC';
 
-type Pestana = 'pads' | 'teclado' | 'acordes' | 'bajo';
+/** Lo que se toca con el dedo. */
+type Familia = 'pads' | 'teclado' | 'acordes' | 'bajo';
+/** Y la quinta pestaña, la biblioteca de loops, que no es un instrumento. */
+type Pestana = Familia | 'loops';
+
+/** Largos del modo loop al grabar, en compases (0: grabar normal, de corrido). */
+const LARGOS_BUCLE = [0, 1, 2, 4] as const;
 
 interface Preferencias {
   pestana: Pestana;
+  /** La última familia que tocaste: la que suena con el MIDI y la que vuelve al grabar desde «Loops». */
+  familia: Familia;
+  /** Compases del modo loop al grabar (0: apagado). */
+  bucle: number;
   kit: InstrumentoId;
   teclas: InstrumentoId;
   acordes: InstrumentoId;
@@ -40,6 +53,8 @@ interface Preferencias {
 
 const PREFERENCIAS: Preferencias = {
   pestana: 'pads',
+  familia: 'pads',
+  bucle: 0,
   kit: 'bateria-acustica',
   teclas: 'piano',
   acordes: 'guitarra',
@@ -80,7 +95,9 @@ const FAMILIAS: { id: Pestana; nombre: string }[] = [
   { id: 'teclado', nombre: 'Teclado' },
   { id: 'acordes', nombre: 'Acordes' },
   { id: 'bajo', nombre: 'Bajo' },
+  { id: 'loops', nombre: 'Loops' },
 ];
+const ES_FAMILIA = (p: unknown): p is Familia => p === 'pads' || p === 'teclado' || p === 'acordes' || p === 'bajo';
 
 const TECLAS = () => [...instrumentosDe('teclas'), ...instrumentosDe('guitarra')];
 
@@ -106,7 +123,7 @@ export function TocarPantalla({
   tonalidadSugerida: Tonalidad | null;
 }) {
   const { project, engine, settings, updateSettings } = studio;
-  const { atril, estado, grabar, parar, escuchar, recuperar, hayCaptura, pulsosPorCompas } = instrumentos;
+  const { atril, estado, grabar, parar, escuchar, recuperar, hayCaptura, pulsosPorCompas, vuelta, deshacerVuelta, resultado } = instrumentos;
   const [prefs, setPrefs] = useState<Preferencias>(PREFERENCIAS);
   const [bajo, setBajo] = useState<InstrumentoId>('bajo-dedos');
   const [tonalidad, setTonalidad] = useState<Tonalidad>({ tonica: 0, modo: 'mayor' });
@@ -120,6 +137,9 @@ export function TocarPantalla({
     const guardadas = leer(CLAVE_PREFERENCIAS, PREFERENCIAS);
     setPrefs({
       ...guardadas,
+      pestana: ES_FAMILIA(guardadas.pestana) || guardadas.pestana === 'loops' ? guardadas.pestana : PREFERENCIAS.pestana,
+      familia: ES_FAMILIA(guardadas.familia) ? guardadas.familia : ES_FAMILIA(guardadas.pestana) ? guardadas.pestana : 'pads',
+      bucle: (LARGOS_BUCLE as readonly number[]).includes(guardadas.bucle) ? guardadas.bucle : 0,
       kit: valido(guardadas.kit, instrumentosDe('bateria'), PREFERENCIAS.kit),
       teclas: valido(guardadas.teclas, TECLAS(), PREFERENCIAS.teclas),
       acordes: valido(guardadas.acordes, instrumentosDeAcordes(), PREFERENCIAS.acordes),
@@ -148,8 +168,11 @@ export function TocarPantalla({
     if (abierta) setMontada(true);
   }, [abierta]);
 
+  // En «Loops» no hay instrumento a la vista: manda la última familia tocada.
+  const enLoops = prefs.pestana === 'loops';
+  const familia: Familia = enLoops ? prefs.familia : (prefs.pestana as Familia);
   const instrumento: InstrumentoId =
-    prefs.pestana === 'pads' ? prefs.kit : prefs.pestana === 'teclado' ? prefs.teclas : prefs.pestana === 'acordes' ? prefs.acordes : bajo;
+    familia === 'pads' ? prefs.kit : familia === 'teclado' ? prefs.teclas : familia === 'acordes' ? prefs.acordes : bajo;
   const def = getInstrumento(instrumento);
   // Un teclado MIDI (por USB) toca lo que esté abierto, y se graba igual que el dedo.
   const { midi, conectar: conectarMidi } = useTecladoMidi({ activo: abierta, atril, def });
@@ -166,9 +189,32 @@ export function TocarPantalla({
 
   const grabando = estado !== 'libre';
   const sonando = studio.transport !== 'stopped';
+  const enBucle = grabando && prefs.bucle > 0;
+
+  /** GRABAR o parar. Desde «Loops» vuelve antes al último instrumento: grabar es tocar. */
+  const pulsarGrabar = () => {
+    engine?.unlockSync();
+    haptic(grabando ? [18, 40, 18] : 22);
+    if (grabando) {
+      void parar();
+      return;
+    }
+    instrumentos.pararEscucha();
+    if (enLoops) cambiar({ pestana: prefs.familia });
+    void grabar(prefs.claqueta, prefs.bucle);
+  };
+  const pulsarEscuchar = () => {
+    engine?.unlockSync();
+    void (grabando ? parar() : escuchar());
+  };
+
+  // El teclado del ordenador toca lo abierto (Intro graba, Espacio escucha).
+  // En «Loops» no: ahí no hay nada a la vista que tocar.
+  const { octava } = useTecladoPC({ activo: abierta && !enLoops, atril, def, onGrabar: pulsarGrabar, onEscuchar: pulsarEscuchar });
 
   const cerrar = () => {
     atril?.pararAuto();
+    instrumentos.pararEscucha();
     setActiva(null);
     if (grabando || sonando) void parar();
     onCerrar();
@@ -194,18 +240,18 @@ export function TocarPantalla({
         : `Cargando ${def.nombre.toLowerCase()} · ${Math.round((carga.cargadas / Math.max(1, carga.total)) * 100)} %`;
 
   const variantes =
-    prefs.pestana === 'pads'
+    familia === 'pads'
       ? instrumentosDe('bateria')
-      : prefs.pestana === 'teclado'
+      : familia === 'teclado'
         ? TECLAS()
-        : prefs.pestana === 'acordes'
+        : familia === 'acordes'
           ? instrumentosDeAcordes()
           : instrumentosDe('bajo');
   const elegirVariante = (id: InstrumentoId) => {
     atril?.pararAuto();
-    if (prefs.pestana === 'pads') cambiar({ kit: id });
-    else if (prefs.pestana === 'teclado') cambiar({ teclas: id });
-    else if (prefs.pestana === 'acordes') cambiar({ acordes: id });
+    if (familia === 'pads') cambiar({ kit: id });
+    else if (familia === 'teclado') cambiar({ teclas: id });
+    else if (familia === 'acordes') cambiar({ acordes: id });
     else {
       setBajo(id);
       guardarBajoElegido(id);
@@ -241,8 +287,9 @@ export function TocarPantalla({
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 6,
-          padding: '8px 12px',
+          // Caben cinco herramientas y GRABAR a 375 px: 48 de ancho y 4 de aire.
+          gap: 4,
+          padding: '8px 10px',
           background: T.surface,
           boxShadow: `inset 0 -1px 0 ${T.border}`,
         }}
@@ -255,23 +302,50 @@ export function TocarPantalla({
           estado={estado}
           pulsosPorCompas={pulsosPorCompas}
           claqueta={prefs.claqueta}
-          onPulsar={() => {
-            engine?.unlockSync();
-            haptic(grabando ? [18, 40, 18] : 22);
-            void (grabando ? parar() : grabar(prefs.claqueta));
-          }}
+          onPulsar={pulsarGrabar}
         />
+        {/* Grabando en loop, «Escuchar» no sirve: en su sitio, quitar la última vuelta. */}
+        {enBucle ? (
+          <Herramienta
+            titulo="Quitar lo de la última vuelta"
+            etiqueta="Quitar"
+            onClick={deshacerVuelta}
+            desactivado={estado !== 'grabando'}
+          >
+            <ArrowUUpLeft size={20} weight="bold" color={T.text} />
+          </Herramienta>
+        ) : (
+          <Herramienta
+            titulo={sonando && !grabando ? 'Parar' : 'Escuchar la idea y tocar encima'}
+            etiqueta={sonando && !grabando ? 'Parar' : 'Escuchar'}
+            onClick={pulsarEscuchar}
+            desactivado={grabando}
+            activo={sonando && !grabando}
+          >
+            {sonando && !grabando ? <Stop size={20} weight="fill" color={T.text} /> : <Play size={20} weight="fill" color={T.text} />}
+          </Herramienta>
+        )}
+        {/* El modo loop: toca para cambiar de largo (no, 1, 2 o 4 compases).
+            Grabando, dice por qué vuelta vas. */}
         <Herramienta
-          titulo={sonando && !grabando ? 'Parar' : 'Escuchar la idea y tocar encima'}
-          etiqueta={sonando && !grabando ? 'Parar' : 'Escuchar'}
+          titulo={
+            enBucle
+              ? `Grabando en loop de ${prefs.bucle} ${prefs.bucle === 1 ? 'compás' : 'compases'}: cada vuelta se suma`
+              : prefs.bucle > 0
+                ? `Loop de ${prefs.bucle} ${prefs.bucle === 1 ? 'compás' : 'compases'}: al grabar se repite y cada vuelta se suma. Toca para cambiar`
+                : 'Grabar en loop: unos compases que se repiten y cada vuelta se suma. Toca para encenderlo'
+          }
+          etiqueta={enBucle ? `Vuelta ${vuelta + 1}` : prefs.bucle > 0 ? `Loop ${prefs.bucle}` : 'Loop'}
           onClick={() => {
-            engine?.unlockSync();
-            void escuchar();
+            const i = LARGOS_BUCLE.indexOf(prefs.bucle as (typeof LARGOS_BUCLE)[number]);
+            cambiar({ bucle: LARGOS_BUCLE[(i + 1) % LARGOS_BUCLE.length] });
           }}
+          activo={prefs.bucle > 0}
           desactivado={grabando}
-          activo={sonando && !grabando}
+          // Grabando en loop no se puede cambiar, pero no se apaga: es lo que más se mira.
+          visible={enBucle}
         >
-          {sonando && !grabando ? <Stop size={20} weight="fill" color={T.text} /> : <Play size={20} weight="fill" color={T.text} />}
+          <Repeat size={20} weight={prefs.bucle > 0 ? 'fill' : 'bold'} color={T.text} />
         </Herramienta>
         {/* Lo que tocaste sin grabar no se pierde. Sale aquí arriba y no encima
             del instrumento, para no tapar ni mover nada mientras tocas. */}
@@ -298,8 +372,8 @@ export function TocarPantalla({
             void conectarMidi();
           }}
         />
-        {/* Qué tocas: las cuatro familias, cada una con su icono. */}
-        <div role="radiogroup" aria-label="Qué tocar" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 6 }}>
+        {/* Qué tocas: las cuatro familias y los loops, cada una con su icono. */}
+        <div role="radiogroup" aria-label="Qué tocar" style={{ display: 'grid', gridTemplateColumns: `repeat(${FAMILIAS.length}, minmax(0, 1fr))`, gap: 6 }}>
           {FAMILIAS.map((familia) => (
             <BaldosaFamilia
               key={familia.id}
@@ -308,13 +382,15 @@ export function TocarPantalla({
               elegida={prefs.pestana === familia.id}
               onElegir={() => {
                 atril?.pararAuto();
-                cambiar({ pestana: familia.id });
+                if (familia.id !== 'loops') instrumentos.pararEscucha();
+                cambiar(ES_FAMILIA(familia.id) ? { pestana: familia.id, familia: familia.id } : { pestana: familia.id });
               }}
             />
           ))}
         </div>
-        {/* Y con qué: los sonidos de esa familia, en baldosas que se deslizan. */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        {/* Y con qué: los sonidos de esa familia, en baldosas que se deslizan.
+            En «Loops» no: la biblioteca trae sus propios filtros. */}
+        <div style={{ display: enLoops ? 'none' : 'flex', alignItems: 'center', gap: 6 }}>
           <div
             role="radiogroup"
             aria-label="Sonido"
@@ -325,7 +401,7 @@ export function TocarPantalla({
               <BaldosaInstrumento key={v.id} def={v} elegido={v.id === instrumento} onElegir={() => elegirVariante(v.id)} />
             ))}
           </div>
-          {prefs.pestana === 'acordes' ? (
+          {familia === 'acordes' ? (
             <BotonBarra
               titulo={automatico ? 'Automático encendido: toca una tira para cambiar de acorde' : 'Que toque solo, a tu tempo'}
               ancho
@@ -338,14 +414,22 @@ export function TocarPantalla({
               Auto
             </BotonBarra>
           ) : null}
-          {prefs.pestana !== 'pads' ? (
+          {familia !== 'pads' ? (
             <BotonBarra titulo={`Tonalidad: ${nombreTonalidad(tonalidad)}. Cambiar`} ancho onClick={() => setPanel('tonalidad')}>
               {NOTAS[tonalidad.tonica]}
               {tonalidad.modo === 'mayor' ? '' : tonalidad.modo === 'menor' ? ' m' : ' fl.'}
             </BotonBarra>
           ) : null}
         </div>
-        {textoCarga ? <p style={{ ...hintText, fontSize: 12, marginTop: -2 }}>{textoCarga}</p> : null}
+        {textoCarga && !enLoops ? <p style={{ ...hintText, fontSize: 12, marginTop: -2 }}>{textoCarga}</p> : null}
+        {resultado && !grabando ? (
+          <TarjetaResultado
+            resultado={resultado}
+            onCuadrar={instrumentos.cuadrarResultado}
+            onDeshacer={instrumentos.deshacerResultado}
+            onCerrar={instrumentos.cerrarResultado}
+          />
+        ) : null}
       </div>
 
       {/* El instrumento: todo lo que queda, abajo, donde llega el pulgar. */}
@@ -361,7 +445,9 @@ export function TocarPantalla({
       >
         {montada ? (
           <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
-            {prefs.pestana === 'pads' ? (
+            {enLoops ? (
+              <BibliotecaLoops instrumentos={instrumentos} bpm={project.bpm} tonica={tonalidad.tonica} sonando={sonando} />
+            ) : prefs.pestana === 'pads' ? (
               <Pads atril={atril} def={def} />
             ) : prefs.pestana === 'acordes' ? (
               <Acordes
@@ -448,7 +534,7 @@ export function TocarPantalla({
             detail="Suena el click mientras grabas lo que tocas. La cuenta atrás suena siempre."
           />
         </section>
-        <section style={{ marginBottom: 12 }}>
+        <section style={{ marginBottom: 28 }}>
           <h3 style={tituloSeccion}>Cuenta atrás al grabar</h3>
           <Segmented<number>
             ariaLabel="Cuenta atrás"
@@ -460,6 +546,15 @@ export function TocarPantalla({
               { value: 2, text: '2 compases' },
             ]}
           />
+        </section>
+        <section style={{ marginBottom: 12 }}>
+          <h3 style={tituloSeccion}>Con el teclado del ordenador</h3>
+          <p style={{ ...hintText }}>
+            {def.pads
+              ? 'Los pads están en 1 2 3 4, Q W E R, A S D F y Z X C V, en el mismo sitio que en pantalla.'
+              : `A S D F G H J K son las blancas y W E T Y U O P las negras. Z baja de octava y X la sube${octava ? ` (ahora ${octava > 0 ? '+' : ''}${octava})` : ''}.`}{' '}
+            Intro graba o para, y Espacio escucha o para. Un teclado MIDI por USB también vale.
+          </p>
         </section>
       </Sheet>
 
@@ -634,6 +729,7 @@ function Herramienta({
   onClick,
   activo,
   desactivado,
+  visible,
 }: {
   children: React.ReactNode;
   titulo: string;
@@ -641,6 +737,8 @@ function Herramienta({
   onClick: () => void;
   activo?: boolean;
   desactivado?: boolean;
+  /** Desactivado pero a la vista: no se puede tocar, pero lo que dice importa. */
+  visible?: boolean;
 }) {
   return (
     <button
@@ -655,7 +753,7 @@ function Herramienta({
         onClick();
       }}
       style={{
-        width: 52,
+        width: 48,
         height: 52,
         flexShrink: 0,
         display: 'flex',
@@ -669,7 +767,7 @@ function Herramienta({
         background: activo ? T.fillStrong : 'transparent',
         boxShadow: activo ? `inset 0 1px 0 ${T.rim}` : 'none',
         color: T.text,
-        opacity: desactivado ? 0.35 : 1,
+        opacity: desactivado && !visible ? 0.35 : 1,
         cursor: desactivado ? 'default' : 'pointer',
       }}
     >
@@ -752,8 +850,8 @@ function BotonGrabar({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 10,
-        padding: '0 14px',
+        gap: 8,
+        padding: '0 10px',
         border: 'none',
         borderRadius: 16,
         background: grabando ? T.recSoft : T.recFill,
