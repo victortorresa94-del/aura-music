@@ -26,6 +26,18 @@ import {
 } from './mezcla/grafo';
 import { masterizar, OBJETIVOS, type ResultadoMaster } from './mezcla/masterizar';
 import { masterDe, type ObjetivoMaster } from './mezcla/tipos';
+// La claqueta de varias formas: sonido, subdivisión, ritmo de fondo y volumen.
+import {
+  CLAQUETA_POR_DEFECTO,
+  fondoDe,
+  golpesDeCuenta,
+  golpesDelPaso,
+  PULSOS_POR_GOLPE,
+  primerPaso,
+  suenaElClic,
+  type AjustesClaqueta,
+  type GolpeClaqueta,
+} from './claqueta/claqueta';
 
 const LEAD_TIME = 0.12;
 /** Lo que se espera a que iOS despierte el audio antes de darlo por atascado. */
@@ -105,9 +117,17 @@ export class StudioEngine {
   private clickLow: AudioBuffer | null = null;
   private schedulerTimer: number | null = null;
   private nextClickTime = 0;
+  /** El paso de la subdivisión que toca después (el 0 es el 1 del primer compás). */
   private beatCounter = 0;
   private bpm = 100;
   private clickEnabled = false;
+  private claqueta: AjustesClaqueta = CLAQUETA_POR_DEFECTO;
+  private pulsosCompas = 4;
+  /** Ritmo de fondo de la claqueta: dónde va y desde qué instante se cuenta. */
+  private fondoNextPos = 0;
+  private fondoOrigin: { ctxTime: number; position: number } | null = null;
+  /** El ejemplo que suena al elegir un sonido: se apaga si se pide otro. */
+  private ejemplo: GainNode | null = null;
   private rafId: number | null = null;
 
   private project: Project | null = null;
@@ -154,7 +174,8 @@ export class StudioEngine {
     const master = mezcla.entrada;
 
     const clickBus = ctx.createGain();
-    clickBus.gain.value = 0.8;
+    // Lo que diga la claqueta (0,8 por defecto, lo de siempre).
+    clickBus.gain.value = this.claqueta.volumen;
     clickBus.connect(ctx.destination);
 
     // El ritmo va por el limitador, como las pistas: es material musical, no
@@ -373,7 +394,7 @@ export class StudioEngine {
     // Pilar B: la claqueta va delante del arranque, como en `record`.
     const claquetaPulsos = Math.max(0, Math.round(opciones.claquetaPulsos ?? 0));
     const claqueta = claquetaPulsos * (60 / project.bpm);
-    if (claquetaPulsos > 0) this.scheduleCountIn(project.bpm, ctx.currentTime + LEAD_TIME, claquetaPulsos);
+    if (claquetaPulsos > 0) this.scheduleCountIn(project.bpm, ctx.currentTime + LEAD_TIME, claquetaPulsos, this.pulsosCompas);
     this.sinFin = !!opciones.sinFin;
     const t0 = ctx.currentTime + LEAD_TIME + claqueta;
     this.anchorTime = t0;
@@ -707,24 +728,44 @@ export class StudioEngine {
   /* Metrónomo                                                           */
   /* ------------------------------------------------------------------ */
 
-  private scheduleCountIn(bpm: number, startAt: number, beats: number) {
+  /** La cuenta atrás, con el sonido de la claqueta. `pulsosPorCompas` marca dónde va el 1. */
+  private scheduleCountIn(bpm: number, startAt: number, beats: number, pulsosPorCompas = 4) {
     const ctx = this.ctx;
     if (!ctx || !this.clickBus) return;
     const beatSeconds = 60 / bpm;
     for (let i = 0; i < beats; i++) {
-      this.playClick(startAt + i * beatSeconds, i % 4 === 0);
+      for (const golpe of golpesDeCuenta(this.claqueta, i, pulsosPorCompas)) {
+        this.sonarGolpe(startAt + i * beatSeconds, golpe);
+      }
     }
   }
 
-  private playClick(time: number, accent: boolean) {
+  private playClick(time: number, accent: boolean, vel = 1, destino?: AudioNode) {
     const ctx = this.ctx;
-    const bus = this.clickBus;
+    const bus = destino ?? this.clickBus;
     const buffer = accent ? this.clickHigh : this.clickLow;
     if (!ctx || !bus || !buffer) return;
     const source = ctx.createBufferSource();
     source.buffer = buffer;
-    source.connect(bus);
+    if (vel < 1) {
+      const gain = ctx.createGain();
+      gain.gain.value = vel;
+      source.connect(gain);
+      gain.connect(bus);
+      source.onended = () => gain.disconnect();
+    } else {
+      source.connect(bus);
+    }
     source.start(time);
+  }
+
+  /** Un golpe de la claqueta: el tic de siempre o una voz del kit de ritmos. */
+  private sonarGolpe(time: number, golpe: GolpeClaqueta, destino?: AudioNode) {
+    const ctx = this.ctx;
+    const bus = destino ?? this.clickBus;
+    if (!ctx || !bus) return;
+    if (golpe.voz.tipo === 'tic') this.playClick(time, golpe.voz.agudo, golpe.vel, bus);
+    else playVoice(golpe.voz.voz, ctx, bus, time, golpe.vel);
   }
 
   /**
@@ -733,18 +774,26 @@ export class StudioEngine {
    * El pulso NO se calcula como "compás número N por la duración del pulso":
    * si lo hiciera, mover el tempo a mitad de una toma recolocaría todos los
    * clicks pasados y el metrónomo daría un salto. Se lleva un puntero al
-   * siguiente click y se avanza sumándole la duración del pulso ACTUAL, así
-   * que un cambio de tempo entra a partir del pulso siguiente y ni se nota.
+   * siguiente click y se avanza sumándole la duración del paso ACTUAL, así
+   * que un cambio de tempo entra a partir del paso siguiente y ni se nota.
+   * El paso es el de la subdivisión de la claqueta (blancas, negras,
+   * corcheas o tresillos).
    */
   private startMetronome(fromPosition: number, when: number) {
     const ctx = this.ctx;
     if (!ctx) return;
-    const beatSeconds = 60 / this.bpm;
-    const firstBeat = Math.max(0, Math.ceil(fromPosition / beatSeconds));
-    this.nextClickTime = when + (firstBeat * beatSeconds - fromPosition);
-    this.beatCounter = firstBeat;
+    this.engancharClaqueta(fromPosition, when);
     this.clickEnabled = true;
     this.startTicking();
+  }
+
+  /** Pone el puntero de la claqueta y el del ritmo de fondo en `posicion`, que suena en `cuando`. */
+  private engancharClaqueta(posicion: number, cuando: number) {
+    const { paso, segundos } = primerPaso(posicion, this.bpm, this.claqueta.subdivision);
+    this.nextClickTime = cuando + (segundos - posicion);
+    this.beatCounter = paso;
+    this.fondoOrigin = { ctxTime: cuando, position: posicion };
+    this.fondoNextPos = posicion;
   }
 
   /** Tempo del proyecto. Se puede mover con el transporte en marcha. */
@@ -754,6 +803,29 @@ export class StudioEngine {
 
   get tempo(): number {
     return this.bpm;
+  }
+
+  /**
+   * Cómo suena la claqueta y cuántos pulsos tiene el compás (para saber
+   * dónde va el 1). Entra en caliente: si cambia la subdivisión o el ritmo
+   * de fondo con el transporte en marcha, se reengancha desde donde va.
+   */
+  setClaqueta(ajustes: AjustesClaqueta, pulsosPorCompas = this.pulsosCompas) {
+    const antes = this.claqueta;
+    this.claqueta = ajustes;
+    this.pulsosCompas = Math.max(1, Math.round(pulsosPorCompas));
+    const ctx = this.ctx;
+    if (this.clickBus && ctx && antes.volumen !== ajustes.volumen) {
+      this.clickBus.gain.setTargetAtTime(ajustes.volumen, ctx.currentTime, 0.02);
+    }
+    const sonando = this.state === 'playing' || this.state === 'recording';
+    if (ctx && sonando && this.clickEnabled && (antes.subdivision !== ajustes.subdivision || antes.fondo !== ajustes.fondo)) {
+      this.engancharClaqueta(this.position + SCHEDULER_LOOKAHEAD, ctx.currentTime + SCHEDULER_LOOKAHEAD);
+    }
+  }
+
+  get ajustesClaqueta(): AjustesClaqueta {
+    return this.claqueta;
   }
 
   /** Encender o apagar el click sin parar lo que esté sonando. */
@@ -766,12 +838,8 @@ export class StudioEngine {
       return;
     }
     if (!ctx || this.state === 'stopped') return;
-    // Enganchamos con el pulso más cercano para no entrar a destiempo.
-    const beatSeconds = 60 / this.bpm;
-    const position = this.position;
-    const nextBeatIndex = Math.ceil(position / beatSeconds);
-    this.beatCounter = nextBeatIndex;
-    this.nextClickTime = ctx.currentTime + (nextBeatIndex * beatSeconds - position);
+    // Enganchamos con el paso más cercano para no entrar a destiempo.
+    this.engancharClaqueta(this.position, ctx.currentTime);
     this.startTicking();
   }
 
@@ -781,13 +849,34 @@ export class StudioEngine {
       const context = this.ctx;
       if (!context || this.state === 'stopped' || !this.clickEnabled) return;
       const horizon = context.currentTime + SCHEDULER_LOOKAHEAD;
+      const ajustes = this.claqueta;
+      const clic = suenaElClic(ajustes);
       for (let guard = 0; guard < 64; guard++) {
         if (this.nextClickTime > horizon) break;
-        if (this.nextClickTime >= context.currentTime) {
-          this.playClick(this.nextClickTime, this.beatCounter % 4 === 0);
+        if (clic && this.nextClickTime >= context.currentTime) {
+          for (const golpe of golpesDelPaso(ajustes, this.beatCounter, this.pulsosCompas)) {
+            this.sonarGolpe(this.nextClickTime, golpe);
+          }
         }
-        this.nextClickTime += 60 / this.bpm;
+        this.nextClickTime += (60 / this.bpm) * PULSOS_POR_GOLPE[ajustes.subdivision];
         this.beatCounter++;
+      }
+
+      // El ritmo de fondo: suena por el bus de la claqueta (no por la mezcla,
+      // ni se graba, ni se exporta) y se regenera en cada vuelta, como los
+      // ritmos de la hoja de Ritmos.
+      const fondo = fondoDe(ajustes.fondo);
+      const origen = this.fondoOrigin;
+      if (fondo && origen && this.clickBus) {
+        const hasta = origen.position + (horizon - origen.ctxTime);
+        if (hasta > this.fondoNextPos) {
+          for (const golpe of golpesEntre(fondo.groove, this.bpm, this.fondoNextPos, hasta, fondo.opciones)) {
+            const cuando = origen.ctxTime + (golpe.posicion - origen.position);
+            if (cuando < context.currentTime) continue;
+            playVoice(golpe.voz, context, this.clickBus, cuando, golpe.vel);
+          }
+          this.fondoNextPos = hasta;
+        }
       }
     };
     tick();
@@ -797,8 +886,44 @@ export class StudioEngine {
   private stopMetronome() {
     if (this.schedulerTimer != null) window.clearInterval(this.schedulerTimer);
     this.schedulerTimer = null;
+    this.fondoOrigin = null;
   }
 
+  /**
+   * Un ejemplo de la claqueta al elegirla: un compás del sonido, o una vuelta
+   * del ritmo de fondo. Con el transporte en marcha no suena nada aparte: el
+   * cambio ya se oye en lo que está sonando.
+   */
+  previewClaqueta(ajustes: AjustesClaqueta = this.claqueta, que: 'clic' | 'fondo' = 'clic') {
+    const ctx = this.ctx;
+    if (!ctx || !this.clickBus || this.state !== 'stopped') return;
+    const ahora = ctx.currentTime;
+    if (this.ejemplo) {
+      const viejo = this.ejemplo;
+      viejo.gain.setTargetAtTime(0, ahora, 0.01);
+      window.setTimeout(() => viejo.disconnect(), 120);
+    }
+    // El volumen del ejemplo es el que se acaba de elegir: se pone ya en el bus.
+    this.clickBus.gain.setTargetAtTime(ajustes.volumen, ahora, 0.01);
+    const salida = ctx.createGain();
+    salida.connect(this.clickBus);
+    this.ejemplo = salida;
+    const t0 = ahora + 0.05;
+    const fondo = que === 'fondo' ? fondoDe(ajustes.fondo) : null;
+    if (fondo) {
+      // Dos compases como mucho: lo justo para reconocerlo.
+      const hasta = Math.min(4, (60 / this.bpm) * this.pulsosCompas * 2);
+      for (const golpe of golpesEntre(fondo.groove, this.bpm, 0, hasta, fondo.opciones)) {
+        playVoice(golpe.voz, ctx, salida, t0 + golpe.posicion, golpe.vel);
+      }
+      return;
+    }
+    const duracion = (60 / this.bpm) * PULSOS_POR_GOLPE[ajustes.subdivision];
+    const pasos = Math.max(1, Math.round(this.pulsosCompas / PULSOS_POR_GOLPE[ajustes.subdivision]));
+    for (let k = 0; k < pasos; k++) {
+      for (const golpe of golpesDelPaso(ajustes, k, this.pulsosCompas)) this.sonarGolpe(t0 + k * duracion, golpe, salida);
+    }
+  }
 
   setMetronomeVolume(value: number) {
     const ctx = this.ctx;

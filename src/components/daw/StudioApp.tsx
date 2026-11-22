@@ -23,6 +23,7 @@ import { Transport } from './Transport';
 import { IconButton, IconChevronDown, IconClose, IconSpark, IconUndo, label, numeric } from './ui';
 // Mezcla (pilar A)
 import { useMezcla } from '@/hooks/useMezcla';
+import { useClaqueta } from '@/hooks/useClaqueta';
 import { Mezclador } from './mezclador/Mezclador';
 import { IconoMezclador } from './mezclador/icono';
 
@@ -138,6 +139,8 @@ export default function StudioApp() {
 
   const recording = transport === 'recording' || transport === 'countin';
   const beatsPerBar = ciclo?.pulsos ?? 4;
+  // La claqueta: el motor sabe siempre cómo tiene que sonar y dónde va el 1.
+  useClaqueta(studio, beatsPerBar);
   const compas = nombreDelCompas(beatsPerBar);
   const pistas = project.tracks.length;
 

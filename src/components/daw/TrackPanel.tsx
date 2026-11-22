@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react';
 import type { Studio } from '@/hooks/useStudio';
 import { AjustesDeNotas } from './instrumentos';
+import { SeccionClaqueta } from './claqueta/SeccionClaqueta';
 import { haptic, trackTint } from './theme';
 import {
   Field,
@@ -461,7 +462,7 @@ export function ClickSheet({
   open: boolean;
   onClose: () => void;
 }) {
-  const { project, settings, setBpm, updateSettings, toggleMetronome, engine } = studio;
+  const { project, settings, setBpm, updateSettings, engine } = studio;
   const tapsRef = useRef<number[]>([]);
   const [tapHint, setTapHint] = useState('Marcar el tempo');
 
@@ -507,23 +508,12 @@ export function ClickSheet({
         </div>
       </Field>
 
-      <Field title="Metrónomo">
-        <Toggle
-          checked={settings.metronome}
-          onChange={() => toggleMetronome()}
-          title="Click"
-          detail="Suena en cada pulso mientras reproduces y grabas."
-        />
-        <div style={{ marginTop: 8 }}>
-          <TextButton full onClick={() => engine?.previewClick(true)}>
-            Probar el click
-          </TextButton>
-        </div>
-      </Field>
+      {/* La claqueta de varias formas: sonido, cada cuánto, acento, volumen y ritmo de fondo. */}
+      <SeccionClaqueta studio={studio} />
 
       <Field
         title="Compases de entrada"
-        hint="Los clicks que suenan antes de que empiece a grabar, para que entres a tiempo."
+        hint="La cuenta antes de grabar, con el mismo sonido que la claqueta, para que entres a tiempo."
       >
         <Segmented
           ariaLabel="Compases de entrada"

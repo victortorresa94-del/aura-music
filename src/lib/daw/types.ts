@@ -8,6 +8,7 @@
 
 import type { AjustesMaster, MezclaPista } from './mezcla/tipos';
 import type { PistaDeNotas } from '@/lib/instrumentos/tipos';
+import type { AjustesClaqueta } from './claqueta/claqueta';
 
 export interface Clip {
   /** Clave del audio en el almacén (IndexedDB / mapa de buffers en memoria). */
@@ -106,6 +107,12 @@ export interface StudioSettings {
    */
   outputDeviceId: string | null;
   metronome: boolean;
+  /**
+   * Cómo suena la claqueta: sonido, subdivisión, acento, volumen y ritmo de
+   * fondo. Ausente en los ajustes de antes: léelo con `claquetaDe`, que da
+   * el tic-tac de siempre.
+   */
+  claqueta?: AjustesClaqueta;
   countInBars: number;
   snapToGrid: boolean;
   /**
