@@ -39,10 +39,11 @@ export interface Cerebro {
 }
 
 export const CLAVE_CEREBRO = 'aura-music:cerebro';
-const MAX_NOTAS = 40;
-const MAX_PEDIDOS = 15;
-const MAX_SERIE = 20;
-const MAX_IDEAS = 30;
+// Exportados para la nube (pilar D): al mezclar el cerebro de dos dispositivos se recorta igual.
+export const MAX_NOTAS = 40;
+export const MAX_PEDIDOS = 15;
+export const MAX_SERIE = 20;
+export const MAX_IDEAS = 30;
 
 export function cerebroVacio(): Cerebro {
   return { version: 1, notas: [], pedidos: [], usos: {}, tempos: [], tonalidades: [], ideas: {} };

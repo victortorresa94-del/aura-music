@@ -7,6 +7,8 @@ import { listProjects } from '@/lib/daw/storage';
 import type { CanalEntrada, Project } from '@/lib/daw/types';
 import type { Studio } from '@/hooks/useStudio';
 import { CampoCopias, CampoEspacio, CampoInstalar } from '@/components/pwa/AjustesPwa';
+import { AvisoCambioEnLaAbierta, CampoCuenta } from '@/components/cuenta/Cuenta';
+import type { Nube } from '@/hooks/useNube';
 import type { ThemeMode } from './theme';
 import { CreditosDeSonidos } from './instrumentos';
 import { inputStyle } from './TrackPanel';
@@ -27,11 +29,14 @@ export function SettingsSheet({
   theme,
   open,
   onClose,
+  nube,
 }: {
   studio: Studio;
   theme: { mode: ThemeMode; resolved: 'dark' | 'light'; setMode: (mode: ThemeMode) => void };
   open: boolean;
   onClose: () => void;
+  /** Cuenta (pilar D). Sin configuración de Firebase no pinta nada. */
+  nube?: Nube;
 }) {
   const {
     project,
@@ -67,9 +72,11 @@ export function SettingsSheet({
     if (sePuedeElegirSalida()) setSalidas(await listOutputDevices());
   }, []);
 
+  // Cuenta (pilar D): si la nube trae o cambia ideas con Ajustes abierto, la lista se pone al día.
+  const cambiosDeLaNube = nube?.cambios ?? 0;
   useEffect(() => {
     if (open) void refresh();
-  }, [open, refresh]);
+  }, [open, refresh, cambiosDeLaNube]);
 
   const calibrate = async () => {
     setPhase('running');
@@ -182,6 +189,8 @@ export function SettingsSheet({
 
   return (
     <Sheet open={open} title="Ajustes" onClose={onClose}>
+      {/* Cuenta (pilar D): si la idea abierta cambió en otro dispositivo, se decide aquí, lo primero. */}
+      {nube ? <AvisoCambioEnLaAbierta nube={nube} onHecho={() => void refresh()} /> : null}
       {/* Lo que más se toca, arriba: la idea en la que estás y cómo sacarla. */}
       <Field title="Proyecto">
         <input
@@ -212,6 +221,9 @@ export function SettingsSheet({
           </TextButton>
         </div>
       </Field>
+
+      {/* Cuenta (pilar D): entrar con la cuenta de Aura y ver cómo va la nube, junto a las ideas que sincroniza. */}
+      {nube ? <CampoCuenta nube={nube} abierto={open} /> : null}
 
       <Field title="Ideas guardadas">
         <div style={{ borderRadius: 14, background: T.fill, boxShadow: `inset 0 1px 0 ${T.rim}`, overflow: 'hidden' }}>
