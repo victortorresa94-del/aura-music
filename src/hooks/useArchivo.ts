@@ -12,7 +12,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { downloadBlob, encodeWav, slugify } from '@/lib/daw/audio';
 import * as store from '@/lib/daw/storage';
-import { audiosDeLaIdea, crearZipDeIdea, nombreDelZip, type AudioDeIdea } from '@/lib/pwa/copia';
+import {
+  audiosDeLaIdea,
+  crearZipDeIdea,
+  ErrorDeCopia,
+  leerZipDeIdea,
+  nombreDelZip,
+  prepararParaImportar,
+  type AudioDeIdea,
+} from '@/lib/pwa/copia';
+import { esCuotaLlena } from '@/lib/pwa/espacio';
 import { comandoDeTecla, escribiendo, type IdComando } from '@/lib/daw/menus/comandos';
 import type { Project } from '@/lib/daw/types';
 import type { Studio } from './useStudio';
@@ -46,6 +55,8 @@ export function useArchivo(studio: Studio, pantalla: AccionesDePantalla) {
   /** La idea que se va a borrar, a la espera de que lo confirmes. */
   const [porBorrar, setPorBorrar] = useState<Project | null>(null);
   const entradaAudio = useRef<HTMLInputElement | null>(null);
+  /** «Importar una idea (.zip)…»: antes vivía en Ajustes. */
+  const entradaIdea = useRef<HTMLInputElement | null>(null);
   const mac = useRef(false);
   useEffect(() => {
     mac.current = esMac();
@@ -142,6 +153,35 @@ export function useArchivo(studio: Studio, pantalla: AccionesDePantalla) {
     }
   }, [engine, project, setStatus]);
 
+  /**
+   * Una idea entera desde su zip (la que sale de Exportar › Idea completa).
+   * El audio primero y el proyecto después: un proyecto nunca apunta a audio
+   * que no está. Si ya existe, entra como copia y no se pisa nada.
+   */
+  const importarIdea = useCallback(
+    async (fichero: File) => {
+      setStatus('Abriendo la idea…');
+      try {
+        const leida = leerZipDeIdea(new Uint8Array(await fichero.arrayBuffer()));
+        const yaExiste = (await store.loadProject(leida.proyecto.id)) !== null;
+        const { proyecto, audios } = prepararParaImportar(leida.proyecto, leida.audios, yaExiste);
+        for (const [bufferId, audio] of audios) await store.putAudio(bufferId, audio.channels, audio.sampleRate);
+        await store.saveProject(proyecto);
+        await studio.openProject(proyecto.id);
+        setStatus(yaExiste ? `«${leida.proyecto.name}» ya estaba: la he metido como copia` : `Idea importada: «${proyecto.name}»`);
+      } catch (fallo) {
+        setStatus(
+          fallo instanceof ErrorDeCopia
+            ? fallo.message
+            : esCuotaLlena(fallo)
+              ? 'No cabe en este dispositivo. Haz sitio borrando ideas que ya tengas copiadas.'
+              : 'No he podido importar esa idea. Lo que tenías sigue igual.',
+        );
+      }
+    },
+    [studio, setStatus],
+  );
+
   const borrarConfirmado = useCallback(async () => {
     const idea = porBorrar;
     if (!idea) return;
@@ -189,6 +229,9 @@ export function useArchivo(studio: Studio, pantalla: AccionesDePantalla) {
           return;
         case 'importarAudio':
           entradaAudio.current?.click();
+          return;
+        case 'importarIdea':
+          entradaIdea.current?.click();
           return;
         case 'borrar':
           setPorBorrar(studio.project);
@@ -261,7 +304,9 @@ export function useArchivo(studio: Studio, pantalla: AccionesDePantalla) {
   ejecutarRef.current = ejecutar;
   useEffect(() => {
     const alPulsar = (event: KeyboardEvent) => {
-      if (event.repeat || escribiendo(event.target as HTMLElement | null)) return;
+      // Si otro oyente ya la ha atendido (los atajos de edición de la pista,
+      // por ejemplo), no se hace dos veces.
+      if (event.defaultPrevented || event.repeat || escribiendo(event.target as HTMLElement | null)) return;
       const id = comandoDeTecla(event, mac.current);
       if (!id) return;
       event.preventDefault();
@@ -283,6 +328,8 @@ export function useArchivo(studio: Studio, pantalla: AccionesDePantalla) {
     borrarConfirmado,
     /** El `<input type=file>` escondido de «Importar audio…». */
     entradaAudio,
+    entradaIdea,
+    importarIdea,
     mac: () => mac.current,
   };
 }

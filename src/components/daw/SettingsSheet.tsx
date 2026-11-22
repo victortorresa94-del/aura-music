@@ -1,18 +1,26 @@
 'use client';
 
+/**
+ * Ajustes: solo lo de este equipo y tu cuenta. Entrada, salida, latencia,
+ * aspecto, espacio, instalar y el diagnóstico del sonido.
+ *
+ * Lo de la idea (nombre, ideas guardadas, exportar, copias, borrar) se fue al
+ * menú de la idea (Archivo en el PC, el nombre en el móvil) y a «Tus ideas»:
+ * estaba aquí mezclado con el micro y no se encontraba ni lo uno ni lo otro.
+ * La cuenta va arriba del todo, que es lo primero que se busca al entrar.
+ */
+
 import { useCallback, useEffect, useState } from 'react';
-import { downloadBlob, encodeWav, slugify } from '@/lib/daw/audio';
 import { listInputDevices, listOutputDevices, sePuedeElegirSalida } from '@/lib/daw/recorder';
-import { listProjects } from '@/lib/daw/storage';
-import type { CanalEntrada, Project } from '@/lib/daw/types';
+import type { CanalEntrada } from '@/lib/daw/types';
 import type { Studio } from '@/hooks/useStudio';
-import { CampoCopias, CampoEspacio, CampoInstalar } from '@/components/pwa/AjustesPwa';
+import { CampoEspacio, CampoInstalar } from '@/components/pwa/AjustesPwa';
 import { AvisoCambioEnLaAbierta, CampoCuenta } from '@/components/cuenta/Cuenta';
 import type { Nube } from '@/hooks/useNube';
 import type { ThemeMode } from './theme';
 import { CreditosDeSonidos } from './instrumentos';
 import { inputStyle } from './TrackPanel';
-import { Field, IconButton, IconTrash, Readout, Segmented, Sheet, Slider, T, TextButton, Toggle, hintText, label, numeric, tabular } from './ui';
+import { Field, Readout, Segmented, Sheet, Slider, T, TextButton, Toggle, hintText, label, numeric } from './ui';
 
 type CalibrationPhase = 'idle' | 'instructions' | 'running' | 'done';
 
@@ -39,7 +47,6 @@ export function SettingsSheet({
   nube?: Nube;
 }) {
   const {
-    project,
     settings,
     engine,
     currentLatencyMs,
@@ -47,36 +54,26 @@ export function SettingsSheet({
     updateSettings,
     reopenMic,
     runCalibration,
-    renameProject,
-    newProject,
-    openProject,
-    removeProject,
-    setStatus,
     diagnostics,
   } = studio;
 
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const [salidas, setSalidas] = useState<MediaDeviceInfo[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
   const [phase, setPhase] = useState<CalibrationPhase>('idle');
   const [result, setResult] = useState<string | null>(null);
-  const [exporting, setExporting] = useState(false);
   // Instalar ya no vive aquí: el evento de Android es uno y lo comparte con
   // los avisos (src/lib/pwa/instalacion.ts, campo en AjustesPwa).
 
   const refresh = useCallback(async () => {
-    setProjects(await listProjects());
     // El espacio lo mide CampoEspacio con storage.estimate(): leer todo el
     // audio a memoria para sumarlo era lento con muchas ideas.
     setDevices(await listInputDevices());
     if (sePuedeElegirSalida()) setSalidas(await listOutputDevices());
   }, []);
 
-  // Cuenta (pilar D): si la nube trae o cambia ideas con Ajustes abierto, la lista se pone al día.
-  const cambiosDeLaNube = nube?.cambios ?? 0;
   useEffect(() => {
     if (open) void refresh();
-  }, [open, refresh, cambiosDeLaNube]);
+  }, [open, refresh]);
 
   const calibrate = async () => {
     setPhase('running');
@@ -84,94 +81,6 @@ export function SettingsSheet({
     const outcome = await runCalibration();
     setResult(outcome?.message ?? 'No he podido medir.');
     setPhase('done');
-  };
-
-  /**
-   * Compartir o descargar, con red de seguridad.
-   *
-   * `navigator.share` fallaba de dos formas que el código anterior confundía
-   * con "no he podido generar la mezcla", que es mentira: la mezcla ya está
-   * hecha en ese punto.
-   *
-   *  1. El usuario cierra la hoja de compartir sin elegir nada. Eso lanza
-   *     `AbortError` y NO es un fallo: es que se ha arrepentido a mitad.
-   *  2. En Safari, `navigator.share` exige llamarse dentro del gesto del
-   *     usuario. Si `renderMix` (que mezcla con un OfflineAudioContext) tarda
-   *     aunque sea medio segundo, el gesto ya ha caducado y comparte falla con
-   *     `NotAllowedError`, con la mezcla ya renderizada y perdida detrás de un
-   *     mensaje que sonaba a que no se había hecho nada.
-   *
-   * Aquí un cancelado no dice nada, cualquier otro fallo de compartir cae a
-   * descargar en vez de rendirse, y solo si las dos vías fallan se avisa,
-   * dejando claro que la toma en sí sigue a salvo, porque exportar es sacar
-   * una copia, no el sitio donde vive el audio.
-   */
-  const shareOrDownload = async (blob: Blob, filename: string, title: string, share: boolean) => {
-    const file = new File([blob], filename, { type: 'audio/wav' });
-    if (share) {
-      try {
-        if (navigator.canShare?.({ files: [file] })) {
-          await navigator.share({ files: [file], title });
-          return 'compartida';
-        }
-      } catch (error) {
-        if ((error as DOMException)?.name === 'AbortError') return 'cancelada';
-        // Cualquier otro fallo al compartir (gesto caducado, no soportado):
-        // se intenta la descarga en vez de darse por vencido.
-      }
-    }
-    downloadBlob(blob, filename);
-    return 'descargada';
-  };
-
-  const exportMix = async (share: boolean) => {
-    if (!engine || project.tracks.length === 0) {
-      setStatus('No hay pistas que exportar');
-      return;
-    }
-    setExporting(true);
-    try {
-      const buffer = await engine.renderMix(project);
-      const blob = encodeWav(buffer);
-      const filename = `${slugify(project.name)}.wav`;
-      const resultado = await shareOrDownload(blob, filename, project.name, share);
-      if (resultado === 'cancelada') {
-        setStatus(null);
-      } else {
-        setStatus(
-          resultado === 'compartida'
-            ? 'Mezcla compartida'
-            : 'Mezcla descargada. La toma sigue guardada en el estudio de todos modos.',
-        );
-      }
-    } catch {
-      setStatus(
-        'No he podido generar el WAV para exportar, pero la grabación sigue guardada en este móvil: no se ha perdido nada.',
-      );
-    } finally {
-      setExporting(false);
-    }
-  };
-
-  const exportStems = async () => {
-    if (!engine || project.tracks.length === 0) return;
-    setExporting(true);
-    try {
-      for (const [index, track] of project.tracks.entries()) {
-        const buffer = await engine.renderMix(project, [track]);
-        const blob = encodeWav(buffer);
-        const filename = `${slugify(project.name)}-${index + 1}-${slugify(track.name)}.wav`;
-        // Compartir un fichero a la vez: Safari en iOS descarta el resto si
-        // se lanzan varios seguidos desde el mismo gesto.
-        await shareOrDownload(blob, filename, track.name, false);
-        await new Promise((resolve) => setTimeout(resolve, 350));
-      }
-      setStatus('Pistas exportadas');
-    } catch {
-      setStatus('No he podido exportar todas las pistas, pero nada se ha perdido: siguen en el estudio.');
-    } finally {
-      setExporting(false);
-    }
   };
 
   const themes: { value: ThemeMode; text: string }[] = [
@@ -190,123 +99,77 @@ export function SettingsSheet({
   return (
     <Sheet open={open} title="Ajustes" onClose={onClose}>
       {/* Cuenta (pilar D): si la idea abierta cambió en otro dispositivo, se decide aquí, lo primero. */}
-      {nube ? <AvisoCambioEnLaAbierta nube={nube} onHecho={() => void refresh()} /> : null}
-      {/* Lo que más se toca, arriba: la idea en la que estás y cómo sacarla. */}
-      <Field title="Proyecto">
-        <input
-          value={project.name}
-          onChange={(event) => renameProject(event.target.value)}
-          maxLength={60}
-          aria-label="Nombre del proyecto"
-          style={{ ...inputStyle, marginBottom: 10 }}
-        />
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-          <TextButton
-            full
-            onClick={async () => {
-              await newProject();
-              await refresh();
-            }}
-          >
-            Empezar otra idea
-          </TextButton>
-          <TextButton full disabled={exporting} onClick={() => void exportMix(true)}>
-            {exporting ? 'Generando…' : 'Compartir mezcla'}
-          </TextButton>
-          <TextButton full disabled={exporting} onClick={() => void exportMix(false)}>
-            Descargar WAV
-          </TextButton>
-          <TextButton full disabled={exporting} onClick={() => void exportStems()}>
-            Pistas sueltas
-          </TextButton>
-        </div>
-      </Field>
-
-      {/* Cuenta (pilar D): entrar con la cuenta de Aura y ver cómo va la nube, junto a las ideas que sincroniza. */}
+      {nube ? <AvisoCambioEnLaAbierta nube={nube} /> : null}
+      {/* Tu cuenta de Aura, arriba del todo: es lo primero que se busca al entrar en Ajustes. */}
       {nube ? <CampoCuenta nube={nube} abierto={open} /> : null}
 
-      <Field title="Ideas guardadas">
-        <div style={{ borderRadius: 14, background: T.fill, boxShadow: `inset 0 1px 0 ${T.rim}`, overflow: 'hidden' }}>
-          {projects.map((item, i) => {
-            const actual = item.id === project.id;
-            return (
-              <div
-                key={item.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 4,
-                  padding: '0 4px 0 0',
-                  background: actual ? T.fillStrong : 'transparent',
-                  boxShadow: i > 0 ? `inset 0 1px 0 ${T.rowLine}` : 'none',
-                }}
-              >
-                <button
-                  type="button"
-                  className="daw-hover"
-                  onClick={async () => {
-                    await openProject(item.id);
-                    onClose();
-                  }}
-                  style={{
-                    flex: 1,
-                    minWidth: 0,
-                    minHeight: 56,
-                    textAlign: 'left',
-                    background: 'transparent',
-                    border: 'none',
-                    cursor: 'pointer',
-                    padding: '8px 12px 8px 16px',
-                  }}
-                >
-                  <span
-                    style={{
-                      display: 'block',
-                      fontFamily: T.fontBody,
-                      fontSize: 15,
-                      fontWeight: actual ? 600 : 500,
-                      letterSpacing: '-0.01em',
-                      color: T.text,
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}
-                  >
-                    {item.name}
-                  </span>
-                  <span style={{ ...label, display: 'block', marginTop: 2 }}>
-                    {actual ? 'Abierta · ' : ''}
-                    <span style={tabular}>{item.tracks.length}</span> {item.tracks.length === 1 ? 'pista' : 'pistas'} ·{' '}
-                    <span style={tabular}>{new Date(item.updatedAt).toLocaleDateString('es-ES')}</span>
-                  </span>
-                </button>
-                <IconButton
-                  title={`Borrar ${item.name}`}
-                  onClick={async () => {
-                    await removeProject(item);
-                    await refresh();
-                  }}
-                >
-                  <IconTrash size={17} color={T.dim} />
-                </IconButton>
-              </div>
-            );
-          })}
-          {projects.length === 0 ? (
-            <p style={{ ...hintText, padding: 16 }}>Todavía no has guardado nada.</p>
-          ) : null}
+      <Field title="Entrada">
+        {devices.length > 1 ? (
+          <select
+            value={settings.inputDeviceId ?? ''}
+            onChange={(event) => void reopenMic({ inputDeviceId: event.target.value || null })}
+            aria-label="Micrófono"
+            style={{ ...inputStyle, marginBottom: 10, appearance: 'auto' }}
+          >
+            <option value="">Entrada por defecto</option>
+            {devices.map((device) => (
+              <option key={device.deviceId} value={device.deviceId}>
+                {device.label || 'Micrófono'}
+              </option>
+            ))}
+          </select>
+        ) : null}
+        <label style={{ display: 'block', marginBottom: 10 }}>
+          <span style={{ ...hintText, display: 'block', margin: '0 0 6px', fontSize: 13 }}>
+            Qué se graba. Si en tu interfaz tienes el micro en una entrada y el teclado en otra, elige cuál.
+          </span>
+          <select
+            value={settings.canalEntrada ?? 'juntas'}
+            onChange={(event) => void reopenMic({ canalEntrada: event.target.value as CanalEntrada })}
+            aria-label="Qué entrada se graba"
+            style={{ ...inputStyle, appearance: 'auto' }}
+          >
+            <option value="juntas">Las dos entradas juntas</option>
+            <option value="entrada-1">Solo la entrada 1 (izquierda)</option>
+            <option value="entrada-2">Solo la entrada 2 (derecha)</option>
+          </select>
+        </label>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <Toggle
+            checked={settings.echoCancellation}
+            onChange={(next) => void reopenMic({ echoCancellation: next })}
+            title="Cancelación de eco"
+            detail="Pensada para videollamadas: recorta transitorios y bombea el volumen. Actívala solo si grabas por altavoz y se te cuela lo que ya sonaba."
+          />
+          <Toggle
+            checked={settings.releaseMicOnStop}
+            onChange={(next) => updateSettings({ releaseMicOnStop: next })}
+            title="Soltar el micro al parar"
+            detail="En iPhone, con el micro abierto el sistema baja el volumen y lo grabado se oye flojo. Soltándolo entre tomas se recupera; a cambio, el vúmetro solo se mueve mientras grabas."
+          />
         </div>
       </Field>
 
-      {/* PWA (pilar E): la idea en un zip, y cuánto ocupa todo. */}
-      <CampoCopias
-        studio={studio}
-        onImportada={() => {
-          void refresh();
-          onClose();
-        }}
-      />
-      <CampoEspacio abierto={open} />
+      {salidas.length > 0 ? (
+        <Field
+          title="Salida"
+          hint="Por dónde suena todo el estudio. Elige tu interfaz de audio para escucharlo en sus cascos. Si no salen los nombres, permite el micro y vuelve a abrir Ajustes."
+        >
+          <select
+            value={settings.outputDeviceId ?? ''}
+            onChange={(event) => updateSettings({ outputDeviceId: event.target.value || null })}
+            aria-label="Salida de audio"
+            style={{ ...inputStyle, appearance: 'auto' }}
+          >
+            <option value="">Salida del sistema</option>
+            {salidas.map((device, i) => (
+              <option key={device.deviceId} value={device.deviceId}>
+                {device.label || `Salida ${i + 1}`}
+              </option>
+            ))}
+          </select>
+        </Field>
+      ) : null}
 
       <Field
         title="Latencia"
@@ -394,82 +257,13 @@ export function SettingsSheet({
         </div>
       </Field>
 
-      {salidas.length > 0 ? (
-        <Field
-          title="Salida"
-          hint="Por dónde suena todo el estudio. Elige tu interfaz de audio para escucharlo en sus cascos. Si no salen los nombres, permite el micro y vuelve a abrir Ajustes."
-        >
-          <select
-            value={settings.outputDeviceId ?? ''}
-            onChange={(event) => updateSettings({ outputDeviceId: event.target.value || null })}
-            aria-label="Salida de audio"
-            style={{ ...inputStyle, appearance: 'auto' }}
-          >
-            <option value="">Salida del sistema</option>
-            {salidas.map((device, i) => (
-              <option key={device.deviceId} value={device.deviceId}>
-                {device.label || `Salida ${i + 1}`}
-              </option>
-            ))}
-          </select>
-        </Field>
-      ) : null}
-
-      <Field title="Entrada">
-        {devices.length > 1 ? (
-          <select
-            value={settings.inputDeviceId ?? ''}
-            onChange={(event) => void reopenMic({ inputDeviceId: event.target.value || null })}
-            aria-label="Micrófono"
-            style={{ ...inputStyle, marginBottom: 10, appearance: 'auto' }}
-          >
-            <option value="">Entrada por defecto</option>
-            {devices.map((device) => (
-              <option key={device.deviceId} value={device.deviceId}>
-                {device.label || 'Micrófono'}
-              </option>
-            ))}
-          </select>
-        ) : null}
-        <label style={{ display: 'block', marginBottom: 10 }}>
-          <span style={{ ...hintText, display: 'block', margin: '0 0 6px', fontSize: 13 }}>
-            Qué se graba. Si en tu interfaz tienes el micro en una entrada y el teclado en otra, elige cuál.
-          </span>
-          <select
-            value={settings.canalEntrada ?? 'juntas'}
-            onChange={(event) => void reopenMic({ canalEntrada: event.target.value as CanalEntrada })}
-            aria-label="Qué entrada se graba"
-            style={{ ...inputStyle, appearance: 'auto' }}
-          >
-            <option value="juntas">Las dos entradas juntas</option>
-            <option value="entrada-1">Solo la entrada 1 (izquierda)</option>
-            <option value="entrada-2">Solo la entrada 2 (derecha)</option>
-          </select>
-        </label>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <Toggle
-            checked={settings.echoCancellation}
-            onChange={(next) => void reopenMic({ echoCancellation: next })}
-            title="Cancelación de eco"
-            detail="Pensada para videollamadas: recorta transitorios y bombea el volumen. Actívala solo si grabas por altavoz y se te cuela lo que ya sonaba."
-          />
-          <Toggle
-            checked={settings.releaseMicOnStop}
-            onChange={(next) => updateSettings({ releaseMicOnStop: next })}
-            title="Soltar el micro al parar"
-            detail="En iPhone, con el micro abierto el sistema baja el volumen y lo grabado se oye flojo. Soltándolo entre tomas se recupera; a cambio, el vúmetro solo se mueve mientras grabas."
-          />
-        </div>
-      </Field>
 
       <Field title="Aspecto">
         <Segmented ariaLabel="Aspecto" value={theme.mode} options={themes} onChange={theme.setMode} />
       </Field>
 
+      <CampoEspacio abierto={open} />
       <CampoInstalar />
-
-      {/* Pilar B: de dónde salen los sonidos de los instrumentos (CC BY exige el crédito a la vista). */}
-      <CreditosDeSonidos />
 
       {/* Lo de cuando algo no suena: abajo, que se busca solo cuando hace falta. */}
       <Field
@@ -518,6 +312,9 @@ export function SettingsSheet({
           </pre>
         </details>
       </Field>
+
+      {/* Pilar B: de dónde salen los sonidos de los instrumentos (CC BY exige el crédito a la vista). */}
+      <CreditosDeSonidos />
     </Sheet>
   );
 }
