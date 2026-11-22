@@ -644,3 +644,47 @@ debería ver la barra de tiempo, poder echar pa' atrás, etc.».
 **Pendiente:** verlo en el iPhone y con el GO:KEYS. El cursor se mueve con
 rAF y el panel del navegador de pruebas estaba oculto, así que el
 movimiento no se ha visto; lo demás se ha medido en el DOM.
+
+## 0026 · Menús de escritorio, «Tus ideas» y Ajustes solo del equipo (22-nov-2026)
+
+El dueño: «aún no has añadido los menús ni nada». Dirección visual decidida:
+plano, blanco con suelo #FAFBFA, sombras suaves teñidas de salvia, negro como
+primario, salvia solo para la IA y rojo solo para grabar y borrar.
+- **Barra de menús en el PC (1024 px o más):** marca, Archivo, Editar, Pista,
+  Ver y Ayuda; la idea en el centro con «Guardado» (y la nube de la cuenta);
+  a la derecha el tempo en una píldora, «Productor» (verde, lo hace Aura) y
+  «Mezclar». Se abre al apretar, se cambia de menú pasando el ratón sin
+  animación y se maneja con flechas, Intro y Escape. Los submenús (Exportar,
+  Ideas recientes) salen al lado y se abren a la izquierda si no caben.
+- **En el móvil**, el nombre de la idea («Mi canción ⌄») abre lo mismo que
+  Archivo, con filas de 44 px y los submenús desplegados debajo.
+- **Archivo:** Nueva idea, Abrir…, Ideas recientes, Guardar con «Guardado
+  hace N s», Guardar como copia, Renombrar (en el propio nombre, sin hoja),
+  Exportar (WAV, pistas sueltas, idea .zip), Importar audio…, Importar una
+  idea (.zip)…, Compartir…, Ajustes y cuenta…, Cerrar idea y Borrar idea… en
+  rojo con confirmación (no se deshace).
+- **Una tabla, un dueño por tecla.** Los atajos de la idea (Ctrl+N, O, S,
+  Mayús+S, W y Ctrl+,) están en `src/lib/daw/menus/comandos.ts`; los de
+  edición (Espacio, R, Ctrl+Z, C, V, X, D, S, M, Supr…) en
+  `src/lib/daw/atajos.ts`. Editar, Pista y Ver se pintan desde esa lista y
+  llaman a `useAtajos`: lo que dice el menú es lo que hace la tecla. Ctrl+Z
+  estaba en dos oyentes y deshacía dos veces; ahora solo en uno. Con un menú
+  abierto las letras sueltas no llegan al estudio (una R se ponía a grabar).
+  Ctrl+N y Ctrl+W solo llegan con la app instalada: en una pestaña son del
+  navegador.
+- **«Tus ideas» es la raíz:** a ella llevan Abrir y Cerrar idea. «¿Qué
+  tocamos hoy?», Nueva idea, Importar audio, seis accesos rápidos (Batería,
+  Teclado, Acordes, Bajo, Grabar voz, Loops: cada uno empieza una idea nueva
+  con eso abierto) y la rejilla con buscador y orden. Cada tarjeta dibuja
+  sus pistas como franjas de su color. Los iconos son los Phosphor de «Tocar»
+  hasta que lleguen los de arcilla.
+- **Ajustes, solo del equipo y la cuenta:** «Tu cuenta de Aura» arriba del
+  todo, y luego entrada (con «Qué se graba»), salida, latencia, aspecto,
+  espacio, instalar, sonido y créditos. Lo de la idea (nombre, lista de
+  ideas, exportar, copias) se fue a Archivo y a «Tus ideas»: mezclado con el
+  micro, no se encontraba ni lo uno ni lo otro.
+**Pendiente:** no se ha visto la cuenta en Ajustes con Firebase configurado
+(la carpeta de pruebas no tiene `.env.local`), ni se ha probado en un iPhone.
+Los accesos rápidos abren «Tocar» en su instrumento escribiendo la pestaña
+en `aura-music:tocar` y volviendo a montar la pantalla: si «Tocar» cambia esa
+clave, hay que cambiarlo aquí.
