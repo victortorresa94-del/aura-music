@@ -160,7 +160,7 @@ function HojaCiclo({
           })}
         </div>
         <p style={{ ...hintText, marginTop: 10 }}>
-          También se marca arrastrando por la regla con el ratón, y los bordes de la zona se arrastran con el dedo.
+          En el ordenador también se marca con Mayús y arrastrando por la regla. Los bordes de la zona se arrastran con el dedo o con el ratón.
         </p>
       </Field>
 

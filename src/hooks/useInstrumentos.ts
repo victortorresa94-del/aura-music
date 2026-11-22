@@ -29,6 +29,7 @@ import {
 } from '@/lib/instrumentos/grabacion';
 import { golpesParaPista, type Loop, type NivelLoop } from '@/lib/instrumentos/loops';
 import { getInstrumento } from '@/lib/instrumentos/registro';
+import { programarPrecarga } from '@/lib/instrumentos/percusion';
 import { renderizarNotas } from '@/lib/instrumentos/render';
 import { AJUSTES_SIN_TOCAR, type AjustesGroove, type InstrumentoId, type PistaDeNotas } from '@/lib/instrumentos/tipos';
 import { leerToqueMs } from '@/lib/instrumentos/toque';
@@ -130,6 +131,10 @@ export function useInstrumentos(studio: Studio, pulsosPorCompas: number) {
       atril.dispose();
     };
   }, [atril]);
+
+  // Las muestras de los ritmos y de la claqueta (bombo, palmas, bongós...),
+  // en cuanto se toque la app: así el primer compás ya suena grabado.
+  useEffect(() => programarPrecarga(), []);
 
   // Con el transporte sonando, cada golpe sabe dónde cae en la línea de tiempo.
   useEffect(() => {
@@ -407,6 +412,38 @@ export function useInstrumentos(studio: Studio, pulsosPorCompas: number) {
     atril.posicion = (t) => s.engine!.posicionEn(t);
   }, [atril, parar]);
 
+  /**
+   * Mover el cursor desde «Tocar» (la tira de tiempo). Parado, solo se mueve.
+   * Escuchando, se para, se salta y vuelve a sonar «sin fin», como lo arrancó
+   * «Escuchar» (el `seek` del estudio lo relanzaría con fin). Grabando, no:
+   * se perdería la toma.
+   */
+  const irA = useCallback(
+    async (posicion: number) => {
+      const s = studioRef.current;
+      const motor = s.engine;
+      if (!motor || !atril || atril.grabando) return;
+      const estadoMotor = motor.transportState;
+      if (estadoMotor === 'recording' || estadoMotor === 'countin') return;
+      const destino = Math.max(0, posicion);
+      if (estadoMotor === 'playing') {
+        await motor.stop();
+        motor.seek(destino);
+        await motor.play(s.project, s.settings, destino, { sinFin: true });
+        atril.posicion = (t) => motor.posicionEn(t);
+        return;
+      }
+      motor.seek(destino);
+    },
+    [atril],
+  );
+
+  /** El bucle de la toma en curso, si se graba en loop (para pintarlo en la tira). */
+  const bucleActual = useCallback((): { desde: number; largo: number } | null => {
+    const b = bucleRef.current;
+    return b ? { desde: b.desde, largo: b.largo } : null;
+  }, []);
+
   /** «Recuperar lo último»: lo que tocaste sin grabar, a una pista. */
   const recuperar = useCallback(async () => {
     const s = studioRef.current;
@@ -470,9 +507,15 @@ export function useInstrumentos(studio: Studio, pulsosPorCompas: number) {
       const desde = Math.max(0, Math.floor(s.engine.position / compas + 1e-6) * compas);
       const { golpes, pulsos } = golpesParaPista(loop, o);
       const sufijo = o.nivel === 'bombo' ? ' · solo bombo' : o.nivel === 'bombo-caja' ? ' · bombo y caja' : '';
+      // Un loop tocado por una mano: unos ms y unos puntos de fuerza que no se
+      // repiten igual en cada vuelta. Las cajas de ritmos, no: van clavadas,
+      // que es lo suyo. Lo de la biblioteca se puede cuadrar después igual.
+      const maquina = loop.instrumento === 'bateria-808' || loop.instrumento === 'bateria-909';
+      const semilla = [...loop.id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 9973, 7);
       const id = await crearPista({
         instrumento: loop.instrumento,
         clip: { inicio: desde, golpes, pulsos },
+        ajustes: maquina ? AJUSTES_SIN_TOCAR : { ...AJUSTES_SIN_TOCAR, humanizar: { cantidad: 0.3, semilla } },
         ia: true,
         nombre: `${loop.nombre}${sufijo}`,
       });
@@ -524,6 +567,9 @@ export function useInstrumentos(studio: Studio, pulsosPorCompas: number) {
     // Modo loop
     vuelta,
     deshacerVuelta,
+    bucleActual,
+    // La tira de tiempo de «Tocar»
+    irA,
     // «¿Ha quedado bien?»
     resultado,
     cuadrarResultado,

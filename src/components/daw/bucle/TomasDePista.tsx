@@ -7,14 +7,15 @@
  */
 
 import type { Studio } from '@/hooks/useStudio';
-import { elegirToma, separarTomas } from '@/lib/daw/bucle/bucle';
+import { elegirToma, separarTomas, tomasUsables } from '@/lib/daw/bucle/bucle';
 import { newId, type Track } from '@/lib/daw/types';
 import { haptic, T } from '../theme';
 import { Field, TextButton } from '../ui';
 
 export function TomasDePista({ studio, track }: { studio: Studio; track: Track }) {
-  const tomas = track.tomas;
-  if (!tomas || tomas.offsets.length < 2) return null;
+  // Si el clip se ha cortado o recortado, ya no es una vuelta: no se ofrecen.
+  const tomas = tomasUsables(track);
+  if (!tomas) return null;
   return (
     <Field
       title="Tomas"

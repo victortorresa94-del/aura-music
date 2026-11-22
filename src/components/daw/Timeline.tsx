@@ -3,8 +3,13 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { PeakData, Track } from '@/lib/daw/types';
 import type { Studio } from '@/hooks/useStudio';
+import type { Mezcla } from '@/hooks/useMezcla';
 import { cssColor, haptic, trackTint } from './theme';
-import { IconImport, IconMore, T, hintText, numeric } from './ui';
+import { IconImport, T, hintText, numeric } from './ui';
+import { CabeceraPista, botonPlano, headerCell, nombreVisible } from './cabecera/CabeceraPista';
+import { ESTILO_MANDOS } from './cabecera/ControlesPista';
+import { EVENTO_VER_CURSOR, EVENTO_ZOOM } from '@/hooks/useEdicion';
+import { alPulso, TROZO_MINIMO } from '@/lib/daw/edicion';
 import { IconTocar, NotasClip } from './instrumentos';
 // Grabar en bucle: el ciclo en la regla y en las pistas.
 import { BotonCiclo, useArrastreDeCiclo, ZonaEnPistas, ZonaEnRegla } from './bucle/Ciclo';
@@ -12,7 +17,8 @@ import { Repeat } from '@phosphor-icons/react';
 
 /** Ancho de la columna de pistas en el móvil. En pantallas anchas crece. */
 export const HEADER_W = 128;
-const HEADER_W_WIDE = 208;
+/* Cabe el nombre, M, S, el volumen y el panorama sin apretar. */
+const HEADER_W_WIDE = 252;
 const ROW_H = 80;
 const RULER_H = 30;
 /** Margen del clip dentro de su calle, arriba y abajo. */
@@ -23,11 +29,6 @@ const CAPTION_H = 18;
 const CANVAS_CHUNK = 1600;
 const PPS_MIN = 6;
 const PPS_MAX = 240;
-
-/** Una pista generada lleva el «IA» en la insignia: no hace falta repetirlo en el nombre. */
-function nombreVisible(track: Track): string {
-  return track.ia ? track.name.replace(/\s*·\s*IA$/i, '') : track.name;
-}
 
 /* -------------------------------------------------------------------------- */
 /* Forma de onda                                                               */
@@ -203,58 +204,73 @@ function ClipBlock({
   onEdit: (patch: Partial<Track['clip']>) => void;
   onOptions: () => void;
 }) {
-  const drag = useRef<{ mode: DragMode; x: number; clip: Track['clip'] } | null>(null);
+  const drag = useRef<{ mode: DragMode; x: number; clip: Track['clip']; empezado: boolean } | null>(null);
   const [arrastrando, setArrastrando] = useState(false);
   const { clip } = track;
   const width = Math.max(6, clip.duration * clip.repeats * pps);
 
+  // El imán a la rejilla (si está puesto en Ajustes). Con Alt se suelta.
   const snapValue = useCallback(
-    (value: number) => {
-      if (!snap || beatSeconds <= 0) return value;
-      const nearest = Math.round(value / beatSeconds) * beatSeconds;
-      return Math.abs(nearest - value) < beatSeconds * 0.25 ? nearest : value;
-    },
+    (value: number, libre = false) => alPulso(value, beatSeconds, snap && !libre),
     [snap, beatSeconds],
   );
 
   const begin = (mode: DragMode) => (event: React.PointerEvent) => {
+    if (event.button !== 0) return;
     if (!selected) {
       onSelect();
-      return; // primer toque selecciona; el segundo ya arrastra
+      // Con el dedo, el primer toque elige y el segundo ya arrastra: si no,
+      // desplazar la lista movería clips sin querer. Con el ratón no hay ese
+      // riesgo y se arrastra a la primera, como en cualquier DAW.
+      if (event.pointerType !== 'mouse') return;
     }
     event.stopPropagation();
     (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
-    drag.current = { mode, x: event.clientX, clip: { ...clip } };
-    setArrastrando(true);
-    onBeginEdit();
+    drag.current = { mode, x: event.clientX, clip: { ...clip }, empezado: false };
   };
 
   const move = (event: React.PointerEvent) => {
     const state = drag.current;
     if (!state) return;
     event.stopPropagation();
-    const delta = (event.clientX - state.x) / pps;
+    const dx = event.clientX - state.x;
+    // Hasta que no se mueve de verdad no es un arrastre: un clic no deja un
+    // paso de Deshacer vacío ni mueve el clip medio píxel.
+    if (!state.empezado) {
+      if (Math.abs(dx) < 3) return;
+      state.empezado = true;
+      setArrastrando(true);
+      onBeginEdit();
+    }
+    const delta = dx / pps;
     const base = state.clip;
+    const libre = event.altKey;
 
     if (state.mode === 'move') {
-      onEdit({ start: Math.max(0, snapValue(base.start + delta)) });
+      onEdit({ start: Math.max(0, snapValue(base.start + delta, libre)) });
       return;
     }
 
     if (state.mode === 'left') {
       // Recorte de entrada: se come buffer por delante y desplaza el inicio.
-      const maxIn = base.duration - 0.08;
-      const shift = Math.min(Math.max(delta, -base.offset), maxIn);
+      // El imán va sobre el borde, que es lo que se ve.
+      const maxIn = base.duration - TROZO_MINIMO;
+      const deseado = snapValue(Math.max(0, base.start + delta), libre) - base.start;
+      const shift = Math.min(Math.max(deseado, -base.offset, -base.start), maxIn);
       onEdit({
         offset: base.offset + shift,
-        start: Math.max(0, base.start + shift),
+        start: base.start + shift,
         duration: base.duration - shift,
       });
       return;
     }
 
     const maxOut = track.sourceDuration - base.offset;
-    onEdit({ duration: Math.min(Math.max(0.08, base.duration + delta), maxOut) });
+    // Con repeticiones el borde derecho cambia lo que dura cada vuelta: el
+    // imán solo tiene sentido con una.
+    const fin =
+      base.repeats === 1 ? snapValue(base.start + base.duration + delta, libre) - base.start : base.duration + delta;
+    onEdit({ duration: Math.min(Math.max(TROZO_MINIMO, fin), maxOut) });
   };
 
   const end = (event: React.PointerEvent) => {
@@ -591,11 +607,12 @@ function Ruler({
   showHead,
   headRef,
   onSeek,
-  arrastre,
+  onScrub,
+  cicloArrastre,
   children,
 }: {
-  /** Grabar en bucle: arrastrar con el ratón marca el ciclo. */
-  arrastre?: {
+  /** Grabar en bucle: Mayús + arrastrar con el ratón marca el ciclo. */
+  cicloArrastre?: {
     onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void;
     onPointerMove: (event: React.PointerEvent<HTMLDivElement>) => void;
     onPointerUp: () => void;
@@ -610,7 +627,10 @@ function Ruler({
   recording: boolean;
   headRef: React.RefObject<HTMLDivElement | null>;
   onSeek: (t: number) => void;
+  /** Mientras se arrastra: mueve el cursor sin reprogramar lo que suena. */
+  onScrub: (t: number) => void;
 }) {
+  const arrastre = useRef(false);
   const beatPx = (60 / bpm) * pps;
   const barPx = beatPx * beatsPerBar;
   // Un número cada tantos compases como haga falta para que no se pisen.
@@ -631,14 +651,41 @@ function Ruler({
 
   return (
     <div
+      title="Clic para llevar el cursor ahí. Con el ratón, arrastra. Con Mayús, marca el ciclo."
       onPointerDown={(event) => {
+        if (event.button !== 0) return;
+        // Grabar en bucle: Mayús + arrastrar con el ratón marca el ciclo,
+        // sin mover el cursor. Sin Mayús, la regla es la de siempre.
+        if (event.shiftKey && cicloArrastre) {
+          cicloArrastre.onPointerDown(event);
+          return;
+        }
         const rect = event.currentTarget.getBoundingClientRect();
         onSeek(Math.max(0, (event.clientX - rect.left) / pps));
-        arrastre?.onPointerDown(event);
+        // Con el ratón se arrastra el cursor por la regla, atrás o adelante.
+        // Con el dedo no: deslizar la regla desplaza la línea de tiempo.
+        if (event.pointerType === 'mouse') {
+          event.currentTarget.setPointerCapture(event.pointerId);
+          arrastre.current = true;
+        }
       }}
-      onPointerMove={arrastre?.onPointerMove}
-      onPointerUp={arrastre?.onPointerUp}
-      onPointerCancel={arrastre?.onPointerUp}
+      onPointerMove={(event) => {
+        cicloArrastre?.onPointerMove(event);
+        if (!arrastre.current) return;
+        const rect = event.currentTarget.getBoundingClientRect();
+        onScrub(Math.max(0, (event.clientX - rect.left) / pps));
+      }}
+      onPointerUp={(event) => {
+        cicloArrastre?.onPointerUp();
+        if (!arrastre.current) return;
+        arrastre.current = false;
+        const rect = event.currentTarget.getBoundingClientRect();
+        onSeek(Math.max(0, (event.clientX - rect.left) / pps));
+      }}
+      onPointerCancel={() => {
+        cicloArrastre?.onPointerUp();
+        arrastre.current = false;
+      }}
       style={{
         position: 'relative',
         width,
@@ -696,16 +743,6 @@ function Ruler({
 /* Línea de tiempo                                                             */
 /* -------------------------------------------------------------------------- */
 
-const headerCell = (width: number): React.CSSProperties => ({
-  position: 'sticky',
-  left: 0,
-  zIndex: 5,
-  width,
-  flexShrink: 0,
-  display: 'flex',
-  flexDirection: 'column',
-  boxShadow: `inset -1px 0 0 ${T.border}`,
-});
 
 export function Timeline({
   studio,
@@ -716,8 +753,11 @@ export function Timeline({
   beatsPerBar = 4,
   onTocar,
   onLoops,
+  mezcla,
 }: {
   studio: Studio;
+  /** El mezclador: el volumen y el panorama de la cabecera se guardan como los suyos. */
+  mezcla?: Mezcla;
   pps: number;
   theme: string;
   onOpenTrack: () => void;
@@ -739,8 +779,6 @@ export function Timeline({
     setSelectedTrackId,
     getPeaks,
     updateClip,
-    toggleMute,
-    toggleSolo,
     seek,
   } = studio;
 
@@ -828,13 +866,10 @@ export function Timeline({
     };
     // Safari de iOS manda además sus propios gestos: que no amplíen la página.
     const onGesture = (event: Event) => event.preventDefault();
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.ctrlKey || event.metaKey || event.altKey) return;
-      const target = event.target as HTMLElement | null;
-      const tag = target?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target?.isContentEditable) return;
-      if (event.key === '+' || event.key === '=') zoomAround(zoomRef.current.pps * 1.4, null);
-      else if (event.key === '-' || event.key === '_') zoomAround(zoomRef.current.pps / 1.4, null);
+    // Las teclas + y − (y el menú Ver) llegan por `useEdicion` como evento.
+    const onZoomTeclado = (event: Event) => {
+      const factor = (event as CustomEvent<number>).detail;
+      if (typeof factor === 'number' && factor > 0) zoomAround(zoomRef.current.pps * factor, null);
     };
 
     node.addEventListener('touchstart', onTouchStart, { passive: true });
@@ -844,7 +879,7 @@ export function Timeline({
     node.addEventListener('wheel', onWheel, { passive: false });
     node.addEventListener('gesturestart', onGesture);
     node.addEventListener('gesturechange', onGesture);
-    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener(EVENTO_ZOOM, onZoomTeclado);
     return () => {
       node.removeEventListener('touchstart', onTouchStart);
       node.removeEventListener('touchmove', onTouchMove);
@@ -853,9 +888,42 @@ export function Timeline({
       node.removeEventListener('wheel', onWheel);
       node.removeEventListener('gesturestart', onGesture);
       node.removeEventListener('gesturechange', onGesture);
-      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener(EVENTO_ZOOM, onZoomTeclado);
     };
   }, []);
+
+  /* Inicio, Fin y las flechas mueven el cursor: si se va fuera de la vista,
+     la línea de tiempo lo sigue (aunque no esté sonando). */
+  useEffect(() => {
+    const verCursor = () => {
+      const node = scrollRef.current;
+      const engine = studio.engine;
+      if (!node || !engine) return;
+      requestAnimationFrame(() => {
+        const { pps: actual, headerW: col } = zoomRef.current;
+        const x = engine.position * actual;
+        const izquierda = node.scrollLeft;
+        const visible = node.clientWidth - col;
+        if (x < izquierda + 24 || x > izquierda + visible - 48) {
+          node.scrollLeft = Math.max(0, x - visible * 0.3);
+        }
+      });
+    };
+    window.addEventListener(EVENTO_VER_CURSOR, verCursor);
+    return () => window.removeEventListener(EVENTO_VER_CURSOR, verCursor);
+  }, [studio.engine]);
+
+  /* Arrastrar el cursor por la regla. Parado, el cursor va con el ratón;
+     sonando, se oye desde donde sueltes (reprogramar a cada píxel daría
+     tirones). */
+  const scrub = useCallback(
+    (t: number) => {
+      const engine = studio.engine;
+      if (!engine) return;
+      if (engine.transportState === 'stopped') engine.seek(t);
+    },
+    [studio.engine],
+  );
 
   /* ----------------------------- rejilla -------------------------------- */
   /* Compás más marcado, pulso más tenue. Va en cada calle (y en el relleno
@@ -892,6 +960,7 @@ export function Timeline({
           flexDirection: 'column',
         }}
       >
+        <style>{ESTILO_MANDOS}</style>
         {/* Regla */}
         <div
           style={{
@@ -909,7 +978,7 @@ export function Timeline({
             <BotonCiclo studio={studio} pulsosPorCompas={beatsPerBar} />
           </div>
           <Ruler
-            arrastre={arrastreDeCiclo}
+            cicloArrastre={arrastreDeCiclo}
             width={laneWidth}
             pps={pps}
             bpm={project.bpm}
@@ -918,6 +987,7 @@ export function Timeline({
             showHead={project.tracks.length > 0 || recording}
             headRef={headRef}
             onSeek={seek}
+            onScrub={scrub}
           >
             <ZonaEnRegla studio={studio} pps={pps} pulsosPorCompas={beatsPerBar} />
           </Ruler>
@@ -948,104 +1018,33 @@ export function Timeline({
                 boxShadow: `inset 0 -1px 0 ${T.rowLine}`,
               }}
             >
-              <div
-                style={{
-                  ...headerCell(headerW),
-                  background: selected ? T.raised : T.surface,
-                  padding: '6px 4px 6px 10px',
-                  transition: `background-color 160ms ${T.easeOut}`,
-                }}
-                onClick={() => setSelectedTrackId(track.id)}
-                onContextMenu={(event) => {
-                  event.preventDefault();
-                  openOptions();
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 7, height: 32, minWidth: 0 }}>
-                  {track.ia ? (
-                    <span
-                      title="La ha tocado la máquina"
-                      style={{
-                        flexShrink: 0,
-                        padding: '2px 4px',
-                        borderRadius: 4,
-                        background: T.aiSoft,
-                        color: T.ai,
-                        fontFamily: T.fontBody,
-                        fontSize: 10,
-                        fontWeight: 700,
-                        letterSpacing: '0.03em',
-                        lineHeight: 1,
-                      }}
-                    >
-                      IA
-                    </span>
-                  ) : (
-                    <span
-                      aria-hidden
-                      style={{ width: 10, height: 10, borderRadius: 3, background: tint, flexShrink: 0 }}
-                    />
-                  )}
-                  <span
-                    style={{
-                      flex: 1,
-                      minWidth: 0,
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                      fontFamily: T.fontBody,
-                      fontSize: 13,
-                      fontWeight: selected ? 600 : 500,
-                      letterSpacing: '-0.01em',
-                      color: callada ? T.dim : T.text,
-                    }}
-                    title={track.name}
-                  >
-                    {nombreVisible(track)}
-                  </span>
-                </div>
-                <div style={{ display: 'flex', gap: 4, alignItems: 'center', flex: 1 }}>
-                  <Pill active={track.muted} onClick={() => toggleMute(track.id)} title={`Silenciar ${track.name}`}>
-                    M
-                  </Pill>
-                  <Pill active={track.soloed} onClick={() => toggleSolo(track.id)} title={`Solo ${track.name}`}>
-                    S
-                  </Pill>
-                  {/* La única puerta a renombrar, colorear, duplicar o borrar
-                      una pista no puede depender de que alguien adivine que el
-                      nombre es un botón. Aquí está, a la vista, en todas. */}
-                  <button
-                    type="button"
-                    className="daw-press daw-hover"
-                    title={`Opciones de ${track.name}`}
-                    aria-label={`Opciones de ${track.name}`}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      haptic(8);
-                      openOptions();
-                    }}
-                    style={{
-                      ...botonPlano,
-                      width: 34,
-                      height: 36,
-                      marginLeft: 'auto',
-                      borderRadius: 8,
-                      display: 'grid',
-                      placeItems: 'center',
-                      flexShrink: 0,
-                    }}
-                  >
-                    <IconMore size={18} color={T.dim} />
-                  </button>
-                </div>
-              </div>
+              <CabeceraPista
+                track={track}
+                tint={tint}
+                headerW={headerW}
+                wide={headerW > HEADER_W}
+                selected={selected}
+                callada={callada}
+                studio={studio}
+                mezcla={mezcla}
+                onSelect={() => setSelectedTrackId(track.id)}
+                onOptions={openOptions}
+              />
 
               <div
                 onPointerDown={() => setSelectedTrackId(track.id)}
+                onClick={(event) => {
+                  // Un clic en la calle vacía lleva el cursor ahí, como en la
+                  // regla. En un clip no: ahí se elige y se arrastra.
+                  if ((event.target as HTMLElement).closest('[data-clip]')) return;
+                  const rect = event.currentTarget.getBoundingClientRect();
+                  seek(alPulso(Math.max(0, (event.clientX - rect.left) / pps), beatSeconds, settings.snapToGrid));
+                }}
                 style={{
                   position: 'relative',
                   width: laneWidth,
                   flexShrink: 0,
+                  // Elegida, la calle entera un punto más opaca.
                   backgroundColor: selected ? T.fill : 'transparent',
                   ...laneStyle,
                 }}
@@ -1102,17 +1101,6 @@ export function Timeline({
   );
 }
 
-const botonPlano: React.CSSProperties = {
-  border: 'none',
-  margin: 0,
-  padding: 0,
-  background: 'transparent',
-  color: 'inherit',
-  font: 'inherit',
-  cursor: 'pointer',
-  touchAction: 'manipulation',
-  WebkitTapHighlightColor: 'transparent',
-};
 
 /**
  * Añadir una pista que no viene del micro. Va al final de la columna de
@@ -1270,67 +1258,6 @@ function ImportButton({
         {text}
       </button>
     </>
-  );
-}
-
-/**
- * Mute y solo. Apagado: relleno tenue y letra gris. Encendido: invertido,
- * claro sobre oscuro (u oscuro sobre claro), que se distingue a un metro sin
- * necesitar un color más. La zona que se toca es la fila entera, más alta que
- * la píldora que se ve.
- */
-function Pill({
-  children,
-  active,
-  onClick,
-  title,
-}: {
-  children: React.ReactNode;
-  active: boolean;
-  onClick: () => void;
-  title: string;
-}) {
-  return (
-    <button
-      type="button"
-      title={title}
-      aria-label={title}
-      aria-pressed={active}
-      className="daw-press"
-      onClick={(event) => {
-        event.stopPropagation();
-        haptic(8);
-        onClick();
-      }}
-      style={{
-        ...botonPlano,
-        flex: 1,
-        maxWidth: 40,
-        height: 36,
-        display: 'grid',
-        placeItems: 'center',
-      }}
-    >
-      <span
-        style={{
-          width: '100%',
-          height: 26,
-          display: 'grid',
-          placeItems: 'center',
-          borderRadius: 7,
-          background: active ? T.text : T.fill,
-          boxShadow: active ? 'none' : `inset 0 1px 0 ${T.rim}`,
-          color: active ? T.inverse : T.dim,
-          fontFamily: T.fontBody,
-          fontSize: 12,
-          fontWeight: 700,
-          letterSpacing: '0.02em',
-          transition: `background-color 140ms ${T.easeOut}, color 140ms ${T.easeOut}`,
-        }}
-      >
-        {children}
-      </span>
-    </button>
   );
 }
 

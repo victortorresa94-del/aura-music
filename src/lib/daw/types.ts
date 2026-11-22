@@ -115,6 +115,12 @@ export interface StudioSettings {
   echoCancellation: boolean;
   inputDeviceId: string | null;
   /**
+   * Qué entrada de la interfaz se graba: las dos juntas (lo de siempre), solo
+   * la 1 (canal izquierdo) o solo la 2 (canal derecho). Para cuando el micro
+   * va por una entrada y el teclado por otra. Ausente = las dos juntas.
+   */
+  canalEntrada?: CanalEntrada;
+  /**
    * Por dónde suena el estudio: la tarjeta del PC, una interfaz de audio con
    * cascos, unos altavoces. null = la salida por defecto del sistema. Solo en
    * navegadores con `AudioContext.setSinkId` (Chrome y Edge en el PC).
@@ -136,6 +142,9 @@ export interface StudioSettings {
    */
   releaseMicOnStop: boolean;
 }
+
+/** Qué entrada se graba: las dos juntas, solo la 1 (izquierda) o solo la 2 (derecha). */
+export type CanalEntrada = 'juntas' | 'entrada-1' | 'entrada-2';
 
 export const DEFAULT_SETTINGS: StudioSettings = {
   latencyMs: 0,

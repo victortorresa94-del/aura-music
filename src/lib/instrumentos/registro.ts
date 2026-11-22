@@ -104,12 +104,12 @@ const KIT_909 = kit(
 
 /*
  * La batería acústica: muestras de verdad (capas de fuerza y golpes
- * alternos) para lo que haya en el paquete; lo que falte suena con la síntesis
- * más parecida.
+ * alternos). Las voces solo cuentan si falta una muestra: entonces suena la
+ * misma pieza de otro paquete, o su síntesis sin red.
  */
 const KIT_ACUSTICA = kit(
   ['Cencerro', 'Claves', 'Shaker', 'Pandereta', 'Tom grave', 'Tom medio', 'Tom agudo', 'Ride', 'Charles', 'Charles pedal', 'Charles abierto', 'Crash', 'Bombo', 'Aro', 'Caja', 'Palmas'],
-  ['cencerro', 'clave', 'shaker', 'pandereta', 'tom_grave_909', 'tom_medio_909', 'tom_agudo_909', 'ride_909', 'charles_909', 'charles_pedal_909', 'charles_abierto_909', 'platillo_909', 'bombo', 'nudillos', 'caja', 'palma_seca'],
+  ['cencerro', 'clave', 'shaker', 'pandereta', 'tom_grave', 'tom_medio', 'tom_agudo', 'ride', 'charles', 'charles_pedal', 'charles_abierto', 'platillo', 'bombo', 'nudillos', 'caja', 'palma_seca'],
 );
 
 /* Percusión latina: congas y bongós abajo, que es donde van las manos. */
@@ -117,14 +117,14 @@ const KIT_LATINA: Pad[] = [
   { nota: 36, nombre: 'Bombo', voz: 'bombo' },
   { nota: 39, nombre: 'Palmas', voz: 'palma_seca' },
   { nota: 37, nombre: 'Aro', voz: 'nudillos' },
-  { nota: 49, nombre: 'Platillo', voz: 'platillo_909' },
+  { nota: 49, nombre: 'Platillo', voz: 'platillo' },
   { nota: 73, nombre: 'Güiro', voz: 'guiro' },
   { nota: 70, nombre: 'Shaker', voz: 'shaker' },
   { nota: 75, nombre: 'Claves', voz: 'clave' },
   { nota: 54, nombre: 'Pandereta', voz: 'pandereta' },
-  { nota: 64, nombre: 'Conga grave', voz: 'tom_grave_808' },
-  { nota: 65, nombre: 'Timbal agudo', voz: 'conga_slap' },
-  { nota: 66, nombre: 'Timbal grave', voz: 'tom_medio_808' },
+  { nota: 64, nombre: 'Conga grave', voz: 'conga_grave' },
+  { nota: 65, nombre: 'Timbal agudo', voz: 'timbal_agudo' },
+  { nota: 66, nombre: 'Timbal grave', voz: 'timbal_grave' },
   { nota: 56, nombre: 'Cencerro', voz: 'cencerro' },
   { nota: 63, nombre: 'Conga', voz: 'conga_abierta' },
   { nota: 62, nombre: 'Conga slap', voz: 'conga_slap' },

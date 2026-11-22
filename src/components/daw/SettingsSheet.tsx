@@ -4,9 +4,11 @@ import { useCallback, useEffect, useState } from 'react';
 import { downloadBlob, encodeWav, slugify } from '@/lib/daw/audio';
 import { listInputDevices, listOutputDevices, sePuedeElegirSalida } from '@/lib/daw/recorder';
 import { listProjects } from '@/lib/daw/storage';
-import type { Project } from '@/lib/daw/types';
+import type { CanalEntrada, Project } from '@/lib/daw/types';
 import type { Studio } from '@/hooks/useStudio';
 import { CampoCopias, CampoEspacio, CampoInstalar } from '@/components/pwa/AjustesPwa';
+import { AvisoCambioEnLaAbierta, CampoCuenta } from '@/components/cuenta/Cuenta';
+import type { Nube } from '@/hooks/useNube';
 import type { ThemeMode } from './theme';
 import { CreditosDeSonidos } from './instrumentos';
 import { inputStyle } from './TrackPanel';
@@ -27,11 +29,14 @@ export function SettingsSheet({
   theme,
   open,
   onClose,
+  nube,
 }: {
   studio: Studio;
   theme: { mode: ThemeMode; resolved: 'dark' | 'light'; setMode: (mode: ThemeMode) => void };
   open: boolean;
   onClose: () => void;
+  /** Cuenta (pilar D). Sin configuración de Firebase no pinta nada. */
+  nube?: Nube;
 }) {
   const {
     project,
@@ -67,9 +72,11 @@ export function SettingsSheet({
     if (sePuedeElegirSalida()) setSalidas(await listOutputDevices());
   }, []);
 
+  // Cuenta (pilar D): si la nube trae o cambia ideas con Ajustes abierto, la lista se pone al día.
+  const cambiosDeLaNube = nube?.cambios ?? 0;
   useEffect(() => {
     if (open) void refresh();
-  }, [open, refresh]);
+  }, [open, refresh, cambiosDeLaNube]);
 
   const calibrate = async () => {
     setPhase('running');
@@ -182,6 +189,8 @@ export function SettingsSheet({
 
   return (
     <Sheet open={open} title="Ajustes" onClose={onClose}>
+      {/* Cuenta (pilar D): si la idea abierta cambió en otro dispositivo, se decide aquí, lo primero. */}
+      {nube ? <AvisoCambioEnLaAbierta nube={nube} onHecho={() => void refresh()} /> : null}
       {/* Lo que más se toca, arriba: la idea en la que estás y cómo sacarla. */}
       <Field title="Proyecto">
         <input
@@ -212,6 +221,9 @@ export function SettingsSheet({
           </TextButton>
         </div>
       </Field>
+
+      {/* Cuenta (pilar D): entrar con la cuenta de Aura y ver cómo va la nube, junto a las ideas que sincroniza. */}
+      {nube ? <CampoCuenta nube={nube} abierto={open} /> : null}
 
       <Field title="Ideas guardadas">
         <div style={{ borderRadius: 14, background: T.fill, boxShadow: `inset 0 1px 0 ${T.rim}`, overflow: 'hidden' }}>
@@ -419,6 +431,21 @@ export function SettingsSheet({
             ))}
           </select>
         ) : null}
+        <label style={{ display: 'block', marginBottom: 10 }}>
+          <span style={{ ...hintText, display: 'block', margin: '0 0 6px', fontSize: 13 }}>
+            Qué se graba. Si en tu interfaz tienes el micro en una entrada y el teclado en otra, elige cuál.
+          </span>
+          <select
+            value={settings.canalEntrada ?? 'juntas'}
+            onChange={(event) => void reopenMic({ canalEntrada: event.target.value as CanalEntrada })}
+            aria-label="Qué entrada se graba"
+            style={{ ...inputStyle, appearance: 'auto' }}
+          >
+            <option value="juntas">Las dos entradas juntas</option>
+            <option value="entrada-1">Solo la entrada 1 (izquierda)</option>
+            <option value="entrada-2">Solo la entrada 2 (derecha)</option>
+          </select>
+        </label>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <Toggle
             checked={settings.echoCancellation}

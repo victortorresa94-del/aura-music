@@ -12,6 +12,7 @@
  * alineación pasa a ser de una muestra, no de un bloque.
  */
 
+import type { CanalEntrada } from './types';
 import { blockRms } from './audio';
 
 const WORKLET_NAME = 'compas-recorder';
@@ -92,6 +93,9 @@ export class Recorder {
   private ctx: AudioContext;
   private stream: MediaStream;
   private source: MediaStreamAudioSourceNode;
+  /** Lo que entra al nodo de captura: el micro tal cual o un solo canal de la interfaz. */
+  private entrada: AudioNode;
+  private divisor: ChannelSplitterNode | null = null;
   private node: AudioWorkletNode | ScriptProcessorNode | null = null;
   private sink: GainNode;
   private chunks: Float32Array[] = [];
@@ -102,10 +106,22 @@ export class Recorder {
   /** Nivel de entrada 0..1, para el vúmetro. */
   onLevel: ((level: number) => void) | null = null;
 
-  private constructor(ctx: AudioContext, stream: MediaStream) {
+  private constructor(ctx: AudioContext, stream: MediaStream, canal: CanalEntrada) {
     this.ctx = ctx;
     this.stream = stream;
     this.source = ctx.createMediaStreamSource(stream);
+    // Solo la entrada 1 o solo la 2: se separan los canales y se coge uno.
+    // Si la interfaz no llega en estéreo, no hay nada que separar.
+    const indice = canal === 'entrada-1' ? 0 : canal === 'entrada-2' ? 1 : -1;
+    if (indice >= 0 && canalesDe(stream) >= 2) {
+      this.divisor = ctx.createChannelSplitter(2);
+      const mono = ctx.createGain();
+      this.source.connect(this.divisor);
+      this.divisor.connect(mono, indice);
+      this.entrada = mono;
+    } else {
+      this.entrada = this.source;
+    }
     // El nodo de captura necesita estar conectado a la salida para que el grafo
     // "tire" de él, pero a ganancia cero: nunca monitorizamos el micro por los
     // altavoces (acople asegurado y, encima, con latencia).
@@ -114,8 +130,8 @@ export class Recorder {
     this.sink.connect(ctx.destination);
   }
 
-  static async create(ctx: AudioContext, stream: MediaStream): Promise<Recorder> {
-    const recorder = new Recorder(ctx, stream);
+  static async create(ctx: AudioContext, stream: MediaStream, canal: CanalEntrada = 'juntas'): Promise<Recorder> {
+    const recorder = new Recorder(ctx, stream, canal);
     await recorder.setup();
     return recorder;
   }
@@ -153,7 +169,7 @@ export class Recorder {
           }
         };
         this.node = node;
-        this.source.connect(node);
+        this.entrada.connect(node);
         node.connect(this.sink);
         return;
       } catch {
@@ -182,7 +198,7 @@ export class Recorder {
       this.onLevel?.(blockRms(chunk) * 1.6);
     };
     this.node = processor;
-    this.source.connect(processor);
+    this.entrada.connect(processor);
     processor.connect(this.sink);
   }
 
@@ -225,6 +241,8 @@ export class Recorder {
   dispose() {
     try {
       this.source.disconnect();
+      this.divisor?.disconnect();
+      if (this.entrada !== this.source) this.entrada.disconnect();
       this.node?.disconnect();
       this.sink.disconnect();
     } catch {
@@ -242,6 +260,14 @@ export class Recorder {
 export interface MicOptions {
   deviceId?: string | null;
   echoCancellation?: boolean;
+  /** Qué entrada de la interfaz se graba (las dos juntas por defecto). */
+  canal?: CanalEntrada;
+}
+
+/** Cuántos canales trae de verdad el micro abierto (1 si el navegador no lo dice). */
+export function canalesDe(stream: MediaStream): number {
+  const pista = stream.getAudioTracks()[0];
+  return pista?.getSettings?.().channelCount ?? 1;
 }
 
 /**
@@ -255,7 +281,8 @@ export async function openMicrophone(options: MicOptions = {}): Promise<MediaStr
     echoCancellation: options.echoCancellation ?? false,
     noiseSuppression: false,
     autoGainControl: false,
-    channelCount: 1,
+    // Para elegir la entrada 1 o la 2 hacen falta los dos canales; si no, mono.
+    channelCount: options.canal && options.canal !== 'juntas' ? { ideal: 2 } : 1,
   };
   if (options.deviceId) constraints.deviceId = { exact: options.deviceId };
 

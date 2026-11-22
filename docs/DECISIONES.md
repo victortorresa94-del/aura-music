@@ -442,16 +442,222 @@ bucle no se note con el proyecto lleno (el motor reprograma 200 ms antes del
 final; un bloqueo más largo del hilo principal en ese momento la retrasaría)
 y que el pulgar llega bien a «Quitar» mientras toca.
 
-## 0022 · Grabar en bucle en el estudio: el ciclo y una toma por vuelta (22-nov-2026)
+## 0022 · Percusión de verdad en los ritmos, la claqueta y los kits (22-nov-2026)
+
+El dueño: «hay sonidos que suenan súper mal, por ejemplo el bolero suena
+hiper digital, 0 real, y muchas percusiones en general».
+- **Lo que sonaba a síntesis, y desde dónde.** Todo salía de `playVoice` en
+  `rhythm/kit.ts` (ruido filtrado y senos):
+  - los nueve ritmos de la hoja «Ritmos» (`engine.setGroove`);
+  - los sonidos de la claqueta (bombo, bombo y caja, shaker, palmas, baqueta),
+    sus cinco ritmos de fondo y su ejemplo al elegirla;
+  - los ritmos convertidos en pista (`renderGroove`, desde el estudio y desde
+    el músico);
+  - en «Tocar», 10 de los 16 pads del cajón (bongós, congas, clave, shaker,
+    pandereta, güiro, nudillos, cencerro) y 4 de la latina (bombo, aro, palmas
+    y un platillo que era el de la 909).
+- **Ahora suena grabado, con lo que ya teníamos.** `instrumentos/percusion.ts`
+  da a cada voz su muestra CC0 de los paquetes de siempre: batería de la Big
+  Rusty Drums (Karoryfer), cajón de la VCSL, palmas y pitos de D. Smolken,
+  bongós, congas, güiro, clave, shaker, pandereta y cencerro de la VCSL, y
+  timbales de Virtuosity Drums. No ha hecho falta bajar nada nuevo. La capa
+  sale de la fuerza y los golpes se alternan (round robin).
+- **El motor no cambia.** `playVoice` toca la muestra si la hay y está en
+  memoria, y si no, la síntesis (ahora `sintetizarVoz`). Así `engine.ts` y
+  la lógica de la claqueta quedan como estaban; solo cambia el sonido.
+- **La 808 y la 909 siguen siendo síntesis**, también su cencerro y su
+  clave: solo suenan cuando se eligen. El tic-tac del metrónomo tampoco
+  cambia. Sin red la primera vez, una voz sin muestra usa la síntesis de
+  reserva.
+- **Mismo volumen que antes.** Medido en el navegador: los nueve ritmos quedan
+  a ±2 dB de su versión sintetizada (las bulerías solo de palmas, +9,5 dB,
+  porque antes casi no se oían). Las capas suaves se compensan con su nivel
+  medido. Si no, un ritmo tocado suave contaba la fuerza dos veces (capa
+  más floja y además ganancia más baja) y el bolero salía 7,5 dB por debajo.
+  La capa da el color; la fuerza, el volumen.
+- **Respira y no es una máquina.** La fuerza de los ritmos varía a los dos
+  lados y con poco (±7 % con la mano a la mitad), y los loops de la
+  biblioteca entran con `humanizar` al 30 % (unos ±3,6 ms y ±4 de fuerza,
+  ruido rosa; los golpes simultáneos se mueven juntos), salvo los de la 808
+  y la 909, que van clavados. Los platillos suenan enteros: nada los corta
+  salvo el final del clip, y el charles abierto lo cierra el cerrado, como el
+  pie.
+- **Carga:** tras el primer toque, y con el navegador desocupado, se bajan
+  las 14 voces de los ritmos y la claqueta (68 ficheros, 478 KB; luego salen
+  de Cache Storage). Los platillos, toms y timbales que completan un kit
+  se piden al abrir ese kit, y un render a pista espera a sus muestras antes
+  de programar.
+**Pendiente:** oírlo en el iPhone. La claqueta en «palmas» o «shaker» sale
+de 6 a 14 dB más fuerte que con la síntesis, que era muy floja; si molesta,
+se baja con el volumen de la claqueta. La VCSL no trae slap de conga: el
+tumbao del bolero usa el golpe apagado del quinto.
+
+## 0023 · Tu cuenta de Aura y las mismas ideas en el móvil y en el PC (22-nov-2026)
+
+Pilar D, ola 2 (fase 1). En Ajustes, «Tu cuenta de Aura»: entrar con Google
+o con correo y contraseña en el Firebase de Aura (`aether-app-59bd1`), ver
+quién está dentro y salir. Con sesión, las ideas, su audio y el cerebro del
+productor se ponen al día solos entre dispositivos. Sin configuración
+(`NEXT_PUBLIC_FIREBASE_*`) no se carga el SDK ni se enseña nada: la app es la
+de antes. Pasos del usuario en `docs/CUENTA.md`.
+- **Local primero.** IndexedDB sigue mandando: grabar y guardar no esperan a
+  la red. `storage.ts` avisa con un evento al guardar o borrar
+  (`saveProject(p, { silencioso })` para lo que escribe la propia nube) y el
+  motor (`src/lib/nube/motor.ts`) sube por detrás. No sabe de Firebase ni de
+  IndexedDB: habla con un `Remoto` y un `Local`, y así se prueba entero con los
+  dos simulados (`motor.test.ts`, dos dispositivos contra una nube en
+  memoria).
+- **Dónde va.** Cada idea, en `users/{uid}/auraMusicProjects/{id}` como texto
+  JSON (Firestore no admite listas dentro de listas y tumba un `undefined`;
+  pasado 600 KB va en gzip), con `updatedAt`, el dispositivo, sus audios y la
+  hora del servidor para pedir solo lo nuevo. Cada audio, un FLAC en
+  `users/{uid}/aura-music/{id}/{bufferId}` con subida reanudable. El cerebro,
+  en `users/{uid}/auraMusic/cerebro`. Las reglas de Aura ya lo permiten
+  (`users/{uid}/**` del dueño).
+- **FLAC propio en TypeScript** (`flac.ts`): predictores fijos y Rice con
+  particiones, que es FLAC normal. Ida y vuelta exacta, muestra a muestra,
+  desde el PCM de 16 bits de IndexedDB (test). Medido: una toma de guitarra con
+  ruido de sala, 0,60 del PCM (unos 3,4 MB por minuto en mono a 48 kHz); la
+  guitarra sola, 0,54; el silencio, casi nada. Comprobado con ffmpeg en los
+  dos sentidos: lee nuestros FLAC idénticos y nosotros leemos los suyos (con
+  LPC), muestra a muestra. En el PC codifica un minuto en
+  0,8 s y lo lee en 1 s, soltando el hilo cada 24 bloques; mientras grabas no
+  se codifica nada.
+- **Qué gana.** Con la base (la versión en la que el dispositivo y la nube
+  coincidieron) se sabe quién cambió: si uno, gana ese; si los dos, la última
+  modificación. Si la que pierde tenía tomas que la ganadora no, se guarda
+  aparte («Bulería · copia del iPhone»), y la nube las sube con ella. Un
+  borrado de otro dispositivo no se lleva cambios de aquí sin subir (la idea
+  vuelve). El audio va antes que el documento: otro dispositivo nunca ve una
+  idea sin su audio. Lo que nadie usa se borra de la nube a los 30 días, y
+  `deleteProject` ya no borra un audio que use otra idea (las copias de un
+  choque comparten los de la original). De una toma cuadrada al tempo (0020)
+  viajan los dos audios, el que suena y el original, que no se borra nunca.
+- **La idea abierta no cambia por debajo.** Si llega una versión nueva y no
+  la has tocado desde que se cargó, se recarga sola; si la has tocado, Ajustes
+  pregunta «Cargar la del PC» o «Seguir con la mía», con la misma regla de la
+  copia.
+- **Cerebro.** Se mezcla en tres partes con la base: lo aprendido en los dos
+  se junta, lo olvidado en uno se queda olvidado, los usos suman lo de cada
+  uno. Sin base (la primera vez), el mayor.
+- **Cola.** Claves («proyecto:id», «cerebro») y no órdenes: diez cambios
+  seguidos son una subida (se agrupan 2,5 s, nunca más de 20). Sin red espera
+  2, 4, 8 s… hasta 5 min, y al volver la red se reintenta todo. Se guarda con
+  la cuenta en localStorage y sobrevive a cerrar la app.
+- **Entrar con Google.** Ventana emergente primero, como Aura (le funciona
+  también en la app instalada del iPhone); si el navegador la bloquea, la
+  redirección. `next.config.ts` sirve `/__/auth/*` de Firebase desde nuestro
+  dominio para el día que haga falta poner el `authDomain` propio (paso
+  opcional de `CUENTA.md`), y el service worker no toca esas páginas.
+- **Estado visible y discreto.** Un icono gris de nube junto al número de
+  pistas de la cabecera (al día, subiendo, sin conexión, error, ha cambiado
+  en otro sitio) y el detalle bajo tu nombre en Ajustes, con «Reintentar». Sin
+  colores nuevos: el rojo es grabar y el verde es Aura tocando.
+**Descartado:** Firestore completo con su caché sin conexión. Serían dos
+cachés peleándose (Aura sufrió la suya en el iPhone, 25-sep-2026) y ya
+tenemos IndexedDB; `firestore/lite` va por peticiones normales y pesa menos.
+**Descartado:** escuchar cambios en tiempo real (`onSnapshot`). Mirar al
+volver a la app, al volver la red y cada minuto basta para dos dispositivos
+de una persona, y una consulta que no trae nada cuesta una lectura.
+**Descartado:** WAV de 16 bits en la nube (pesa casi el doble) y
+`decodeAudioData` para leer el FLAC (remuestrea a la frecuencia del contexto
+y no corre en los tests).
+**Descartado:** el cerebro compartido con Aura (`users/{uid}/auraStorage`).
+No tiene API HTTP salvo el MCP: fase 2.
+**Pendiente:** entrar con Apple; comprobar en el servidor que la cuenta está
+aprobada en Aura (hoy cualquiera con cuenta de Firebase de Aura guarda en su
+propio espacio, que las reglas ya aíslan); probar en un iPhone de verdad la
+ventana de Google en la app instalada; limitar tamaño y tipo del audio con
+una regla de Storage propia para `aura-music/`; predictores LPC en el FLAC
+(ffmpeg al máximo saca un 15 % menos que el nuestro).
+
+## 0024 · Lo básico de un DAW: cabecera, selección, atajos y edición (22-nov-2026)
+
+El dueño: «necesito atajos de teclado de toda la vida, como estar encima de
+una pista, darle a la tecla borrar y ciao» y «necesito poder tocar el volumen
+de cada pista».
+- **Cabecera de pista con lo de siempre** (`cabecera/CabeceraPista.tsx`):
+  nombre y «⋯»; M, S y el volumen; en el PC también el panorama, como
+  perilla (una segunda raya al lado del volumen se confundía con él). Los
+  mandos siguen las reglas del mezclador: arrastre relativo, se oye al
+  mover, se guarda al soltar (un paso de Deshacer), doble clic al 0 dB o al
+  centro, misma escala de fader. En el móvil el fader mide 48 px pero el
+  recorrido son 180 px de dedo: se afina igual. El panorama no cabe en
+  128 px y sigue en el mezclador.
+- **Elegida = la fila más opaca** (cabecera y calle) y el filo de tinta en el
+  clip. Sin franja de color a un lado: el color aquí significa algo.
+- **Atajos en la misma tabla que los menús.** Los de un DAW (Espacio, R,
+  S, M, Mayús+S, Supr, flechas, Inicio, Fin, Ctrl+C/X/V/D, + y −) se suman a
+  `lib/daw/menus/comandos.ts` (0023 de menús): un solo registro para la
+  barra, el menú del móvil, la chuleta de Ayuda y el teclado. Lo que hacen
+  vive en `hooks/useEdicion.ts`, al que delega `useArchivo().ejecutar`.
+  `atajoPermitido` decide dónde valen: las teclas sueltas que editan la
+  línea de tiempo solo con el estudio a la vista (no con una hoja, el
+  mezclador o «Tus ideas» encima), y con «Tocar» abierto tampoco Espacio,
+  porque el teclado toca notas. En un deslizador, las flechas lo mueven a
+  él. Ctrl+S sigue siendo Guardar y Ctrl+R del navegador: S y R solas
+  cortan y graban.
+- **Una pista sigue siendo un clip.** Cortar en el cursor (S) deja la segunda
+  mitad en una pista nueva justo debajo, con la misma mezcla; pegar (Ctrl+V)
+  crea una pista con el clip en el cursor. Es lo mismo que al grabar, cada
+  toma en su pista. Pasar a varios clips por pista tocaba el motor, el
+  mezclador, el guardado, el productor y el músico a la vez, con cinco
+  sesiones trabajando en paralelo: no compensaba. Por eso tampoco se
+  arrastran clips de una pista a otra.
+- **Cortar un clip con repeticiones** corta entre dos vueltas, la más
+  cercana: media vuelta más varias enteras no cabe en un clip.
+- **Con el ratón se arrastra a la primera** (clips y regla); con el dedo, el
+  primer toque elige y el segundo arrastra, para que desplazar la lista no
+  mueva clips sin querer. Un clic sin mover ya no deja un paso de Deshacer
+  vacío. El imán a la rejilla vale también al recortar los bordes; Alt lo
+  suelta. Clic en la regla o en la calle vacía lleva el cursor ahí.
+- **Rehacer** es el de la rama de menús (`redo`, `hayRehacer`), traído tal
+  cual para que las dos ramas no choquen.
+
+## 0025 · La barra de tiempo en «Tocar» (22-nov-2026)
+
+El dueño, con el bajo y el GO:KEYS a 1786 px: «cuando grabo MIDI también
+debería ver la barra de tiempo, poder echar pa' atrás, etc.».
+- **Una tira de tiempo bajo GRABAR** (`TiraDeTiempo.tsx`), en las cinco
+  pestañas: compases numerados, el cursor (rojo grabando), la zona del loop
+  y, en pequeño, las notas. Lo que estás grabando sale en tinta, plegado al
+  loop si grabas en bucle; las pistas del mismo instrumento, en gris; las
+  demás pistas de notas, atenuadas; el audio, como una raya abajo. Caben
+  unos 28 px por compás: 8 en un móvil y hasta 32 en un PC, por páginas que
+  siguen al cursor.
+- **Mover el cursor sin salir de «Tocar»:** tocar o arrastrar en la tira lo
+  lleva a ese compás (con captura del puntero, también si el dedo se sale), y
+  los botones van al principio y un compás atrás o adelante. Las flechas e
+  Inicio solo funcionan con el foco en la tira, para no cruzarse con los
+  atajos del estudio. GRABAR empieza donde está el cursor, al principio de
+  su compás, con la cuenta atrás de siempre.
+- **Sin tocar el motor:** `irA` (en `useInstrumentos`) usa lo que ya tenía
+  `engine.ts`. Parado, `seek`. Escuchando, para, salta y vuelve a sonar
+  «sin fin», porque el `seek` del estudio lo relanzaría con fin. Grabando no
+  se mueve: se perdería la toma.
+- **«¿Ha quedado bien?», en una fila:** «Tal cual / Cuadrado / Del todo»,
+  deshacer y vale. Se monta encima de la fila de sonidos, con su misma
+  altura, así que el teclado no se mueve ni un píxel. Antes era una tarjeta
+  de 131 px que lo empujaba hacia abajo. La pregunta escrita sale de 480 px
+  en adelante.
+- **En PC, una columna:** todo «Tocar» va en unos 940 px centrados, GRABAR
+  no pasa de 360 px y «Ajustes» se va al final. Las filas de teclas tienen
+  tope de 240 px de alto, pegadas abajo, y las tiras de acordes de 520 px en
+  total. En el móvil no cambia nada.
+**Pendiente:** verlo en el iPhone y con el GO:KEYS. El cursor se mueve con
+rAF y el panel del navegador de pruebas estaba oculto, así que el
+movimiento no se ha visto; lo demás se ha medido en el DOM.
+
+## 0027 · Grabar en bucle en el estudio: el ciclo y una toma por vuelta (22-nov-2026)
 
 El dueño: «debería poder grabar encima de algo reproduciéndolo como un loop».
 Es el ciclo de cualquier DAW, para tomas de micro en el estudio principal.
 - **El ciclo se marca en la regla.** Un botón «Ciclo» en la esquina de la
   regla abre una hoja con «Repetir 1, 2, 4 u 8 compases» desde el compás del
   cursor, un interruptor para reproducir de largo sin perder la zona y
-  «Quitar el ciclo». Con ratón se marca arrastrando por la regla (con el dedo
-  ese gesto sigue desplazando la línea de tiempo, que es lo que se espera en
-  el móvil) y los dos bordes tienen asa: se arrastran con el dedo y saltan de
+  «Quitar el ciclo». Con ratón se marca con Mayús y arrastrando por la regla
+  (arrastrar sin más mueve el cursor, de la 0024; con el dedo, deslizar
+  desplaza la línea de tiempo) y los dos bordes tienen asa: se arrastran con el dedo y saltan de
   compás en compás. Se guarda en pulsos en `Project.ciclo`, así que aguanta
   un cambio de tempo, y no entra en Deshacer, como en cualquier DAW.
 - **Se ve qué se repite y en qué vuelta vas.** La zona va en tinta en la
@@ -477,7 +683,9 @@ Es el ciclo de cualquier DAW, para tomas de micro en el estudio principal.
 - **Detalles que cuadran:** la latencia se aprende solo con la primera vuelta
   (después la línea de tiempo ha vuelto atrás); el repaso al soltar da vueltas
   sobre la zona con la toma que suena; cuadrar al tempo una pista con tomas
-  cuadra la que suena y suelta las demás (siguen en Deshacer).
+  cuadra la que suena y suelta las demás (siguen en Deshacer). Si el clip
+  se corta o se recorta con las herramientas de edición, deja de ser una
+  vuelta y las tomas se esconden (`tomasUsables`), sin borrarse.
 **Pendiente:** no se ha grabado con un micro de verdad (el navegador de
 pruebas no tiene; se probó con una toma simulada de tres vueltas y con el
 transporte dando vueltas). Falta oírlo en un iPhone y comprobar que el pulgar

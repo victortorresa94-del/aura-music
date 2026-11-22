@@ -181,6 +181,8 @@ export function Acordes({
         width: '100%',
         height: '100%',
         maxWidth: 720,
+        // Como las teclas: en un PC alto, las tiras no pasan de unos 250 px.
+        maxHeight: 520,
         margin: '0 auto',
       }}
     >

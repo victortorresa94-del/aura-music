@@ -104,11 +104,26 @@ export function conCiclo(project: Project, ciclo: Ciclo | null): Project {
 }
 
 /** Elegir otra toma: solo cambia qué trozo del audio suena. */
+/**
+ * Las tomas de una pista, si todavía valen. Si el clip se ha cortado o
+ * recortado (las herramientas de edición copian la pista entera, con sus
+ * tomas), ya no es una vuelta entera: cambiar de toma movería un trozo que
+ * no cuadra. Entonces se esconden, sin borrar nada.
+ */
+export function tomasUsables(track: Pick<Track, 'clip' | 'tomas'>): TomasDeBucle | null {
+  const tomas = track.tomas;
+  if (!tomas || tomas.offsets.length < 2) return null;
+  const largo = tomas.offsets[1] - tomas.offsets[0];
+  if (Math.abs(track.clip.duration - largo) > 0.005) return null;
+  if (!tomas.offsets.some((offset) => Math.abs(offset - track.clip.offset) < 0.005)) return null;
+  return tomas;
+}
+
 export function elegirToma(project: Project, trackId: string, indice: number): Project {
   return {
     ...project,
     tracks: project.tracks.map((t) => {
-      if (t.id !== trackId || !t.tomas) return t;
+      if (t.id !== trackId || !t.tomas || !tomasUsables(t)) return t;
       const i = Math.min(t.tomas.offsets.length - 1, Math.max(0, Math.round(indice)));
       return { ...t, clip: { ...t.clip, offset: t.tomas.offsets[i] }, tomas: { ...t.tomas, elegida: i } };
     }),
@@ -123,7 +138,7 @@ export function elegirToma(project: Project, trackId: string, indice: number): P
 export function separarTomas(project: Project, trackId: string, nuevoId: () => string): Project {
   const indice = project.tracks.findIndex((t) => t.id === trackId);
   const pista = project.tracks[indice];
-  if (!pista?.tomas || pista.tomas.offsets.length < 2) return project;
+  if (!pista?.tomas || !tomasUsables(pista)) return project;
   const { tomas, ...base } = pista;
   const ahora = Date.now();
   const nuevas: Track[] = tomas.offsets

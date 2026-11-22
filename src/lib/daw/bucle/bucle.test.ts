@@ -10,6 +10,7 @@ import {
   segundosDelCiclo,
   separarTomas,
   tomasDeVueltas,
+  tomasUsables,
 } from './bucle';
 
 // A 120 BPM un pulso son 0,5 s y un compás de 4/4, 2 s.
@@ -104,6 +105,16 @@ describe('elegir y separar tomas', () => {
     expect(p.tracks.map((t) => t.name)).toEqual(['Voz · toma 3', 'Voz · toma 1', 'Voz · toma 2']);
     expect(p.tracks.map((t) => t.clip.offset)).toEqual([8.05, 0.05, 4.05]);
     expect(p.tracks.every((t) => !t.tomas && t.clip.bufferId === 'b' && t.clip.start === 4)).toBe(true);
+  });
+
+  it('si el clip se corta o se recorta, las tomas se esconden y no se pueden cambiar', () => {
+    expect(tomasUsables(pista())).not.toBeNull();
+    // Cortado en el cursor (la mitad derecha): ni la duración ni el trozo son de una vuelta.
+    const cortada: Track = { ...pista(), clip: { ...pista().clip, offset: 10.05, duration: 2 } };
+    expect(tomasUsables(cortada)).toBeNull();
+    const p: Project = { ...proyecto(), tracks: [cortada] };
+    expect(elegirToma(p, 'v', 0)).toEqual(p);
+    expect(separarTomas(p, 'v', () => 'x')).toEqual(p);
   });
 
   it('poner y quitar el ciclo', () => {
