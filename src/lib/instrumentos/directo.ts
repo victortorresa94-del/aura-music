@@ -16,7 +16,7 @@ import { getInstrumento, type DefInstrumento } from './registro';
 import type { NotaRasgueada, PasoAuto } from './acordes';
 import { instanteDelToque } from './toque';
 import type { InstrumentoId } from './tipos';
-import { crearVoz, precalentar, type Voz } from './voz';
+import { crearVoz, precalentar, timbreDeBuffer, type Voz } from './voz';
 
 export type EstadoCarga = Progreso | 'lista' | 'error';
 
@@ -97,12 +97,13 @@ export class Atril {
   preparar(id: InstrumentoId) {
     const voz = this.voz(id);
     const def = voz.def;
-    if (!def.pads && !voz.conMuestras && !this.enfriar.has(id) && this.ctx) {
+    const timbre = timbreDeBuffer(def);
+    if (timbre && !voz.conMuestras && !this.enfriar.has(id) && this.ctx) {
       const notas: number[] = [];
       for (let n = def.rango[0]; n <= def.rango[1]; n++) notas.push(n);
       // Primero las de alrededor de la base, que son las que se ven.
       notas.sort((a, b) => Math.abs(a - def.base - 6) - Math.abs(b - def.base - 6));
-      this.enfriar.set(id, precalentar(def.sintesis, notas, this.ctx));
+      this.enfriar.set(id, precalentar(timbre, notas, this.ctx));
     }
   }
 

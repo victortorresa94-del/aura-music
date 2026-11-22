@@ -255,6 +255,68 @@ function metal(g: Golpe, o: { decay: number; peak: number; corte: number; banda?
   env.connect(dest);
 }
 
+/**
+ * Un platillo (crash o ride). Lo que lo hacía sonar a juguete era la caída de
+ * un solo tramo: un platillo de verdad pega fuerte, baja deprisa los primeros
+ * 80 ms y luego se queda brillando varios segundos. Aquí se hace así, con el
+ * metal de la 808, ruido agudo y un banco de filtros estrechos a frecuencias
+ * que no casan entre sí (los modos de una chapa, no los armónicos de una
+ * cuerda), que es lo que da el «shhh» con brillo.
+ */
+function platillo(g: Golpe, o: { cola: number; peak: number; factor: number; brillo: number }) {
+  const { ctx, dest, time, vel } = g;
+  const salida = ctx.createGain();
+  salida.gain.setValueAtTime(0.0001, time);
+  salida.gain.linearRampToValueAtTime(o.peak * vel, time + 0.002);
+  salida.gain.setTargetAtTime(o.peak * vel * 0.32, time + 0.002, 0.035);
+  salida.gain.setTargetAtTime(0.0001, time + 0.09, o.cola / 4.5);
+  salida.connect(dest);
+  const fin = time + o.cola + 0.2;
+
+  // Metal: las seis cuadradas, un poco más agudas que en el charles.
+  const metalBus = ctx.createGain();
+  metalBus.gain.value = 0.5 / METAL_808.length;
+  for (const f of METAL_808) {
+    const osc = ctx.createOscillator();
+    osc.type = 'square';
+    osc.frequency.value = f * o.factor;
+    osc.connect(metalBus);
+    osc.start(time);
+    osc.stop(fin);
+  }
+  const agudos = ctx.createBiquadFilter();
+  agudos.type = 'highpass';
+  agudos.frequency.value = 5200 * o.brillo;
+  metalBus.connect(agudos);
+  agudos.connect(salida);
+
+  // Ruido por un banco de resonancias de chapa.
+  const fuente = ctx.createBufferSource();
+  fuente.buffer = noise(ctx);
+  fuente.loop = true;
+  const banco = ctx.createGain();
+  banco.gain.value = 0.9;
+  for (const [f, q] of [[3150, 7], [4730, 9], [6890, 8], [9420, 6], [12100, 4]] as const) {
+    const filtro = ctx.createBiquadFilter();
+    filtro.type = 'bandpass';
+    filtro.frequency.value = f * o.brillo;
+    filtro.Q.value = q;
+    fuente.connect(filtro);
+    filtro.connect(banco);
+  }
+  const aire = ctx.createBiquadFilter();
+  aire.type = 'highpass';
+  aire.frequency.value = 7000 * o.brillo;
+  const aireG = ctx.createGain();
+  aireG.gain.value = 0.35;
+  fuente.connect(aire);
+  aire.connect(aireG);
+  aireG.connect(salida);
+  banco.connect(salida);
+  fuente.start(time);
+  fuente.stop(fin);
+}
+
 /** Palmas de caja de ritmos: tres o cuatro ráfagas seguidas y una cola. */
 function palmasAnalogicas(g: Golpe, frecuencia: number, rafagas: number) {
   for (let i = 0; i < rafagas; i++) {
@@ -344,8 +406,7 @@ export function playVoice(voice: VoiceId, ctx: BaseAudioContext, dest: AudioNode
       metal(g, { decay: 0.38, peak: 0.36, corte: 7200 });
       break;
     case 'platillo_808':
-      metal(g, { decay: 1.3, peak: 0.34, corte: 4800, banda: 8200 });
-      ruido(g, { type: 'highpass', freq: 6000 }, 0.9, 0.12, 0.003);
+      platillo(g, { cola: 2.6, peak: 0.42, factor: 1.2, brillo: 0.95 });
       break;
     case 'tom_grave_808':
       tomAnalogico(g, 92, 0.42);
@@ -386,12 +447,13 @@ export function playVoice(voice: VoiceId, ctx: BaseAudioContext, dest: AudioNode
       metal(g, { decay: 0.3, peak: 0.16, corte: 8400, factor: 1.4 });
       break;
     case 'platillo_909':
-      ruido(g, { type: 'highpass', freq: 5600 }, 1.4, 0.3, 0.004);
-      metal(g, { decay: 1.1, peak: 0.2, corte: 5200, banda: 9000, factor: 1.7 });
+      platillo(g, { cola: 3, peak: 0.46, factor: 1.7, brillo: 1.05 });
       break;
     case 'ride_909':
-      metal(g, { decay: 0.95, peak: 0.24, corte: 5600, banda: 7400, factor: 2.1 });
-      tono(g, 3520, 3500, 0.5, 0.06);
+      // El ride: menos ruido y más «ping», con la campana marcada.
+      platillo(g, { cola: 2.2, peak: 0.22, factor: 2.1, brillo: 0.9 });
+      tono(g, 3520, 3500, 0.9, 0.1);
+      tono(g, 5310, 5290, 0.5, 0.05);
       break;
     case 'tom_grave_909':
       tomAnalogico(g, 105, 0.34);

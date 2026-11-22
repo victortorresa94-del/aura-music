@@ -1,0 +1,229 @@
+{
+  "id": "bajo-dedos",
+  "nombre": "Bajo eléctrico con dedos (Karoryfer Swagbass, cuerdas planas)",
+  "obra": "Swagbass (Ibanez BTB-400QM con cuerdas planas d'Addario Chromes, pastilla del mástil)",
+  "autor": "Karoryfer Samples (D. Smolken)",
+  "origen": "https://github.com/sfzinstruments/karoryfer.swagbass/tree/master/notes",
+  "licencia": "CC0-1.0",
+  "urlLicencia": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "creditos": "",
+  "archivos": [
+    {
+      "nombre": "27-v1.mp3",
+      "midi": 27,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 16455
+    },
+    {
+      "nombre": "27-v2.mp3",
+      "midi": 27,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 18414
+    },
+    {
+      "nombre": "30-v1.mp3",
+      "midi": 30,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 17734
+    },
+    {
+      "nombre": "30-v2.mp3",
+      "midi": 30,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 19282
+    },
+    {
+      "nombre": "33-v1.mp3",
+      "midi": 33,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 19437
+    },
+    {
+      "nombre": "33-v2.mp3",
+      "midi": 33,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 21148
+    },
+    {
+      "nombre": "36-v1.mp3",
+      "midi": 36,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 21021
+    },
+    {
+      "nombre": "36-v2.mp3",
+      "midi": 36,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 23114
+    },
+    {
+      "nombre": "39-v1.mp3",
+      "midi": 39,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 22282
+    },
+    {
+      "nombre": "39-v2.mp3",
+      "midi": 39,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 24136
+    },
+    {
+      "nombre": "42-v1.mp3",
+      "midi": 42,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 21390
+    },
+    {
+      "nombre": "42-v2.mp3",
+      "midi": 42,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 23718
+    },
+    {
+      "nombre": "45-v1.mp3",
+      "midi": 45,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 21103
+    },
+    {
+      "nombre": "45-v2.mp3",
+      "midi": 45,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 24866
+    },
+    {
+      "nombre": "48-v1.mp3",
+      "midi": 48,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 21592
+    },
+    {
+      "nombre": "48-v2.mp3",
+      "midi": 48,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 22532
+    },
+    {
+      "nombre": "51-v1.mp3",
+      "midi": 51,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 18623
+    },
+    {
+      "nombre": "51-v2.mp3",
+      "midi": 51,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 20873
+    },
+    {
+      "nombre": "54-v1.mp3",
+      "midi": 54,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 20892
+    },
+    {
+      "nombre": "54-v2.mp3",
+      "midi": 54,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 19778
+    },
+    {
+      "nombre": "57-v1.mp3",
+      "midi": 57,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 18333
+    },
+    {
+      "nombre": "57-v2.mp3",
+      "midi": 57,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 19566
+    },
+    {
+      "nombre": "60-v1.mp3",
+      "midi": 60,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 18260
+    },
+    {
+      "nombre": "60-v2.mp3",
+      "midi": 60,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 19886
+    }
+  ],
+  "bytes": 494435
+}

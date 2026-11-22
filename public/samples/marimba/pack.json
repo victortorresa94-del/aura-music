@@ -1,0 +1,193 @@
+{
+  "id": "marimba",
+  "nombre": "Marimba (Versilian Community Sample Library)",
+  "obra": "VCSL Marimba («Marimba_hit_Outrigger», golpes med y loud)",
+  "autor": "Versilian Studios (Versilian Community Sample Library)",
+  "origen": "https://github.com/sgossner/VCSL/tree/master/Idiophones/Struck%20Idiophones/Marimba",
+  "licencia": "CC0-1.0",
+  "urlLicencia": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "creditos": "",
+  "archivos": [
+    {
+      "nombre": "41-v1.mp3",
+      "midi": 41,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 13002
+    },
+    {
+      "nombre": "41-v2.mp3",
+      "midi": 41,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 14437
+    },
+    {
+      "nombre": "48-v1.mp3",
+      "midi": 48,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 12140
+    },
+    {
+      "nombre": "48-v2.mp3",
+      "midi": 48,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 13966
+    },
+    {
+      "nombre": "55-v1.mp3",
+      "midi": 55,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 11905
+    },
+    {
+      "nombre": "55-v2.mp3",
+      "midi": 55,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 13912
+    },
+    {
+      "nombre": "59-v1.mp3",
+      "midi": 59,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 11958
+    },
+    {
+      "nombre": "59-v2.mp3",
+      "midi": 59,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 14825
+    },
+    {
+      "nombre": "65-v1.mp3",
+      "midi": 65,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 11671
+    },
+    {
+      "nombre": "65-v2.mp3",
+      "midi": 65,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 14019
+    },
+    {
+      "nombre": "72-v1.mp3",
+      "midi": 72,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 9826
+    },
+    {
+      "nombre": "72-v2.mp3",
+      "midi": 72,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 11626
+    },
+    {
+      "nombre": "79-v1.mp3",
+      "midi": 79,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 6732
+    },
+    {
+      "nombre": "79-v2.mp3",
+      "midi": 79,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 8531
+    },
+    {
+      "nombre": "83-v1.mp3",
+      "midi": 83,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 5770
+    },
+    {
+      "nombre": "83-v2.mp3",
+      "midi": 83,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 7465
+    },
+    {
+      "nombre": "89-v1.mp3",
+      "midi": 89,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 5147
+    },
+    {
+      "nombre": "89-v2.mp3",
+      "midi": 89,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 6816
+    },
+    {
+      "nombre": "96-v1.mp3",
+      "midi": 96,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 3925
+    },
+    {
+      "nombre": "96-v2.mp3",
+      "midi": 96,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 4578
+    }
+  ],
+  "bytes": 202251
+}

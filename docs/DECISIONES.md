@@ -277,3 +277,48 @@ jRhodes3 (CC BY-NC) y Ovation Guitar (sin licencia).
 **Pendiente:** piano roll; plantillas de groove sacadas del Groove MIDI
 Dataset (CC BY 4.0); repetición de nota en los pads; teclados MIDI en Android;
 medir la latencia real en un iPhone.
+
+## 0018 · Instrumentos 2.0: batería de verdad, seis bajos y un icono para cada cosa (22-nov-2026)
+
+El dueño, tras probarlo en su iPhone: «el bajo suena feote, deberíamos tener
+varios tipos de bajo», «el crash suena poco real», «un icono tipo Aura para
+cada cosa» y «obviamente quisiera poder grabar».
+- **Batería acústica con muestras reales** (Karoryfer Big Rusty Drums, CC0):
+  hasta 3 capas de fuerza y 2 golpes alternos (round robin) por pieza, crash
+  y ride de 4,5 s, charles cerrado, de pedal y abierto, y el cerrado apaga el
+  abierto como el pie en el pedal. Palmas, pandereta, cencerro, shaker y
+  claves de la VCSL (CC0). Cajón de la VCSL con palmas y pitos de D. Smolken
+  (CC0) y percusión latina (VCSL y los timbales de Virtuosity Drums, CC0). Un
+  kit al que le falte una pieza la toca con la síntesis más parecida. La 808
+  y la 909 se quedan, con un platillo nuevo de caída en dos tramos.
+- **Seis bajos**, recordados en el móvil y compartidos con el músico al
+  momento: con dedos (Swagbass de Karoryfer, cuerdas planas, el de por
+  defecto), con púa (Pastabass), contrabajo (D. Smolken), sub, 808 (cae y
+  satura) y analógico (sierra con filtro). Los tres últimos son síntesis con
+  nodos de Web Audio (`osciladores.ts`), que sostienen mientras pisas y
+  suenan igual en el WAV. El Growlybass de antes queda oculto, solo para
+  abrir pistas viejas.
+- **Más instrumentos:** órgano de tubos (VCSL, con bucle en la parte
+  sostenida), órgano eléctrico de ruedas (síntesis), metales y cuerdas en
+  pizzicato (VSCO-2-CE), marimba (VCSL), guitarra acústica de acero (Jeff
+  Learman, CC0), pad y sinte solista (síntesis). Todo CC0, 6,3 MB nuevos;
+  cada paquete se baja al abrirlo. Citas de licencia en
+  `public/samples/LICENCIAS.md`.
+- **Las cuerdas de «Acordes» no se tocan** (sonido protegido por el dueño):
+  mismo paquete, mismos ajustes y su sitio en la tercera baldosa, detrás de
+  Española y Piano.
+- **«Tocar» con iconos:** Phosphor (MIT), como Aura, en duotono apagado y
+  relleno al elegir; los que Phosphor no tiene (batería, cajón, congas, caja
+  de ritmos, órgano, cuerdas, metales, marimba, bajo) dibujados con su mismo
+  trazo. Familias y sonidos en baldosas con icono, nombre y una línea de cómo
+  suena. Siempre en tinta: el verde sigue siendo solo de la máquina.
+- **Grabar, inconfundible:** botón rojo con la palabra escrita y el estado
+  dentro («Grabar», «Entra en 3», «Parar · 2.3»); las demás herramientas
+  llevan icono y etiqueta. La claqueta pasa a «Ajustes del toque».
+**Descartado (licencias o sonido):** SM Drums y Ovation (sin licencia), la
+guitarra de acero de FreePats (GPL), Terkelsen Marimba (sin licencia),
+Unruly Drums (todo con bordonero), Black And Blue y Meatbass (demasiado
+oscuros para el altavoz del móvil), Fashionbass (demasiado brillante).
+**Pendiente:** el número de la cuenta atrás dentro del botón se pinta con
+rAF y no se ha visto en un iPhone; tampoco cómo se oyen de verdad el bucle
+del órgano, las capas de la batería y el retardo del MP3 en Safari.

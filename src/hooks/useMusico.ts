@@ -21,7 +21,10 @@ import type { Instrumento } from '@/lib/ia/tipos';
 import { cabecerasDeAcceso, FaltaCodigo } from '@/lib/acceso';
 import { getGroove } from '@/lib/daw/rhythm/grooves';
 import { OPCIONES_POR_DEFECTO, duracionPatron, renderGroove } from '@/lib/daw/rhythm/player';
-import { escribirBajo, ESTILOS, type CicloBajo, type EstiloBajo } from '@/lib/musico/bajo';
+import { escribirBajo, ESTILOS, type CicloBajo, type EstiloBajo, type Nota } from '@/lib/musico/bajo';
+import { getInstrumento } from '@/lib/instrumentos/registro';
+import { renderizarNotas } from '@/lib/instrumentos/render';
+import type { InstrumentoId } from '@/lib/instrumentos/tipos';
 import { colocarRitmo, tempoParaRitmo } from '@/lib/musico/bateria';
 import { escucharToma, type Escucha } from '@/lib/musico/escucha';
 import { desplazar, estimarDesfase } from '@/lib/musico/pulso';
@@ -76,9 +79,46 @@ const CADA_GPU = 5000;
 
 /** Lo que se le pide al músico «al momento». */
 export type PeticionMomento =
-  | { instrumento: 'bajo'; estilo: EstiloBajo }
+  /** `sonido`: el tipo de bajo del registro de instrumentos (pilar B). */
+  | { instrumento: 'bajo'; estilo: EstiloBajo; sonido?: InstrumentoId }
   | { instrumento: 'teclado'; estilo: EstiloTeclas }
   | { instrumento: 'bateria'; ritmo: string };
+
+/**
+ * El bajo del músico con el tipo de bajo elegido (dedos, púa, contrabajo, sub,
+ * 808 o analógico): las mismas notas, tocadas con el instrumento de la
+ * pantalla «Tocar» en un OfflineAudioContext. Sale tan largo como la toma,
+ * para que se repita con ella sin desfasarse. Si algo falla, el sintetizador
+ * de siempre: mejor un bajo que ninguno.
+ */
+async function bajoConSonido(
+  notas: Nota[],
+  sonido: InstrumentoId | undefined,
+  sampleRate: number,
+  duracion: number,
+  decodificador: BaseAudioContext | null,
+): Promise<Float32Array> {
+  const largo = Math.max(1, Math.round(duracion * sampleRate));
+  if (!sonido) return sintetizarBajo(notas, { sampleRate, duracion });
+  try {
+    // A 60 BPM un pulso es un segundo: las notas pasan tal cual.
+    const render = await renderizarNotas({
+      golpes: notas.map((n) => ({ beat: n.inicio, dur: n.duracion, nota: n.midi, vel: Math.round(30 + n.velocidad * 97) })),
+      instrumento: sonido,
+      bpm: 60,
+      sampleRate,
+      decodificador,
+    });
+    const salida = new Float32Array(largo);
+    salida.set(render.samples.subarray(0, largo));
+    // Los últimos 30 ms, en fundido: la repetición no puede empezar con un clic.
+    const fundido = Math.min(largo, Math.round(0.03 * sampleRate));
+    for (let i = 0; i < fundido; i++) salida[largo - 1 - i] *= i / fundido;
+    return salida;
+  } catch {
+    return sintetizarBajo(notas, { sampleRate, duracion });
+  }
+}
 
 export const NOMBRE_INSTRUMENTO: Record<Instrumento, string> = {
   bajo: 'Bajo',
@@ -256,7 +296,7 @@ export function useMusico(studio: Studio, ciclo?: CicloBajo) {
         }
         samples =
           peticion.instrumento === 'bajo'
-            ? sintetizarBajo(notas, { sampleRate: sr, duracion: oido.duracion })
+            ? await bajoConSonido(notas, peticion.sonido, sr, oido.duracion, engine.ctx)
             : sintetizarTeclas(notas, {
                 sampleRate: sr,
                 duracion: oido.duracion,
@@ -264,7 +304,10 @@ export function useMusico(studio: Studio, ciclo?: CicloBajo) {
               });
         const estilos: { id: string; nombre: string }[] = peticion.instrumento === 'bajo' ? ESTILOS : ESTILOS_TECLAS;
         const estilo = estilos.find((e) => e.id === peticion.estilo)?.nombre.toLowerCase() ?? '';
-        nombre = `${NOMBRE_INSTRUMENTO[peticion.instrumento]} · ${estilo}`;
+        nombre =
+          peticion.instrumento === 'bajo' && peticion.sonido
+            ? `${getInstrumento(peticion.sonido).nombre} · ${estilo}`
+            : `${NOMBRE_INSTRUMENTO[peticion.instrumento]} · ${estilo}`;
         detalle = oido.progresion || 'sobre tu toma';
       }
 

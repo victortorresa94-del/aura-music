@@ -13,6 +13,10 @@ import type { Studio } from '@/hooks/useStudio';
 import { NOMBRE_INSTRUMENTO, type Motor, type Musico, type Paso, type PeticionMomento } from '@/hooks/useMusico';
 import type { Instrumento } from '@/lib/ia/tipos';
 import { ESTILOS, type EstiloBajo } from '@/lib/musico/bajo';
+import { guardarBajoElegido, leerBajoElegido } from '@/lib/instrumentos/preferencias';
+import { instrumentosDe } from '@/lib/instrumentos/registro';
+import type { InstrumentoId } from '@/lib/instrumentos/tipos';
+import { BaldosaInstrumento } from './instrumentos/Baldosas';
 import { ritmosParaTempo, tempoParaRitmo, vaConTuTempo } from '@/lib/musico/bateria';
 import { ESTILOS_TECLAS, type EstiloTeclas } from '@/lib/musico/teclas';
 import { Field, Readout, Sheet, T, hintText, label, numeric } from './ui';
@@ -57,6 +61,11 @@ export function MusicoSheet({
   const [instrumento, setInstrumento] = useState<Instrumento>('bajo');
   const [motor, setMotor] = useState<Motor>('momento');
   const [estilo, setEstilo] = useState<EstiloBajo>('raiz-quinta');
+  // Pilar B: el tipo de bajo, el mismo que en «Tocar» y recordado en el móvil.
+  const [sonidoBajo, setSonidoBajo] = useState<InstrumentoId>('bajo-dedos');
+  useEffect(() => {
+    setSonidoBajo(leerBajoElegido());
+  }, [open]);
   const [estiloTeclas, setEstiloTeclas] = useState<EstiloTeclas>('colchon');
   const [ritmo, setRitmo] = useState<string | null>(null);
   const [descripcion, setDescripcion] = useState('');
@@ -112,7 +121,7 @@ export function MusicoSheet({
     if (motorEfectivo === 'momento') {
       const peticion: PeticionMomento | null =
         instrumento === 'bajo'
-          ? { instrumento: 'bajo', estilo }
+          ? { instrumento: 'bajo', estilo, sonido: sonidoBajo }
           : instrumento === 'teclado'
             ? { instrumento: 'teclado', estilo: estiloTeclas }
             : ritmoElegido
@@ -309,6 +318,24 @@ export function MusicoSheet({
               </Opciones>
             </Field>
           ) : motorEfectivo === 'momento' ? (
+            <>
+            {instrumento === 'bajo' ? (
+              <Field title="Qué bajo">
+                <div className="tocar-chips" style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2, scrollSnapType: 'x proximity' }}>
+                  {instrumentosDe('bajo').map((def) => (
+                    <BaldosaInstrumento
+                      key={def.id}
+                      def={def}
+                      elegido={def.id === sonidoBajo}
+                      onElegir={() => {
+                        setSonidoBajo(def.id);
+                        guardarBajoElegido(def.id);
+                      }}
+                    />
+                  ))}
+                </div>
+              </Field>
+            ) : null}
             <Field title="Cómo toca">
               <Opciones>
                 {(instrumento === 'teclado' ? ESTILOS_TECLAS : ESTILOS).map((e) => (
@@ -324,6 +351,7 @@ export function MusicoSheet({
                 ))}
               </Opciones>
             </Field>
+            </>
           ) : (
             <Field
               title="Cómo lo quieres"

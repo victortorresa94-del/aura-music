@@ -101,16 +101,6 @@ function alargar(samples: Float32Array, largo: number): Float32Array {
   return salida;
 }
 
-const NOMBRES: Record<InstrumentoId, string> = {
-  'bateria-808': 'Batería 808',
-  'bateria-909': 'Batería 909',
-  cajon: 'Cajón',
-  piano: 'Piano',
-  'piano-electrico': 'Piano eléctrico',
-  cuerdas: 'Cuerdas',
-  guitarra: 'Guitarra',
-  bajo: 'Bajo',
-};
 
 export function useInstrumentos(studio: Studio, pulsosPorCompas: number) {
   const { engine, project, settings, transport } = studio;
@@ -170,7 +160,7 @@ export function useInstrumentos(studio: Studio, pulsosPorCompas: number) {
         const minimo = Math.ceil(duracion * render.sampleRate);
         const samples = render.samples.length >= minimo ? render.samples : alargar(render.samples, minimo);
         const track: Track | null = studioRef.current.addGeneratedTrack({
-          name: NOMBRES[instrumento],
+          name: def.nombre,
           samples,
           sampleRate: render.sampleRate,
           start: clip.inicio,

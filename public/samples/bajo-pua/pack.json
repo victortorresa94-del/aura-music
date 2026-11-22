@@ -1,0 +1,211 @@
+{
+  "id": "bajo-pua",
+  "nombre": "Bajo eléctrico con púa (Karoryfer Pastabass «linguine», Squier Bass VI)",
+  "obra": "Pastabass, articulación «linguine» (cuerdas planas, púa, pastilla del puente)",
+  "autor": "Karoryfer Samples (grabación de spacecoyote; edición y mapeo de D. Smolken)",
+  "origen": "https://github.com/sfzinstruments/karoryfer.pastabass/tree/master/samples/linguine",
+  "licencia": "CC0-1.0",
+  "urlLicencia": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "creditos": "",
+  "archivos": [
+    {
+      "nombre": "28-v1.mp3",
+      "midi": 28,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 16898
+    },
+    {
+      "nombre": "28-v2.mp3",
+      "midi": 28,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 18104
+    },
+    {
+      "nombre": "31-v1.mp3",
+      "midi": 31,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 17106
+    },
+    {
+      "nombre": "31-v2.mp3",
+      "midi": 31,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 17061
+    },
+    {
+      "nombre": "34-v1.mp3",
+      "midi": 34,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 15493
+    },
+    {
+      "nombre": "34-v2.mp3",
+      "midi": 34,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 17872
+    },
+    {
+      "nombre": "37-v1.mp3",
+      "midi": 37,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 22020
+    },
+    {
+      "nombre": "37-v2.mp3",
+      "midi": 37,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 23548
+    },
+    {
+      "nombre": "40-v1.mp3",
+      "midi": 40,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 17584
+    },
+    {
+      "nombre": "40-v2.mp3",
+      "midi": 40,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 19943
+    },
+    {
+      "nombre": "43-v1.mp3",
+      "midi": 43,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 23119
+    },
+    {
+      "nombre": "43-v2.mp3",
+      "midi": 43,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 23774
+    },
+    {
+      "nombre": "46-v1.mp3",
+      "midi": 46,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 21243
+    },
+    {
+      "nombre": "46-v2.mp3",
+      "midi": 46,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 22480
+    },
+    {
+      "nombre": "49-v1.mp3",
+      "midi": 49,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 22720
+    },
+    {
+      "nombre": "49-v2.mp3",
+      "midi": 49,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 25028
+    },
+    {
+      "nombre": "52-v1.mp3",
+      "midi": 52,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 24296
+    },
+    {
+      "nombre": "52-v2.mp3",
+      "midi": 52,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 25629
+    },
+    {
+      "nombre": "55-v1.mp3",
+      "midi": 55,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 21862
+    },
+    {
+      "nombre": "55-v2.mp3",
+      "midi": 55,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 23690
+    },
+    {
+      "nombre": "58-v1.mp3",
+      "midi": 58,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 20040
+    },
+    {
+      "nombre": "58-v2.mp3",
+      "midi": 58,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 20857
+    }
+  ],
+  "bytes": 460367
+}
