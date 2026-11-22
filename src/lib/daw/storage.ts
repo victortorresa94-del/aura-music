@@ -116,9 +116,16 @@ export async function listProjects(): Promise<Project[]> {
 }
 
 export async function deleteProject(project: Project): Promise<void> {
-  // También la versión que no suena de una toma cuadrada.
+  /* Solo el audio que no usa ninguna otra idea: «Guardar una copia» hace que
+     dos ideas compartan las mismas tomas, y borrar una no puede dejar muda a
+     la otra. También la versión que no suena de una toma cuadrada. */
+  const enUso = new Set<string>();
+  for (const otra of await listProjects()) {
+    if (otra.id === project.id) continue;
+    for (const track of otra.tracks) for (const id of audiosDePista(track)) enUso.add(id);
+  }
   for (const track of project.tracks) {
-    for (const id of audiosDePista(track)) await deleteAudio(id);
+    for (const id of audiosDePista(track)) if (!enUso.has(id)) await deleteAudio(id);
   }
   await tx(PROJECTS, 'readwrite', (store) => store.delete(project.id) as IDBRequest<undefined>);
 }
