@@ -14,6 +14,8 @@ import { Acordes } from './Acordes';
 import { CalibrarToque } from './Calibrar';
 import { Pads } from './Pads';
 import { BotonBarra, Teclado, type ModoTeclado, type TamanoTeclas } from './Teclado';
+import { ChipMidi } from './ChipMidi';
+import { useTecladoMidi } from '@/hooks/useTecladoMidi';
 
 type Pestana = 'pads' | 'teclado' | 'acordes' | 'bajo';
 
@@ -118,6 +120,8 @@ export function TocarPantalla({
   const instrumento: InstrumentoId =
     prefs.pestana === 'pads' ? prefs.kit : prefs.pestana === 'teclado' ? prefs.teclas : prefs.pestana === 'acordes' ? prefs.acordes : 'bajo';
   const def = getInstrumento(instrumento);
+  // Un teclado MIDI (por USB) toca lo que esté abierto, y se graba igual que el dedo.
+  const { midi, conectar: conectarMidi } = useTecladoMidi({ activo: abierta, atril, def });
 
   // El instrumento se prepara al abrirlo: voz, muestras y notas calculadas.
   useEffect(() => {
@@ -309,6 +313,13 @@ export function TocarPantalla({
       </header>
 
       <div style={{ padding: '12px 16px 0', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <ChipMidi
+          midi={midi}
+          onConectar={() => {
+            engine?.unlockSync();
+            void conectarMidi();
+          }}
+        />
         <Segmented<Pestana>
           ariaLabel="Instrumento"
           value={prefs.pestana}

@@ -79,6 +79,8 @@ export class StudioEngine {
   private sources: AudioBufferSourceNode[] = [];
   /** El contexto no arrancó tras volver de otra app: el próximo toque lo rehace. */
   private contextoAtascado = false;
+  /** La salida elegida en Ajustes (null = la del sistema). Se aplica también al rehacer el contexto. */
+  private salidaId: string | null = null;
 
   private recorder: Recorder | null = null;
   private stream: MediaStream | null = null;
@@ -139,6 +141,7 @@ export class StudioEngine {
       window.AudioContext ||
       (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     const ctx = new Ctor({ latencyHint: 'interactive' });
+    if (this.salidaId) void this.aplicarSalida(ctx, this.salidaId);
 
     // El master (volumen y limitador) y las cadenas de las pistas viven en
     // el grafo de mezcla, el mismo que monta `renderMix` para exportar.
@@ -671,6 +674,28 @@ export class StudioEngine {
         }
       }
     }, (LEAD_TIME + 0.25) * 1000);
+  }
+
+  /**
+   * Elige por dónde suena todo el estudio (pistas, instrumentos, claqueta):
+   * por ejemplo los cascos de la interfaz de audio. Devuelve false si el
+   * navegador no deja elegir o la salida ya no existe.
+   */
+  async setSalida(id: string | null): Promise<boolean> {
+    this.salidaId = id;
+    if (!this.ctx) return true;
+    return this.aplicarSalida(this.ctx, id);
+  }
+
+  private async aplicarSalida(ctx: AudioContext, id: string | null): Promise<boolean> {
+    const conSalida = ctx as AudioContext & { setSinkId?: (id: string) => Promise<void> };
+    if (!conSalida.setSinkId) return false;
+    try {
+      await conSalida.setSinkId(id ?? '');
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   setMasterVolume(value: number) {

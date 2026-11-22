@@ -262,6 +262,18 @@ export async function openMicrophone(options: MicOptions = {}): Promise<MediaStr
   return navigator.mediaDevices.getUserMedia({ audio: constraints, video: false });
 }
 
+/** Salidas de audio (cascos de la interfaz, altavoces…). Los nombres solo salen con el micro permitido. */
+export async function listOutputDevices(): Promise<MediaDeviceInfo[]> {
+  if (!navigator.mediaDevices?.enumerateDevices) return [];
+  const devices = await navigator.mediaDevices.enumerateDevices();
+  return devices.filter((device) => device.kind === 'audiooutput' && device.deviceId !== 'default');
+}
+
+/** ¿Se puede elegir por dónde suena? (Chrome y Edge sí; Safari todavía no). */
+export function sePuedeElegirSalida(): boolean {
+  return typeof AudioContext !== 'undefined' && 'setSinkId' in AudioContext.prototype;
+}
+
 export async function listInputDevices(): Promise<MediaDeviceInfo[]> {
   if (!navigator.mediaDevices?.enumerateDevices) return [];
   const devices = await navigator.mediaDevices.enumerateDevices();

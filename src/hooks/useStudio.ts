@@ -234,6 +234,11 @@ export function useStudio() {
   /* ---------------------------------------------------------------- */
 
   // Antes que el motor: cerrar una toma también afina la latencia.
+  // La salida de audio elegida (la interfaz con cascos, por ejemplo) se aplica al motor.
+  useEffect(() => {
+    if (engine) void engine.setSalida(settings.outputDeviceId ?? null);
+  }, [engine, settings.outputDeviceId]);
+
   const updateSettings = useCallback((patch: Partial<StudioSettings>) => {
     const next = { ...settingsRef.current, ...patch };
     settingsRef.current = next;

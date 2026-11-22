@@ -99,6 +99,12 @@ export interface StudioSettings {
   /** Cancelación de eco. Off por defecto: destroza el sonido de un instrumento. */
   echoCancellation: boolean;
   inputDeviceId: string | null;
+  /**
+   * Por dónde suena el estudio: la tarjeta del PC, una interfaz de audio con
+   * cascos, unos altavoces. null = la salida por defecto del sistema. Solo en
+   * navegadores con `AudioContext.setSinkId` (Chrome y Edge en el PC).
+   */
+  outputDeviceId: string | null;
   metronome: boolean;
   countInBars: number;
   snapToGrid: boolean;
@@ -117,6 +123,7 @@ export const DEFAULT_SETTINGS: StudioSettings = {
   latenciaAprendida: null,
   echoCancellation: false,
   inputDeviceId: null,
+  outputDeviceId: null,
   metronome: false,
   countInBars: 1,
   snapToGrid: false,
