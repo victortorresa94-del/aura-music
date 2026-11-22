@@ -4,6 +4,11 @@
  * que se enseña en el menú es siempre el que funciona, y no hay dos listas que
  * se desincronicen.
  *
+ * Deshacer, copiar, pegar, borrar la pista, M, S, Espacio… son de la sesión
+ * de edición (`src/lib/daw/atajos.ts` y `useAtajos`). Aquí solo está lo de la
+ * idea entera (Archivo) y lo que abre pantallas: así cada tecla tiene un solo
+ * dueño y nada se hace dos veces.
+ *
  * Aquí solo hay datos y funciones puras (se prueban sin navegador). Qué hace
  * cada comando lo decide `useArchivo`.
  */
@@ -22,16 +27,10 @@ export type IdComando =
   | 'compartir'
   | 'cerrar'
   | 'borrar'
-  | 'deshacer'
-  | 'rehacer'
   | 'ajustes'
   | 'tocar'
   | 'loops'
   | 'opcionesPista'
-  | 'duplicarPista'
-  | 'silenciarPista'
-  | 'soloPista'
-  | 'borrarPista'
   | 'mezclador'
   | 'productor'
   | 'temaClaro'
@@ -59,12 +58,6 @@ export const ATAJOS: Partial<Record<IdComando, Atajo[]>> = {
   guardar: [{ tecla: 's', mod: true }],
   guardarCopia: [{ tecla: 's', mod: true, shift: true }],
   cerrar: [{ tecla: 'w', mod: true }],
-  deshacer: [{ tecla: 'z', mod: true }],
-  // Ctrl+Y es el rehacer de Windows; Ctrl+Mayús+Z, el de todos los demás.
-  rehacer: [
-    { tecla: 'z', mod: true, shift: true },
-    { tecla: 'y', mod: true },
-  ],
   ajustes: [{ tecla: ',', mod: true }],
 };
 

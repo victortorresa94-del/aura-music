@@ -18,6 +18,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type 
 import type { Archivo } from '@/hooks/useArchivo';
 import type { Studio } from '@/hooks/useStudio';
 import { ATAJOS, textoAtajo, type IdComando } from '@/lib/daw/menus/comandos';
+import { ATAJOS as ATAJOS_DE_EDICION, teclasVisibles, type GrupoAtajo } from '@/lib/daw/atajos';
 import { IconoMezclador } from '../mezclador/icono';
 import { haptic, T } from '../theme';
 import { IconButton, IconSpark, IconUndo, Sheet, TextButton, hintText, label, numeric } from '../ui';
@@ -481,10 +482,41 @@ const NOMBRES_DE_ATAJOS: Partial<Record<IdComando, string>> = {
   guardar: 'Guardar',
   guardarCopia: 'Guardar como copia',
   cerrar: 'Cerrar idea',
-  deshacer: 'Deshacer',
-  rehacer: 'Rehacer',
-  ajustes: 'Ajustes',
+  ajustes: 'Ajustes y cuenta',
 };
+
+/** Una lista de la chuleta: el nombre a la izquierda y la tecla a la derecha. */
+function ListaDeAtajos({ titulo, filas }: { titulo: string; filas: { clave: string; nombre: string; teclas: string }[] }) {
+  return (
+    <section style={{ marginBottom: 22 }}>
+      <h3 style={{ fontFamily: T.fontBody, fontSize: 13, fontWeight: 600, color: T.text, marginBottom: 8 }}>{titulo}</h3>
+      <div style={{ borderRadius: 14, background: T.fill, boxShadow: `inset 0 1px 0 ${T.rim}`, overflow: 'hidden' }}>
+        {filas.map((fila, i) => (
+          <div
+            key={fila.clave}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 12,
+              minHeight: 44,
+              padding: '0 16px',
+              boxShadow: i > 0 ? `inset 0 1px 0 ${T.rowLine}` : 'none',
+              fontFamily: T.fontBody,
+              fontSize: 15,
+              color: T.text,
+            }}
+          >
+            <span>{fila.nombre}</span>
+            <kbd style={{ fontFamily: T.fontBody, fontSize: 13, color: T.dim, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{fila.teclas}</kbd>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+const GRUPOS: GrupoAtajo[] = ['Transporte', 'Editar', 'Pistas', 'Ver'];
 
 /** Borrar la idea (con confirmación, que no se deshace) y la chuleta de atajos. Van en la raíz, como las demás hojas. */
 export function DialogosDeArchivo({
@@ -534,27 +566,17 @@ export function DialogosDeArchivo({
       </Sheet>
 
       <Sheet open={atajos} title="Atajos de teclado" onClose={onCerrarAtajos}>
-        <div style={{ borderRadius: 14, background: T.fill, boxShadow: `inset 0 1px 0 ${T.rim}`, overflow: 'hidden', marginBottom: 14 }}>
-          {(Object.keys(ATAJOS) as IdComando[]).map((id, i) => (
-            <div
-              key={id}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                minHeight: 44,
-                padding: '0 16px',
-                boxShadow: i > 0 ? `inset 0 1px 0 ${T.rowLine}` : 'none',
-                fontFamily: T.fontBody,
-                fontSize: 15,
-                color: T.text,
-              }}
-            >
-              <span>{NOMBRES_DE_ATAJOS[id] ?? id}</span>
-              <kbd style={{ fontFamily: T.fontBody, fontSize: 13, color: T.dim, fontVariantNumeric: 'tabular-nums' }}>{textoAtajo(id, mac)}</kbd>
-            </div>
-          ))}
-        </div>
+        <ListaDeAtajos
+          titulo="La idea"
+          filas={(Object.keys(ATAJOS) as IdComando[]).map((id) => ({ clave: id, nombre: NOMBRES_DE_ATAJOS[id] ?? id, teclas: textoAtajo(id, mac) ?? '' }))}
+        />
+        {GRUPOS.map((grupo) => (
+          <ListaDeAtajos
+            key={grupo}
+            titulo={grupo}
+            filas={ATAJOS_DE_EDICION.filter((a) => a.grupo === grupo).map((a) => ({ clave: a.id, nombre: a.nombre, teclas: teclasVisibles(a.id, mac) }))}
+          />
+        ))}
         <p style={hintText}>
           En una pestaña del navegador, {mac ? '⌘N y ⌘W' : 'Ctrl+N y Ctrl+W'} son del navegador (abren y cierran ventanas). Con la app instalada funcionan.
         </p>

@@ -10,9 +10,13 @@
 import {
   ArrowClockwise,
   ArrowCounterClockwise,
+  ClipboardText,
   ClockCounterClockwise,
   Copy,
   CopySimple,
+  MagnifyingGlassMinus,
+  MagnifyingGlassPlus,
+  Scissors,
   Desktop,
   Export,
   FileAudio,
@@ -41,6 +45,8 @@ import {
 } from '@phosphor-icons/react';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Archivo } from '@/hooks/useArchivo';
+import type { Atajos } from '@/hooks/useAtajos';
+import { atajo as atajoDeEdicion, teclasVisibles, type IdAtajo } from '@/lib/daw/atajos';
 import type { Studio } from '@/hooks/useStudio';
 import { haceCuanto, textoAtajo, type IdComando } from '@/lib/daw/menus/comandos';
 import { listProjects } from '@/lib/daw/storage';
@@ -65,7 +71,7 @@ export function textoGuardado(studio: Studio, ahora: number): string {
   return `Guardado ${haceCuanto(studio.guardadoEn, ahora)}`;
 }
 
-export function useMenus(studio: Studio, archivo: Archivo, tema: ThemeMode) {
+export function useMenus(studio: Studio, archivo: Archivo, tema: ThemeMode, atajos: Atajos) {
   const [recientes, setRecientes] = useState<Project[]>([]);
   const [ahora, setAhora] = useState(() => Date.now());
 
@@ -87,6 +93,19 @@ export function useMenus(studio: Studio, archivo: Archivo, tema: ThemeMode) {
     icono,
     atajo: textoAtajo(id, mac),
     alElegir: () => archivo.ejecutar(id),
+    ...extra,
+  });
+
+  /* Lo de edición lo hace `useAtajos` (src/lib/daw/atajos.ts): aquí solo se
+     pinta, con su nombre, su tecla y apagado cuando no se puede. */
+  const edicion = (id: IdAtajo, icono: ReactNode, extra: Partial<Extract<Entrada, { tipo: 'item' }>> = {}): Entrada => ({
+    tipo: 'item',
+    clave: id,
+    texto: atajoDeEdicion(id).nombre,
+    icono,
+    atajo: teclasVisibles(id, mac),
+    desactivado: !atajos.disponible(id),
+    alElegir: () => void atajos.ejecutar(id),
     ...extra,
   });
 
@@ -141,8 +160,16 @@ export function useMenus(studio: Studio, archivo: Archivo, tema: ThemeMode) {
   ];
 
   const editarMenu: Entrada[] = [
-    item('deshacer', 'Deshacer', <ArrowCounterClockwise size={I} />, { desactivado: !studio.hayDeshacer() }),
-    item('rehacer', 'Rehacer', <ArrowClockwise size={I} />, { desactivado: !studio.hayRehacer() }),
+    edicion('deshacer', <ArrowCounterClockwise size={I} />),
+    edicion('rehacer', <ArrowClockwise size={I} />),
+    SEP('e1'),
+    edicion('cortar', <Scissors size={I} />),
+    edicion('copiar', <Copy size={I} />),
+    edicion('pegar', <ClipboardText size={I} />),
+    edicion('duplicar', <CopySimple size={I} />),
+    SEP('e2'),
+    edicion('dividir', <Scissors size={I} />),
+    edicion('borrar', <Trash size={I} />, { peligro: atajos.disponible('borrar') }),
   ];
 
   const sinPista = !pista;
@@ -152,17 +179,17 @@ export function useMenus(studio: Studio, archivo: Archivo, tema: ThemeMode) {
     item('importarAudio', 'Importar audio…', <FileAudio size={I} />),
     SEP('p1'),
     item('opcionesPista', pista ? `Opciones de «${pista.name}»…` : 'Opciones de la pista…', <SlidersHorizontal size={I} />, { desactivado: sinPista }),
-    item('duplicarPista', 'Duplicar', <CopySimple size={I} />, { desactivado: sinPista }),
-    item('silenciarPista', pista?.muted ? 'Quitar el silencio' : 'Silenciar', <SpeakerSlash size={I} />, { desactivado: sinPista }),
-    item('soloPista', pista?.soloed ? 'Quitar el solo' : 'Solo', <Headphones size={I} />, { desactivado: sinPista }),
-    SEP('p2'),
-    item('borrarPista', 'Borrar la pista', <Trash size={I} />, { desactivado: sinPista, peligro: !sinPista }),
+    edicion('silenciar', <SpeakerSlash size={I} />, { marcado: pista ? pista.muted : undefined }),
+    edicion('solo', <Headphones size={I} />, { marcado: pista ? pista.soloed : undefined }),
   ];
 
   const verMenu: Entrada[] = [
     item('mezclador', 'Mezclador', <IconoMezclador size={I} color="currentColor" />),
     item('productor', 'Productor', <Sparkle size={I} />),
     SEP('v1'),
+    edicion('zoom-mas', <MagnifyingGlassPlus size={I} />),
+    edicion('zoom-menos', <MagnifyingGlassMinus size={I} />),
+    SEP('v2'),
     item('temaClaro', 'Claro', <Sun size={I} />, { marcado: tema === 'light' }),
     item('temaOscuro', 'Oscuro', <Moon size={I} />, { marcado: tema === 'dark' }),
     item('temaSistema', 'Como el sistema', <Desktop size={I} />, { marcado: tema === 'system' }),
