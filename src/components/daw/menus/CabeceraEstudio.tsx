@@ -178,6 +178,19 @@ export function CabeceraEstudio({
           event.target.value = '';
         }}
       />
+      <input
+        ref={archivo.entradaIdea}
+        type="file"
+        accept=".zip,application/zip"
+        aria-hidden
+        tabIndex={-1}
+        style={{ display: 'none' }}
+        onChange={(event) => {
+          const fichero = event.target.files?.[0];
+          if (fichero) void archivo.importarIdea(fichero);
+          event.target.value = '';
+        }}
+      />
     </header>
   );
 }

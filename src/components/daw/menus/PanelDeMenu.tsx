@@ -196,6 +196,10 @@ function Lista({
         // Tab no se pasea por las filas: cierra, como en los menús de escritorio.
         onCerrar(false);
         return;
+      default:
+        // Con un menú abierto, el teclado es suyo: una R suelta no puede
+        // ponerse a grabar por detrás (los atajos miran `defaultPrevented`).
+        if (event.key.length === 1 && !event.ctrlKey && !event.metaKey) event.preventDefault();
     }
   };
 

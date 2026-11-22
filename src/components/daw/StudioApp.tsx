@@ -206,7 +206,7 @@ export default function StudioApp() {
   const nube = useNube(studio);
   const cambioEnLaAbierta = nube.estado.cambioEnLaAbierta?.dispositivo ?? null;
   useEffect(() => {
-    if (cambioEnLaAbierta) setStatus(`Esta idea ha cambiado en el ${cambioEnLaAbierta}. Toca el nombre para verlo.`);
+    if (cambioEnLaAbierta) setStatus(`Esta idea ha cambiado en el ${cambioEnLaAbierta}. Lo tienes en Ajustes y cuenta.`);
   }, [cambioEnLaAbierta, setStatus]);
 
   useEffect(() => {
@@ -418,6 +418,7 @@ export default function StudioApp() {
           await studio.importFile(fichero);
         }}
         onAjustes={() => setSheet('settings')}
+        refresco={nube.cambios}
       />
       <DialogosDeArchivo studio={studio} archivo={archivo} atajos={atajos} onCerrarAtajos={() => setAtajos(false)} />
       {/* PWA (pilar E): avisos bajo la cabecera y, en iPhone sin instalar, cómo instalarla. */}

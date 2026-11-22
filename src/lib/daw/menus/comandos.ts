@@ -19,6 +19,7 @@ export type IdComando =
   | 'exportarPistas'
   | 'exportarZip'
   | 'importarAudio'
+  | 'importarIdea'
   | 'compartir'
   | 'cerrar'
   | 'borrar'

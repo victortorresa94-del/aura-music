@@ -131,8 +131,14 @@ export function useMenus(studio: Studio, archivo: Archivo, tema: ThemeMode) {
       ],
     },
     item('importarAudio', 'Importar audio…', <FileAudio size={I} />),
+    item('importarIdea', 'Importar una idea (.zip)…', <FileZip size={I} />),
     item('compartir', 'Compartir…', <ShareNetwork size={I} />, { desactivado: sinPistas || !exportandoNada }),
     SEP('s3'),
+    // Ajustes es del equipo y de tu cuenta, no de la idea; va aquí porque es
+    // donde se busca en un programa de escritorio (y en el móvil, al final
+    // del menú del nombre, que es este mismo).
+    item('ajustes', 'Ajustes y cuenta…', <GearSix size={I} />),
+    SEP('s4'),
     item('cerrar', 'Cerrar idea', <XSquare size={I} />),
     item('borrar', 'Borrar idea…', <Trash size={I} />, { peligro: true }),
   ];
@@ -152,8 +158,6 @@ export function useMenus(studio: Studio, archivo: Archivo, tema: ThemeMode) {
     item('duplicarPista', 'Duplicar', <CopySimple size={I} />, { desactivado: sinPista }),
     item('dividirClip', 'Cortar el clip en el cursor', <Scissors size={I} />, { desactivado: !cursorEnClip }),
     item('borrarPista', 'Borrar la pista', <Trash size={I} />, { desactivado: sinPista, peligro: !sinPista }),
-    SEP('e2'),
-    item('ajustes', 'Ajustes…', <GearSix size={I} />),
   ];
 
   const pistaMenu: Entrada[] = [
@@ -192,9 +196,8 @@ export function useMenus(studio: Studio, archivo: Archivo, tema: ThemeMode) {
     { clave: 'ayuda', texto: 'Ayuda', entradas: ayudaMenu },
   ];
 
-  // En el móvil, desde el nombre: lo de Archivo y, al final, Ajustes (que
-  // antes se abría tocando el nombre).
-  const movil: Entrada[] = [...archivoMenu, SEP('m1'), item('ajustes', 'Ajustes', <GearSix size={I} />)];
+  // En el móvil, desde el nombre: lo mismo que Archivo (con Ajustes y cuenta).
+  const movil: Entrada[] = archivoMenu;
 
   return { barra, movil, refrescar, ahora };
 }

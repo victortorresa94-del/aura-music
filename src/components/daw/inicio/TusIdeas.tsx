@@ -46,6 +46,7 @@ export function TusIdeas({
   onAcceso,
   onImportar,
   onAjustes,
+  refresco = 0,
 }: {
   studio: Studio;
   archivo: Archivo;
@@ -56,6 +57,8 @@ export function TusIdeas({
   onAcceso: (acceso: AccesoRapido) => void;
   onImportar: (fichero: File) => void;
   onAjustes: () => void;
+  /** Cuenta: sube cuando la nube trae o cambia ideas, para releer la lista. */
+  refresco?: number;
 }) {
   const [ideas, setIdeas] = useState<Project[] | null>(null);
   const [busqueda, setBusqueda] = useState('');
@@ -73,7 +76,7 @@ export function TusIdeas({
     return () => {
       vivo = false;
     };
-  }, [abierta, studio.project.id, archivo.porBorrar]);
+  }, [abierta, studio.project.id, archivo.porBorrar, refresco]);
 
   const visibles = useMemo(() => {
     const q = busqueda.trim().toLocaleLowerCase('es');
