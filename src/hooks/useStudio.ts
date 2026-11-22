@@ -32,6 +32,7 @@ import {
   outputLatencyMs,
 } from '@/lib/daw/latency';
 import * as store from '@/lib/daw/storage';
+import { asegurarAudioDeLaNube } from '@/lib/nube/puente';
 import { esCuotaLlena } from '@/lib/pwa/espacio';
 import {
   DEFAULT_SETTINGS,
@@ -187,6 +188,14 @@ export function useStudio() {
     async (target: Project) => {
       if (!engine) return;
       await engine.ensureContext();
+      // Cuenta (pilar D): si la idea vino de la nube, su audio baja ahora a este
+      // móvil. Sin cuenta no hace nada.
+      let bajando = false;
+      await asegurarAudioDeLaNube(target, () => {
+        bajando = true;
+        setBusy('Bajando el audio de la nube…');
+      });
+      if (bajando) setBusy(null);
       for (const track of target.tracks) {
         if (engine.hasBuffer(track.clip.bufferId)) continue;
         const audio = await store.getAudio(track.clip.bufferId);
