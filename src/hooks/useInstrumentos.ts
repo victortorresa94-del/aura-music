@@ -412,6 +412,38 @@ export function useInstrumentos(studio: Studio, pulsosPorCompas: number) {
     atril.posicion = (t) => s.engine!.posicionEn(t);
   }, [atril, parar]);
 
+  /**
+   * Mover el cursor desde «Tocar» (la tira de tiempo). Parado, solo se mueve.
+   * Escuchando, se para, se salta y vuelve a sonar «sin fin», como lo arrancó
+   * «Escuchar» (el `seek` del estudio lo relanzaría con fin). Grabando, no:
+   * se perdería la toma.
+   */
+  const irA = useCallback(
+    async (posicion: number) => {
+      const s = studioRef.current;
+      const motor = s.engine;
+      if (!motor || !atril || atril.grabando) return;
+      const estadoMotor = motor.transportState;
+      if (estadoMotor === 'recording' || estadoMotor === 'countin') return;
+      const destino = Math.max(0, posicion);
+      if (estadoMotor === 'playing') {
+        await motor.stop();
+        motor.seek(destino);
+        await motor.play(s.project, s.settings, destino, { sinFin: true });
+        atril.posicion = (t) => motor.posicionEn(t);
+        return;
+      }
+      motor.seek(destino);
+    },
+    [atril],
+  );
+
+  /** El bucle de la toma en curso, si se graba en loop (para pintarlo en la tira). */
+  const bucleActual = useCallback((): { desde: number; largo: number } | null => {
+    const b = bucleRef.current;
+    return b ? { desde: b.desde, largo: b.largo } : null;
+  }, []);
+
   /** «Recuperar lo último»: lo que tocaste sin grabar, a una pista. */
   const recuperar = useCallback(async () => {
     const s = studioRef.current;
@@ -535,6 +567,9 @@ export function useInstrumentos(studio: Studio, pulsosPorCompas: number) {
     // Modo loop
     vuelta,
     deshacerVuelta,
+    bucleActual,
+    // La tira de tiempo de «Tocar»
+    irA,
     // «¿Ha quedado bien?»
     resultado,
     cuadrarResultado,
