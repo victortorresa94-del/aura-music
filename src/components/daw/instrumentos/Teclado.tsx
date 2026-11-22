@@ -50,6 +50,7 @@ export function Teclado({
   tamano,
   onModo,
   onTamano,
+  teclaDe,
 }: {
   atril: Atril | null;
   def: DefInstrumento;
@@ -58,6 +59,8 @@ export function Teclado({
   tamano: TamanoTeclas;
   onModo?: (modo: ModoTeclado) => void;
   onTamano: (tamano: TamanoTeclas) => void;
+  /** La tecla del ordenador que toca cada nota, para escribirla debajo. */
+  teclaDe?: (nota: number) => string | null;
 }) {
   const raizRef = useRef<HTMLDivElement | null>(null);
   const [caja, setCaja] = useState({ w: 340, h: 300 });
@@ -248,13 +251,15 @@ export function Teclado({
         className="tocar-superficie"
         style={{ position: 'relative', flex: 1, minHeight: 0 }}
       >
-        {teclas.map((tecla) => (
+        {teclas.map((tecla) => {
+          const pc = teclaDe?.(tecla.nota) ?? null;
+          return (
           <button
             key={`${tecla.nota}-${tecla.x}-${tecla.y}`}
             type="button"
             data-nota={tecla.nota}
             className={tecla.negra ? 'tocar-tecla tocar-tecla-negra' : 'tocar-tecla'}
-            aria-label={nombre(tecla.nota)}
+            aria-label={pc ? `${nombre(tecla.nota)}, tecla ${pc}` : nombre(tecla.nota)}
             style={{
               position: 'absolute',
               left: tecla.x + (tecla.negra ? 0 : 2),
@@ -270,13 +275,38 @@ export function Teclado({
               cursor: 'pointer',
             }}
           >
+            {pc && tecla.h >= 72 ? (
+              <span
+                aria-hidden
+                style={{
+                  position: 'absolute',
+                  left: '50%',
+                  bottom: tecla.negra ? 6 : 8,
+                  transform: 'translateX(-50%)',
+                  minWidth: 18,
+                  height: 18,
+                  padding: '0 4px',
+                  display: 'grid',
+                  placeItems: 'center',
+                  borderRadius: 5,
+                  background: tecla.negra ? 'rgba(255,255,255,0.14)' : T.fill,
+                  fontFamily: T.fontMono,
+                  fontSize: 10.5,
+                  fontWeight: 600,
+                  color: tecla.negra ? 'rgba(255,255,255,0.78)' : T.dim,
+                  pointerEvents: 'none',
+                }}
+              >
+                {pc}
+              </span>
+            ) : null}
             {!tecla.negra ? (
               <span
                 style={{
                   position: 'absolute',
                   left: 0,
                   right: 0,
-                  bottom: 8,
+                  bottom: pc && tecla.h >= 72 ? 32 : 8,
                   textAlign: 'center',
                   fontFamily: T.fontBody,
                   fontSize: 12,
@@ -289,7 +319,8 @@ export function Teclado({
               </span>
             ) : null}
           </button>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

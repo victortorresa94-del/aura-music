@@ -12,7 +12,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Atril } from '@/lib/instrumentos/directo';
 import type { DefInstrumento } from '@/lib/instrumentos/registro';
-import { accionDeTecla, doDeOctava } from '@/lib/instrumentos/tecladoPc';
+import { accionDeTecla, doDeOctava, type MapaTeclas } from '@/lib/instrumentos/tecladoPc';
 
 type Soltar = (hora?: number) => void;
 
@@ -22,16 +22,19 @@ export function useTecladoPC({
   def,
   onGrabar,
   onEscuchar,
+  mapa,
 }: {
   activo: boolean;
   atril: Atril | null;
   def: DefInstrumento;
   onGrabar: () => void;
   onEscuchar: () => void;
+  /** Las teclas de este grupo (las propias o las de siempre). */
+  mapa?: MapaTeclas | null;
 }) {
   const [octava, setOctava] = useState(0);
-  const vivo = useRef({ atril, def, onGrabar, onEscuchar, octava });
-  vivo.current = { atril, def, onGrabar, onEscuchar, octava };
+  const vivo = useRef({ atril, def, onGrabar, onEscuchar, octava, mapa });
+  vivo.current = { atril, def, onGrabar, onEscuchar, octava, mapa };
 
   // Al cambiar de instrumento se vuelve a su octava de siempre.
   useEffect(() => setOctava(0), [def.id]);
@@ -56,7 +59,7 @@ export function useTecladoPC({
 
     const alBajar = (evento: KeyboardEvent) => {
       if (evento.ctrlKey || evento.metaKey || evento.altKey || escribiendo(evento.target)) return;
-      const { atril: a, def: d, onGrabar: grabar, onEscuchar: escuchar, octava: o } = vivo.current;
+      const { atril: a, def: d, onGrabar: grabar, onEscuchar: escuchar, octava: o, mapa: m } = vivo.current;
       if (evento.key === ' ') {
         evento.preventDefault();
         if (!evento.repeat) escuchar();
@@ -67,7 +70,7 @@ export function useTecladoPC({
         if (!evento.repeat) grabar();
         return;
       }
-      const accion = accionDeTecla(evento.key, !!d.pads);
+      const accion = accionDeTecla(evento.key, !!d.pads, m);
       if (!accion || !a) return;
       evento.preventDefault();
       if (evento.repeat) return;

@@ -1,15 +1,17 @@
 'use client';
 
 /**
- * Las baldosas para elegir qué tocar: icono grande y nombre, fáciles de dar
- * con el pulgar. Elegida, va en tinta con un filo; apagada, en gris y en
- * duotono. Nunca en verde: el verde es de lo que hace la máquina, y esto lo
- * eliges tú.
+ * Las baldosas para elegir qué tocar en el móvil: el icono de arcilla y el
+ * nombre, fáciles de dar con el pulgar. Elegida, en blanco con su sombra y
+ * un filo de tinta; apagada, sobre el suelo y el icono un punto más tenue.
+ * Nunca en verde: el verde es de lo que hace la máquina, y esto lo eliges tú.
  */
 
+import { IconoArcilla } from '@/components/iconos/IconoArcilla';
+import { ARCILLA_DE_FAMILIA, arcillaDe } from '@/lib/iconos/arcilla';
 import type { DefInstrumento } from '@/lib/instrumentos/registro';
 import { haptic, T } from '../theme';
-import { IconoDeFamilia, IconoInstrumento, type IconoFamilia } from './iconos';
+import type { IconoFamilia } from './iconos';
 
 /** Una familia (batería, teclado, acordes, bajo): icono grande y nombre. */
 export function BaldosaFamilia({
@@ -40,7 +42,7 @@ export function BaldosaFamilia({
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 4,
+        gap: 3,
         padding: 0,
         border: 'none',
         borderRadius: 14,
@@ -51,7 +53,7 @@ export function BaldosaFamilia({
         transition: `background-color 160ms ${T.easeOut}, box-shadow 160ms ${T.easeOut}, color 160ms ${T.easeOut}`,
       }}
     >
-      <IconoDeFamilia familia={familia} size={26} weight={elegida ? 'fill' : 'duotone'} color="currentColor" />
+      <IconoArcilla id={ARCILLA_DE_FAMILIA[familia]} tamano={30} apagado={!elegida} />
       <span style={{ fontFamily: T.fontBody, fontSize: 12.5, fontWeight: 600, lineHeight: 1, color: elegida ? T.text : T.dim }}>{nombre}</span>
     </button>
   );
@@ -88,7 +90,7 @@ export function BaldosaInstrumento({ def, elegido, onElegir }: { def: DefInstrum
         transition: `background-color 160ms ${T.easeOut}, box-shadow 160ms ${T.easeOut}`,
       }}
     >
-      <IconoInstrumento icono={def.icono} size={24} weight={elegido ? 'fill' : 'duotone'} color="currentColor" />
+      <IconoArcilla id={arcillaDe(def.id)} tamano={34} apagado={!elegido} style={{ marginLeft: -2 }} />
       <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         <span style={{ fontFamily: T.fontBody, fontSize: 13.5, fontWeight: 600, lineHeight: 1.1, color: T.text, whiteSpace: 'nowrap' }}>{def.corto}</span>
         <span style={{ fontFamily: T.fontBody, fontSize: 11, fontWeight: 500, lineHeight: 1.1, color: T.faint, whiteSpace: 'nowrap' }}>{def.detalle}</span>
