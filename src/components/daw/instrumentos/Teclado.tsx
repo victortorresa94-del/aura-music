@@ -21,6 +21,10 @@ const NEGRAS = new Set([1, 3, 6, 8, 10]);
 
 /** Alto máximo de cada fila de teclas, en px (en el móvil no se llega). */
 const ALTO_MAXIMO = 240;
+/** Con una sola fila (PC), la tecla puede ser más larga: como un piano de verdad. */
+const ALTO_MAXIMO_UNA_FILA = 300;
+/** Desde este ancho cabe un teclado de una fila, que se lee como un piano. */
+const ANCHO_UNA_FILA = 760;
 
 interface Tecla {
   nota: number;
@@ -51,6 +55,8 @@ export function Teclado({
   onModo,
   onTamano,
   teclaDe,
+  sostener = false,
+  onSostener,
 }: {
   atril: Atril | null;
   def: DefInstrumento;
@@ -61,6 +67,9 @@ export function Teclado({
   onTamano: (tamano: TamanoTeclas) => void;
   /** La tecla del ordenador que toca cada nota, para escribirla debajo. */
   teclaDe?: (nota: number) => string | null;
+  /** El pedal: con él puesto, lo que sueltas sigue sonando hasta quitarlo. */
+  sostener?: boolean;
+  onSostener?: (sostener: boolean) => void;
 }) {
   const raizRef = useRef<HTMLDivElement | null>(null);
   const [caja, setCaja] = useState({ w: 340, h: 300 });
@@ -81,10 +90,12 @@ export function Teclado({
   }, []);
 
   const teclas = useMemo<Tecla[]>(() => {
-    const filas = 2;
+    // En el PC, una fila: se lee como un piano. En el móvil, dos apiladas
+    // (la de arriba sigue donde acaba la de abajo), como en GarageBand.
+    const filas = caja.w >= ANCHO_UNA_FILA ? 1 : 2;
     // Con tope: en un PC alto, una tecla de medio metro no se toca mejor.
     // Las filas se quedan abajo, donde está la mano.
-    const altoFila = Math.min(ALTO_MAXIMO, (caja.h - 8) / filas);
+    const altoFila = Math.min(filas === 1 ? ALTO_MAXIMO_UNA_FILA : ALTO_MAXIMO, (caja.h - 8 * (filas - 1)) / filas);
     const arriba = Math.max(0, caja.h - (filas * altoFila + (filas - 1) * 8));
     const salida: Tecla[] = [];
     if (modo === 'escala') {
@@ -133,6 +144,15 @@ export function Teclado({
   const defRef = useRef(def);
   atrilRef.current = atril;
   defRef.current = def;
+  // El pedal: lo que se suelta con él puesto se guarda aquí y se suelta al quitarlo.
+  const sostenerRef = useRef(sostener);
+  sostenerRef.current = sostener;
+  const pedalRef = useRef<((hora?: number) => void)[]>([]);
+  useEffect(() => {
+    if (sostener) return;
+    for (const soltar of pedalRef.current) soltar();
+    pedalRef.current = [];
+  }, [sostener]);
 
   useEffect(() => {
     const raiz = raizRef.current;
@@ -161,7 +181,8 @@ export function Teclado({
     const acabar = (pointerId: number, hora?: number) => {
       const dedo = dedos.get(pointerId);
       if (!dedo) return;
-      dedo.soltar(hora);
+      if (sostenerRef.current) pedalRef.current.push(dedo.soltar);
+      else dedo.soltar(hora);
       // Otra mano puede seguir en la misma tecla.
       if (![...dedos.values()].some((d) => d !== dedo && d.tecla === dedo.tecla)) delete dedo.tecla.dataset.on;
       dedos.delete(pointerId);
@@ -204,6 +225,8 @@ export function Teclado({
   const primera = teclas.length ? Math.min(...teclas.map((t) => t.nota)) : inicio;
   const ultima = teclas.length ? Math.max(...teclas.map((t) => t.nota)) : inicio;
   const nombre = (n: number) => `${NOTAS[((n % 12) + 12) % 12]}${Math.floor(n / 12) - 1}`;
+  // Con sitio (el PC), la barra dice las cosas enteras.
+  const amplia = caja.w >= 600;
   const puedeBajar = inicio - 12 >= def.rango[0] - 12;
   const puedeSubir = inicio + 12 <= def.rango[1];
   const siguienteTamano: Record<TamanoTeclas, TamanoTeclas> = { pequeno: 'mediano', mediano: 'grande', grande: 'pequeno' };
@@ -225,20 +248,76 @@ export function Teclado({
           aria-live="polite"
           style={{ fontFamily: T.fontBody, fontVariantNumeric: 'tabular-nums', fontSize: 13, fontWeight: 500, color: T.dim, minWidth: 76, textAlign: 'center' }}
         >
-          {nombre(primera)} a {nombre(ultima)}
+          {amplia ? (
+            <>
+              <span style={{ color: T.faint }}>Octava </span>
+              <span style={{ color: T.text, fontWeight: 650 }}>{nombre(primera)}</span>
+            </>
+          ) : (
+            `${nombre(primera)} a ${nombre(ultima)}`
+          )}
         </span>
         <BotonBarra titulo="Más agudo" onClick={() => puedeSubir && setInicio((i) => i + 12)} desactivado={!puedeSubir}>
           <IconChevronRight size={14} color={T.text} />
         </BotonBarra>
         <span style={{ flex: 1 }} />
-        {onModo ? (
+        {onSostener ? (
           <BotonBarra
-            titulo={modo === 'escala' ? 'Enseñar todas las notas' : 'Solo las notas de la escala'}
+            titulo={sostener ? 'Pedal puesto: lo que sueltas sigue sonando. Quitarlo' : 'Pedal: que lo que sueltes siga sonando'}
             ancho
-            onClick={() => onModo(modo === 'escala' ? 'cromatico' : 'escala')}
+            activo={sostener}
+            onClick={() => onSostener(!sostener)}
           >
-            {modo === 'escala' ? 'Escala' : 'Todas'}
+            Pedal
           </BotonBarra>
+        ) : null}
+        {onModo ? (
+          amplia ? (
+            // Las dos opciones a la vista: «Escala» a secas no decía qué hacía.
+            <div role="radiogroup" aria-label="Qué teclas" style={{ display: 'flex', gap: 2, padding: 2, borderRadius: 12, background: T.fill }}>
+              {(
+                [
+                  ['escala', 'En escala'],
+                  ['cromatico', 'Todas'],
+                ] as const
+              ).map(([valor, texto]) => (
+                <button
+                  key={valor}
+                  type="button"
+                  role="radio"
+                  aria-checked={modo === valor}
+                  className="daw-press"
+                  onClick={() => {
+                    haptic(8);
+                    onModo(valor);
+                  }}
+                  style={{
+                    height: 32,
+                    padding: '0 12px',
+                    border: 'none',
+                    borderRadius: 10,
+                    background: modo === valor ? T.surface : 'transparent',
+                    boxShadow: modo === valor ? T.elev1 : 'none',
+                    color: modo === valor ? T.text : T.dim,
+                    fontFamily: T.fontBody,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {texto}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <BotonBarra
+              titulo={modo === 'escala' ? 'Enseñar todas las notas' : 'Solo las notas de la escala'}
+              ancho
+              onClick={() => onModo(modo === 'escala' ? 'cromatico' : 'escala')}
+            >
+              {modo === 'escala' ? 'Escala' : 'Todas'}
+            </BotonBarra>
+          )
         ) : null}
         <BotonBarra titulo={`Teclas ${nombreTamano[tamano].toLowerCase()}. Cambiar tamaño`} ancho onClick={() => onTamano(siguienteTamano[tamano])}>
           {nombreTamano[tamano]}
@@ -315,7 +394,7 @@ export function Teclado({
                   pointerEvents: 'none',
                 }}
               >
-                {NOTAS[((tecla.nota % 12) + 12) % 12]}
+                {tecla.w >= 44 ? nombre(tecla.nota) : NOTAS[((tecla.nota % 12) + 12) % 12]}
               </span>
             ) : null}
           </button>
