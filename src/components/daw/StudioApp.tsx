@@ -31,11 +31,11 @@ import { Mezclador } from './mezclador/Mezclador';
 // Menús: la cabecera con Archivo, Editar… (o el menú del nombre en el móvil),
 // los atajos de teclado y la pantalla «Tus ideas».
 import { useArchivo, type AccionesDePantalla } from '@/hooks/useArchivo';
+import { useAtajos } from '@/hooks/useAtajos';
 import { CabeceraEstudio, DialogosDeArchivo } from './menus/CabeceraEstudio';
 import { useMenus } from './menus/menus';
 import { MENU_CSS } from './menus/PanelDeMenu';
 import { TusIdeas, type AccesoRapido } from './inicio/TusIdeas';
-import { useAtajos } from '@/hooks/useAtajos';
 
 /**
  * Cómo se nombra el ciclo en la cabecera, en lo que ocupa una firma de compás.
