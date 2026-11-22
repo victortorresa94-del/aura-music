@@ -441,3 +441,53 @@ ha quedado bien».
 bucle no se note con el proyecto lleno (el motor reprograma 200 ms antes del
 final; un bloqueo más largo del hilo principal en ese momento la retrasaría)
 y que el pulgar llega bien a «Quitar» mientras toca.
+
+## 0022 · Percusión de verdad en los ritmos, la claqueta y los kits (22-nov-2026)
+
+El dueño: «hay sonidos que suenan súper mal, por ejemplo el bolero suena
+hiper digital, 0 real, y muchas percusiones en general».
+- **Lo que sonaba a síntesis, y desde dónde.** Todo salía de `playVoice` en
+  `rhythm/kit.ts` (ruido filtrado y senos):
+  - los nueve ritmos de la hoja «Ritmos» (`engine.setGroove`);
+  - los sonidos de la claqueta (bombo, bombo y caja, shaker, palmas, baqueta),
+    sus cinco ritmos de fondo y su ejemplo al elegirla;
+  - los ritmos convertidos en pista (`renderGroove`, desde el estudio y desde
+    el músico);
+  - en «Tocar», 10 de los 16 pads del cajón (bongós, congas, clave, shaker,
+    pandereta, güiro, nudillos, cencerro) y 4 de la latina (bombo, aro, palmas
+    y un platillo que era el de la 909).
+- **Ahora suena grabado, con lo que ya teníamos.** `instrumentos/percusion.ts`
+  da a cada voz su muestra CC0 de los paquetes de siempre: batería de la Big
+  Rusty Drums (Karoryfer), cajón de la VCSL, palmas y pitos de D. Smolken,
+  bongós, congas, güiro, clave, shaker, pandereta y cencerro de la VCSL, y
+  timbales de Virtuosity Drums. No ha hecho falta bajar nada nuevo. La capa
+  sale de la fuerza y los golpes se alternan (round robin).
+- **El motor no cambia.** `playVoice` toca la muestra si la hay y está en
+  memoria, y si no, la síntesis (ahora `sintetizarVoz`). Así `engine.ts` y
+  la lógica de la claqueta quedan como estaban; solo cambia el sonido.
+- **La 808 y la 909 siguen siendo síntesis**, también su cencerro y su
+  clave: solo suenan cuando se eligen. El tic-tac del metrónomo tampoco
+  cambia. Sin red la primera vez, una voz sin muestra usa la síntesis de
+  reserva.
+- **Mismo volumen que antes.** Medido en el navegador: los nueve ritmos quedan
+  a ±2 dB de su versión sintetizada (las bulerías solo de palmas, +9,5 dB,
+  porque antes casi no se oían). Las capas suaves se compensan con su nivel
+  medido. Si no, un ritmo tocado suave contaba la fuerza dos veces (capa
+  más floja y además ganancia más baja) y el bolero salía 7,5 dB por debajo.
+  La capa da el color; la fuerza, el volumen.
+- **Respira y no es una máquina.** La fuerza de los ritmos varía a los dos
+  lados y con poco (±7 % con la mano a la mitad), y los loops de la
+  biblioteca entran con `humanizar` al 30 % (unos ±3,6 ms y ±4 de fuerza,
+  ruido rosa; los golpes simultáneos se mueven juntos), salvo los de la 808
+  y la 909, que van clavados. Los platillos suenan enteros: nada los corta
+  salvo el final del clip, y el charles abierto lo cierra el cerrado, como el
+  pie.
+- **Carga:** tras el primer toque, y con el navegador desocupado, se bajan
+  las 14 voces de los ritmos y la claqueta (68 ficheros, 478 KB; luego salen
+  de Cache Storage). Los platillos, toms y timbales que completan un kit
+  se piden al abrir ese kit, y un render a pista espera a sus muestras antes
+  de programar.
+**Pendiente:** oírlo en el iPhone. La claqueta en «palmas» o «shaker» sale
+de 6 a 14 dB más fuerte que con la síntesis, que era muy floja; si molesta,
+se baja con el volumen de la claqueta. La VCSL no trae slap de conga: el
+tumbao del bolero usa el golpe apagado del quinto.

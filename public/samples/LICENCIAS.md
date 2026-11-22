@@ -382,3 +382,7 @@ Los ficheros se llaman con el número MIDI de la nota que suena.
 | Órgano de tubos «Loud» y «Quiet» de la VCSL (CC0) | La licencia vale. El volumen sube y baja mientras suena y los dos micrófonos casi no se parecen (correlación cercana a 0). Se usó el órgano renacentista. |
 | Drawbar Organ Emulation de FreePats (CC0) | La licencia vale. Es un órgano tipo Hammond grabado del sintetizador setBfree; se prefirió un órgano de tubos grabado, porque el eléctrico se puede sintetizar. |
 | Church Organ Emulation de FreePats (CC0) | La licencia vale. Grabado del emulador Aeolus, una muestra cada 6 semitonos y desafinado unos 10 cents. |
+
+## Dónde suenan también
+
+Desde el 22 de noviembre de 2026, las muestras de `bateria-acustica`, `cajon` y `percusion-latina` suenan también fuera de «Tocar»: en los ritmos de la hoja «Ritmos», en la claqueta y sus ritmos de fondo, en los ritmos convertidos en pista y en las piezas que le faltan a un kit (`src/lib/instrumentos/percusion.ts`). Son los mismos ficheros y las mismas licencias: no hay muestras nuevas.

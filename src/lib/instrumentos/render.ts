@@ -10,6 +10,7 @@
  */
 
 import { cargarPaquete, muestrasListas } from './muestras';
+import { prepararPercusion } from './percusion';
 import { getPaquete } from './packs';
 import { getInstrumento, type DefInstrumento } from './registro';
 import type { Golpe, InstrumentoId } from './tipos';
@@ -65,6 +66,14 @@ export async function renderizarNotas(o: {
     } catch {
       muestras = null;
     }
+  }
+
+  // Las piezas que el kit toma de otros paquetes, decodificadas antes de
+  // programar: en un render no hay segunda oportunidad.
+  if (def.pads && def.paquete) {
+    const propias = new Set(getPaquete(def.paquete)?.archivos.map((a) => a.midi));
+    const usadas = new Set(o.golpes.map((g) => g.nota));
+    await prepararPercusion(def.pads.filter((p) => usadas.has(p.nota) && !propias.has(p.nota)).map((p) => p.voz));
   }
 
   const salida = offline.createGain();
