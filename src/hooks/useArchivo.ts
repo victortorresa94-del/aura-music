@@ -261,7 +261,7 @@ export function useArchivo(studio: Studio, pantalla: AccionesDePantalla) {
   ejecutarRef.current = ejecutar;
   useEffect(() => {
     const alPulsar = (event: KeyboardEvent) => {
-      if (event.repeat || escribiendo(event.target as HTMLElement | null)) return;
+      if (event.defaultPrevented || event.repeat || escribiendo(event.target as HTMLElement | null)) return;
       const id = comandoDeTecla(event, mac.current);
       if (!id) return;
       event.preventDefault();

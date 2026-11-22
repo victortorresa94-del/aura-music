@@ -31,6 +31,7 @@ import { Mezclador } from './mezclador/Mezclador';
 // Menús: la cabecera con Archivo, Editar… (o el menú del nombre en el móvil),
 // los atajos de teclado y la pantalla «Tus ideas».
 import { useArchivo, type AccionesDePantalla } from '@/hooks/useArchivo';
+import { useAtajos } from '@/hooks/useAtajos';
 import { CabeceraEstudio, DialogosDeArchivo } from './menus/CabeceraEstudio';
 import { useMenus } from './menus/menus';
 import { MENU_CSS } from './menus/PanelDeMenu';
@@ -145,6 +146,17 @@ export default function StudioApp() {
     [engine, ponerTema],
   );
   const archivo = useArchivo(studio, pantalla);
+
+  /* Los atajos de teclado de toda la vida (Espacio, R, Supr, Ctrl+C/V…), en
+     `useAtajos`. Con «Tocar» abierto el teclado toca notas; con una hoja o
+     el mezclador encima, solo el transporte. Los de Archivo (Ctrl+N, Ctrl+S…)
+     los lleva `useArchivo`: el primero que atiende una tecla la marca y el
+     otro la deja pasar. */
+  useAtajos(studio, {
+    activo: !tocar,
+    soloTransporte: sheet !== null || mezclador,
+    pulsosPorCompas: ciclo?.pulsos ?? 4,
+  });
   const menus = useMenus(studio, archivo, theme.mode);
 
   /** Desde «Tus ideas»: una idea nueva y, si se ha pedido, un instrumento, la voz o los loops. */
