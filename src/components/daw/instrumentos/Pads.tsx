@@ -6,6 +6,21 @@ import type { DefInstrumento } from '@/lib/instrumentos/registro';
 import { T } from '../theme';
 
 /**
+ * Un tinte suave por familia de golpe, para encontrar cada cosa sin leer:
+ * parches (bombo, caja, aro, palmas) en terracota, toms en arena, metales en
+ * piedra y mano en madera. Mezclado con la superficie, sirve en claro y en
+ * oscuro. Ni rojo ni salvia: en esta casa el rojo es grabar y el salvia, la
+ * máquina o lo que suena.
+ */
+const TINTES = { parche: '#C98A6B', tom: '#C9AE7C', metal: '#8E9AA3', mano: '#B08A63' } as const;
+function tinteDe(nota: number): keyof typeof TINTES {
+  if (nota >= 35 && nota <= 40) return 'parche';
+  if ([41, 43, 45, 47, 48, 50].includes(nota)) return 'tom';
+  if ([42, 44, 46, 49, 51, 52, 53, 55, 57, 59].includes(nota)) return 'metal';
+  return 'mano';
+}
+
+/**
  * Los pads de batería: 4 × 4, de 64 px como mínimo.
  *
  * Suenan en el `pointerdown` desde escuchas nativas: nada de esto pasa por el
@@ -17,7 +32,16 @@ import { T } from '../theme';
  * borde, más suave. Así un redoble con dos dedos tiene matices sin pedirle a
  * la pantalla una presión que el iPhone no da.
  */
-export function Pads({ atril, def }: { atril: Atril | null; def: DefInstrumento }) {
+export function Pads({
+  atril,
+  def,
+  teclas,
+}: {
+  atril: Atril | null;
+  def: DefInstrumento;
+  /** La tecla del ordenador de cada pad (por su sitio en la rejilla), para escribirla en la esquina. */
+  teclas?: (string | null)[];
+}) {
   const raizRef = useRef<HTMLDivElement | null>(null);
   const atrilRef = useRef(atril);
   const defRef = useRef(def);
@@ -95,7 +119,7 @@ export function Pads({ atril, def }: { atril: Atril | null; def: DefInstrumento 
         gridTemplateRows: 'repeat(4, minmax(64px, 1fr))',
         gap: 8,
         width: '100%',
-        maxWidth: 560,
+        maxWidth: 620,
         height: '100%',
         maxHeight: 640,
         margin: '0 auto',
@@ -103,23 +127,26 @@ export function Pads({ atril, def }: { atril: Atril | null; def: DefInstrumento 
     >
       {pads.map((pad, i) => {
         // La fila de abajo (bombo, aro, caja, palmas) es la que más se toca:
-        // un punto más de peso para que el pulgar la encuentre sin mirar.
+        // un punto más de tinte para que el pulgar la encuentre sin mirar.
         const principal = i >= 12;
+        const tinte = TINTES[tinteDe(pad.nota)];
+        const tecla = teclas?.[i] ?? null;
         return (
           <button
             key={pad.nota}
             type="button"
             data-nota={pad.nota}
             className="tocar-pad"
-            aria-label={pad.nombre}
+            aria-label={tecla ? `${pad.nombre}, tecla ${tecla}` : pad.nombre}
             style={{
               position: 'relative',
               minWidth: 64,
               minHeight: 64,
               border: 'none',
-              borderRadius: 14,
-              background: principal ? T.fillStrong : T.fill,
-              boxShadow: `inset 0 1px 0 ${T.rim}, inset 0 0 0 1px ${T.border}`,
+              borderRadius: 16,
+              background: `color-mix(in srgb, ${tinte} ${principal ? 22 : 14}%, ${T.surface})`,
+              // Plano, con su canto de luz arriba y la sombra de la casa: un pad se aprieta, no se ve hundido.
+              boxShadow: `inset 0 1px 0 ${T.rim}, inset 0 0 0 1px color-mix(in srgb, ${tinte} 30%, transparent), ${T.elev1}`,
               color: T.text,
               padding: 0,
               cursor: 'pointer',
@@ -128,21 +155,47 @@ export function Pads({ atril, def }: { atril: Atril | null; def: DefInstrumento 
             <span
               style={{
                 position: 'absolute',
-                left: 9,
-                bottom: 8,
-                right: 6,
+                left: 10,
+                top: 9,
+                right: 8,
                 textAlign: 'left',
                 fontFamily: T.fontBody,
-                fontSize: 12,
+                fontSize: 12.5,
                 fontWeight: 600,
                 letterSpacing: '-0.01em',
                 lineHeight: 1.15,
-                color: principal ? T.text : T.dim,
+                color: T.text,
                 pointerEvents: 'none',
               }}
             >
               {pad.nombre}
             </span>
+            {tecla ? (
+              <span
+                aria-hidden
+                className="tocar-tecla-pc"
+                style={{
+                  position: 'absolute',
+                  right: 8,
+                  bottom: 7,
+                  minWidth: 20,
+                  height: 20,
+                  padding: '0 5px',
+                  display: 'grid',
+                  placeItems: 'center',
+                  borderRadius: 6,
+                  background: `color-mix(in srgb, ${T.surface} 70%, transparent)`,
+                  boxShadow: `inset 0 0 0 1px ${T.border}`,
+                  fontFamily: T.fontMono,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: T.dim,
+                  pointerEvents: 'none',
+                }}
+              >
+                {tecla}
+              </span>
+            ) : null}
           </button>
         );
       })}

@@ -30,6 +30,8 @@ import {
 import { golpesParaPista, type Loop, type NivelLoop } from '@/lib/instrumentos/loops';
 import { getInstrumento } from '@/lib/instrumentos/registro';
 import { programarPrecarga } from '@/lib/instrumentos/percusion';
+import { leerSonido, mezclaDeSonido } from '@/lib/instrumentos/sonido';
+import { masterDe } from '@/lib/daw/mezcla/tipos';
 import { renderizarNotas } from '@/lib/instrumentos/render';
 import { AJUSTES_SIN_TOCAR, type AjustesGroove, type InstrumentoId, type PistaDeNotas } from '@/lib/instrumentos/tipos';
 import { leerToqueMs } from '@/lib/instrumentos/toque';
@@ -136,6 +138,12 @@ export function useInstrumentos(studio: Studio, pulsosPorCompas: number) {
   // en cuanto se toque la app: así el primer compás ya suena grabado.
   useEffect(() => programarPrecarga(), []);
 
+  // La reverb del panel «Sonido» suena en la misma sala que el mezclador.
+  const master = masterDe(project);
+  useEffect(() => {
+    atril?.ponerSala(master.espacio, master.tamano);
+  }, [atril, master.espacio, master.tamano]);
+
   // Con el transporte sonando, cada golpe sabe dónde cae en la línea de tiempo.
   useEffect(() => {
     if (!atril || !engine) return;
@@ -177,13 +185,16 @@ export function useInstrumentos(studio: Studio, pulsosPorCompas: number) {
       const duracion = o.clip.pulsos * pulso;
       const minimo = Math.ceil(duracion * render.sampleRate);
       const samples = render.samples.length >= minimo ? render.samples : alargar(render.samples, minimo);
+      // Sale con lo del panel «Sonido» de ese instrumento: su volumen y, en
+      // su mezcla, la reverb y el brillo (lo mismo que sonaba al tocar).
+      const sonido = leerSonido(o.instrumento);
       const track: Track | null = studioRef.current.addGeneratedTrack({
         name: o.nombre ?? def.nombre,
         samples,
         sampleRate: render.sampleRate,
         start: o.clip.inicio,
         repeats: Math.max(1, o.repeticiones ?? 1),
-        volume: 0.9,
+        volume: sonido.volumen,
       });
       if (!track) return null;
       const notas: PistaDeNotas = {
@@ -199,7 +210,7 @@ export function useInstrumentos(studio: Studio, pulsosPorCompas: number) {
       // en compases enteros para que se repita sin costuras.
       studioRef.current.updateTrack(
         track.id,
-        { ia: !!o.ia, notas, clip: { ...track.clip, duration: duracion } },
+        { ia: !!o.ia, notas, clip: { ...track.clip, duration: duracion }, ...(mezclaDeSonido(sonido) ? { mezcla: mezclaDeSonido(sonido)! } : {}) },
         { history: false },
       );
       return track.id;

@@ -12,7 +12,11 @@
 import type { EventoTocado } from './grabacion';
 import { cargarPaquete, muestrasListas, type Progreso } from './muestras';
 import { getPaquete, type PaqueteId } from './packs';
+import { BANDAS, gananciaDeEnvio } from '@/lib/daw/mezcla/efectos';
+import { RETORNO_DB, respuestaGuardada } from '@/lib/daw/mezcla/sala';
+import type { Espacio } from '@/lib/daw/mezcla/tipos';
 import { prepararPercusion } from './percusion';
+import { leerSonido, sonidoDe, type AjustesSonido } from './sonido';
 import { getInstrumento, type DefInstrumento } from './registro';
 import type { NotaRasgueada, PasoAuto } from './acordes';
 import { instanteDelToque } from './toque';
@@ -32,6 +36,15 @@ export class Atril {
   private enfriar = new Map<InstrumentoId, () => void>();
   private toma: EventoTocado[] | null = null;
   private auto: AutoAcordes | null = null;
+  /**
+   * Lo del panel «Sonido», por instrumento: volumen, agudos y envío a la
+   * reverb, montados como los monta el mezclador en una pista. Así suena
+   * igual al tocar que la pista que sale al grabar.
+   */
+  private cadenas = new Map<InstrumentoId, { entrada: GainNode; agudos: BiquadFilterNode; envio: GainNode }>();
+  private ajustesSonido = new Map<InstrumentoId, AjustesSonido>();
+  private sala: { entrada: GainNode; clave: string } | null = null;
+  private salaDeseada: { espacio: Espacio; tamano: number } = { espacio: 'sala', tamano: 0.5 };
 
   /** Todo lo tocado desde la última toma grabada (o recuperada). */
   captura: EventoTocado[] = [];
@@ -75,16 +88,87 @@ export class Atril {
       limitador.connect(ctx.destination);
       this.ctx = ctx;
       this.bus = bus;
+      this.cadenas.clear();
+      this.sala = null;
     }
     return { ctx, bus: this.bus };
   }
 
-  private voz(id: InstrumentoId): Voz {
+  /** La sala de la reverb: la misma que tiene el master del proyecto. */
+  private entradaDeSala(ctx: AudioContext, bus: GainNode): GainNode {
+    const { espacio, tamano } = this.salaDeseada;
+    const clave = `${espacio}:${Math.round(tamano * 50)}`;
+    if (this.sala?.clave === clave) return this.sala.entrada;
+    const entrada = this.sala?.entrada ?? ctx.createGain();
+    const canales = respuestaGuardada(espacio, tamano, ctx.sampleRate);
+    const buffer = ctx.createBuffer(2, canales[0].length, ctx.sampleRate);
+    buffer.copyToChannel(canales[0], 0);
+    buffer.copyToChannel(canales[1], 1);
+    const convolver = ctx.createConvolver();
+    convolver.normalize = true;
+    convolver.buffer = buffer;
+    const retorno = ctx.createGain();
+    retorno.gain.value = 10 ** (RETORNO_DB[espacio] / 20);
+    try {
+      entrada.disconnect();
+    } catch {
+      /* era nueva */
+    }
+    entrada.connect(convolver);
+    convolver.connect(retorno);
+    retorno.connect(bus);
+    this.sala = { entrada, clave };
+    return entrada;
+  }
+
+  /** El sitio de la reverb del proyecto (el del master del mezclador). */
+  ponerSala(espacio: Espacio, tamano: number) {
+    this.salaDeseada = { espacio, tamano };
+    if (this.sala && this.ctx && this.bus) this.entradaDeSala(this.ctx, this.bus);
+  }
+
+  /** La cadena de un instrumento: volumen → agudos → bus, y de ahí el envío a la sala. */
+  private cadena(id: InstrumentoId) {
     const { ctx, bus } = this.asegurar();
+    const existente = this.cadenas.get(id);
+    if (existente) return existente;
+    const a = this.ajustesSonido.get(id) ?? leerSonido(id);
+    this.ajustesSonido.set(id, a);
+    const entrada = ctx.createGain();
+    entrada.gain.value = a.volumen;
+    const agudos = ctx.createBiquadFilter();
+    agudos.type = 'highshelf';
+    agudos.frequency.value = BANDAS.agudos.frecuencia;
+    agudos.gain.value = a.brillo;
+    const envio = ctx.createGain();
+    envio.gain.value = gananciaDeEnvio(a.reverb);
+    entrada.connect(agudos);
+    agudos.connect(bus);
+    agudos.connect(envio);
+    envio.connect(this.entradaDeSala(ctx, bus));
+    const cadena = { entrada, agudos, envio };
+    this.cadenas.set(id, cadena);
+    return cadena;
+  }
+
+  /** Lo que se mueve en el panel «Sonido», al momento y sin clics. */
+  ajustarSonido(id: InstrumentoId, ajustes: AjustesSonido) {
+    const a = sonidoDe(ajustes);
+    this.ajustesSonido.set(id, a);
+    const cadena = this.cadenas.get(id);
+    if (!cadena || !this.ctx) return;
+    const ahora = this.ctx.currentTime;
+    cadena.entrada.gain.setTargetAtTime(a.volumen, ahora, 0.02);
+    cadena.agudos.gain.setTargetAtTime(a.brillo, ahora, 0.02);
+    cadena.envio.gain.setTargetAtTime(gananciaDeEnvio(a.reverb), ahora, 0.02);
+  }
+
+  private voz(id: InstrumentoId): Voz {
+    const { ctx } = this.asegurar();
     const existente = this.voces.get(id);
     if (existente) return existente;
     const def = getInstrumento(id);
-    const voz = crearVoz(def, ctx, bus, muestrasListas(def.paquete));
+    const voz = crearVoz(def, ctx, this.cadena(id).entrada, muestrasListas(def.paquete));
     this.voces.set(id, voz);
     if (!voz.conMuestras) this.cargarMuestras(def);
     return voz;
@@ -313,6 +397,8 @@ export class Atril {
     this.enfriar.clear();
     for (const voz of this.voces.values()) voz.dispose();
     this.voces.clear();
+    this.cadenas.clear();
+    this.sala = null;
     try {
       this.bus?.disconnect();
     } catch {

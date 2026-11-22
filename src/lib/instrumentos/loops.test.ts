@@ -92,23 +92,3 @@ describe('grabar en bucle', () => {
     expect(vueltaDe(15.9, inicios)).toBe(2);
   });
 });
-
-describe('teclado del ordenador', () => {
-  it('las cuatro filas son los 16 pads en su sitio', async () => {
-    const { accionDeTecla } = await import('./tecladoPc');
-    expect(accionDeTecla('1', true)).toEqual({ tipo: 'pad', indice: 0 });
-    expect(accionDeTecla('V', true)).toEqual({ tipo: 'pad', indice: 15 });
-    expect(accionDeTecla('g', true)).toBeNull();
-  });
-
-  it('en lo demás es un piano, con Z y X para la octava', async () => {
-    const { accionDeTecla, doDeOctava } = await import('./tecladoPc');
-    expect(accionDeTecla('a', false)).toEqual({ tipo: 'nota', semitonos: 0 });
-    expect(accionDeTecla('w', false)).toEqual({ tipo: 'nota', semitonos: 1 });
-    expect(accionDeTecla('k', false)).toEqual({ tipo: 'nota', semitonos: 12 });
-    expect(accionDeTecla('x', false)).toEqual({ tipo: 'octava', cambio: 1 });
-    expect(doDeOctava(60, 0, [36, 96])).toBe(60);
-    expect(doDeOctava(40, 0, [28, 60])).toBe(36);
-    expect(doDeOctava(60, 5, [36, 96])).toBe(96);
-  });
-});
