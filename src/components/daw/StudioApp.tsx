@@ -23,6 +23,7 @@ import { Transport } from './Transport';
 import { IconButton, IconChevronDown, IconClose, IconSpark, IconUndo, label, numeric } from './ui';
 // Mezcla (pilar A)
 import { useMezcla } from '@/hooks/useMezcla';
+import { useAtajos } from '@/hooks/useAtajos';
 import { useClaqueta } from '@/hooks/useClaqueta';
 import { Mezclador } from './mezclador/Mezclador';
 import { IconoMezclador } from './mezclador/icono';
@@ -99,23 +100,14 @@ export default function StudioApp() {
     };
   }, [engine]);
 
-  /* Ctrl/Cmd+Z. Antes solo existía como botón: quien viene de cualquier otro
-     editor prueba el atajo de teclado sin mirar, y no pasaba nada. Se ignora
-     si el foco está en un campo de texto (renombrar la idea, por ejemplo):
-     ahí Ctrl+Z tiene que deshacer lo que se está escribiendo, no la última
-     acción del proyecto. */
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key.toLowerCase() !== 'z' || (!event.metaKey && !event.ctrlKey)) return;
-      const target = event.target as HTMLElement | null;
-      const tag = target?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || target?.isContentEditable) return;
-      event.preventDefault();
-      undo();
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [undo]);
+  /* Los atajos de teclado de toda la vida (Espacio, R, Supr, Ctrl+Z…), en
+     `useAtajos`. Con «Tocar» abierto el teclado toca notas; con una hoja o
+     el mezclador encima, solo Espacio, Deshacer y Rehacer. */
+  const atajos = useAtajos(studio, {
+    activo: !tocar,
+    soloTransporte: sheet !== null || mezclador,
+    pulsosPorCompas: ciclo?.pulsos ?? 4,
+  });
 
   /* Atajo del icono de la app: abrir grabando. Se marca la intro como vista
      antes de arrancar, porque si no salía encima de una grabación que ya iba
