@@ -17,6 +17,7 @@ import {
   Lightning,
   MusicNotesSimple,
   PianoKeys,
+  Repeat,
   WaveSawtooth,
   WaveSine,
   WaveSquare,
@@ -209,10 +210,12 @@ export function IconoInstrumento({ icono, size = 24, color = 'currentColor', wei
   }
 }
 
-/** Los iconos de las cuatro familias de la pantalla «Tocar». */
-export type IconoFamilia = 'pads' | 'teclado' | 'acordes' | 'bajo';
+/** Los iconos de las familias de la pantalla «Tocar» (las cuatro que tocas y los loops). */
+export type IconoFamilia = 'pads' | 'teclado' | 'acordes' | 'bajo' | 'loops';
 
 export function IconoDeFamilia({ familia, size = 26, color = 'currentColor', weight = 'duotone' }: { familia: IconoFamilia; size?: number; color?: string; weight?: PesoIcono }) {
+  // Los loops no son un instrumento: llevan la flecha que vuelve, la de repetir.
+  if (familia === 'loops') return <Repeat size={size} color={color} weight={weight} aria-hidden />;
   const icono: Id = familia === 'pads' ? 'bateria' : familia === 'teclado' ? 'piano' : familia === 'acordes' ? 'guitarra' : 'bajo';
   return <IconoInstrumento icono={icono} size={size} color={color} weight={weight} />;
 }

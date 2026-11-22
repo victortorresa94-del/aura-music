@@ -390,3 +390,54 @@ cuando haya muestras grabadas con licencia.
 **Descartado:** reutilizar el ritmo de la hoja de Ritmos como fondo. Ese va
 por la mezcla y es material musical; el de la claqueta es una señal de
 servicio con su volumen.
+
+
+## 0021 · Loops al tempo de la canción: biblioteca, grabar en bucle y «¿Ha quedado bien?» (22-nov-2026)
+
+El dueño: «quiero poder crear loops al BPM ya configurado en la canción muy
+fácilmente, seleccionando loops de bombos o cogiendo esos sonidos y
+grabándolos, pero que luego se sincronicen al BPM o me den la opción si no
+ha quedado bien».
+- **Los loops son notas, no audio.** Cada patrón es una lista de golpes en
+  pulsos sobre un kit o un bajo de los que ya hay, así que suena siempre a tu
+  tempo y en tu compás, se oye igual en el WAV y si cambias el BPM se rehace
+  solo, como cualquier pista de notas. Nada que estirar ni que licenciar.
+- **Biblioteca en una quinta baldosa, «Loops»**, al lado de Batería, Teclado,
+  Acordes y Bajo. Batería (rock, funk, reguetón, lo-fi con swing, disco,
+  balada con ride, trap en la 808, rock con entrada de toms), bajo (raíz a
+  corcheas, raíz y quinta, octavas, dembow en 808, tumbao en contrabajo, 808
+  largo; en la tónica de tu idea) y percusión (shaker, pandereta, congas,
+  clave de son). Los ritmos de `rhythm/grooves` (bulerías, soleá, rumba,
+  tangos, bolero, bossa, pop, balada 6/8) entran convertidos desde la misma
+  fuente, sin copiarlos: flamenco en el cajón y latino en la percusión.
+- **Pocos toques:** ▶ lo escucha al momento (pegado a la rejilla si la canción
+  suena), «Bombo / Con caja / Todo» quita piezas en la batería, «2, 4 u 8
+  compases» y «Poner», que lo mete en verde en el compás del cursor. Se avisa
+  si el tempo no le va («Pensado para 85 a 110 BPM»), pero no se impide.
+- **Grabar un loop tú:** la herramienta «Loop» de arriba cambia entre no, 1,
+  2 y 4 compases (se recuerda). Grabando así, el transporte da la vuelta a
+  esos compases como una groovebox: lo de las vueltas anteriores suena solo
+  mientras tocas la siguiente, la etiqueta dice «Vuelta 3» y «Escuchar» pasa
+  a ser «Quitar», que borra la última vuelta con algo. El motor solo gana un
+  modo bucle pequeño y comentado (`opciones.bucle` y `onVuelta`), con el
+  mismo cambio de ancla que ya usaba `resync`.
+- **Que cuadre al tempo, y que puedas decir que no.** Al parar, el loop se
+  pliega en sus compases, se cuadra al 70 % (la fuerza y el swing de siempre)
+  y se repite hasta llenar unos ocho compases. Sale «¿Ha quedado bien?» con
+  «Dejar como lo toqué», «Cuadrar más» (al 100 %) y «Deshacer». Una toma
+  normal sale tal cual, con «Cuadrar». Cuadrar se calcula siempre desde lo
+  que tocaste, que se guarda en la pista: nunca se pierde. La tarjeta va en
+  el flujo, sobre el instrumento y sin taparlo.
+- **También con el teclado del ordenador y con MIDI.** `useTecladoPC` toca lo
+  abierto por `atril.tocar`, igual que el dedo y que `useTecladoMidi`: los
+  pads en 1234 / QWER / ASDF / ZXCV en su sitio de la pantalla, el teclado
+  como un piano en la fila de en medio, Z y X para la octava, Intro graba y
+  Espacio escucha. Explicado en «Ajustes del toque». Arreglada de paso la
+  fuerza del MIDI, que llegaba de 0 a 1 en vez de 1 a 127.
+- **El bucle que suena mientras grabas** (`ReproductorDeBucle`) programa
+  120 ms por delante cada 25 ms; si el temporizador se duerme, salta lo
+  atrasado en vez de tocarlo todo junto. Tiene test con reloj falso.
+**Pendiente:** no se ha oído en un iPhone. Falta comprobar que la vuelta del
+bucle no se note con el proyecto lleno (el motor reprograma 200 ms antes del
+final; un bloqueo más largo del hilo principal en ese momento la retrasaría)
+y que el pulgar llega bien a «Quitar» mientras toca.

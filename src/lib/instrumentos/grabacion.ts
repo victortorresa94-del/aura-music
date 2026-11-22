@@ -111,3 +111,41 @@ export function porInstrumento(eventos: EventoTocado[], posiciones: number[]) {
   });
   return grupos;
 }
+
+/**
+ * Lo grabado en modo loop: el transporte da vueltas sobre los mismos
+ * compases, así que cada golpe se pliega dentro del bucle (lo tocado justo
+ * antes de que empiece una vuelta es el final de la anterior). El clip
+ * empieza en el bucle y dura exactamente lo que el bucle.
+ */
+export function colocarEnBucle(
+  eventos: EventoTocado[],
+  posiciones: number[],
+  o: { bpm: number; desde: number; largo: number },
+): ClipDeNotas | null {
+  if (eventos.length === 0 || !(o.largo > 0)) return null;
+  const pulso = 60 / o.bpm;
+  const pulsos = Math.round(o.largo / pulso);
+  const golpes: Golpe[] = eventos
+    .map((evento, i) => {
+      const dentro = (((posiciones[i] - o.desde) % o.largo) + o.largo) % o.largo;
+      return {
+        beat: Math.min(pulsos - 1e-6, dentro / pulso),
+        dur: Math.max(DUR_MINIMA, (evento.dur ?? DUR_MINIMA * pulso) / pulso),
+        nota: evento.nota,
+        vel: Math.max(1, Math.min(127, Math.round(evento.vel))),
+      };
+    })
+    .sort((a, b) => a.beat - b.beat || a.nota - b.nota);
+  return { inicio: o.desde, golpes, pulsos };
+}
+
+/**
+ * La vuelta en la que cayó cada golpe, según los instantes en que empezó cada
+ * vuelta: para poder quitar la última sin tocar las demás.
+ */
+export function vueltaDe(t: number, iniciosDeVuelta: number[]): number {
+  let vuelta = 0;
+  for (let i = 1; i < iniciosDeVuelta.length; i++) if (t >= iniciosDeVuelta[i]) vuelta = i;
+  return vuelta;
+}

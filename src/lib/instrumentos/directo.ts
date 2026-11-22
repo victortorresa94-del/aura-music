@@ -15,7 +15,7 @@ import { getPaquete, type PaqueteId } from './packs';
 import { getInstrumento, type DefInstrumento } from './registro';
 import type { NotaRasgueada, PasoAuto } from './acordes';
 import { instanteDelToque } from './toque';
-import type { InstrumentoId } from './tipos';
+import type { Golpe, InstrumentoId } from './tipos';
 import { crearVoz, precalentar, timbreDeBuffer, type Voz } from './voz';
 
 export type EstadoCarga = Progreso | 'lista' | 'error';
@@ -220,6 +220,19 @@ export class Atril {
     return toma;
   }
 
+  /** Lo tocado en la toma en curso (para el modo loop: oír las vueltas anteriores). */
+  get eventosDeLaToma(): readonly EventoTocado[] {
+    return this.toma ?? [];
+  }
+
+  /** Quita de la toma en curso lo que cumpla `quitar` (deshacer la última vuelta). */
+  quitarDeLaToma(quitar: (evento: EventoTocado) => boolean): number {
+    if (!this.toma) return 0;
+    const antes = this.toma.length;
+    this.toma = this.toma.filter((e) => !quitar(e));
+    return antes - this.toma.length;
+  }
+
   get grabando(): boolean {
     return this.toma !== null;
   }
@@ -274,6 +287,17 @@ export class Atril {
       voz.tocar(n.nota, n.vel, cuando + n.desfase, dur);
       this.apuntar(id, n.nota, n.vel, cuando + n.desfase).dur = dur ?? 0.5;
     }
+  }
+
+  /** Suena sin apuntarse en ningún sitio: escuchar un loop, oír las vueltas de antes. */
+  reproducir(id: InstrumentoId, nota: number, vel: number, cuando: number, dur?: number) {
+    const voz = this.voz(id);
+    voz.tocar(nota, vel, cuando, voz.def.sostiene ? dur : undefined);
+  }
+
+  /** Prepara el contexto y devuelve el reloj de audio (para quien programe cosas). */
+  contexto(): AudioContext {
+    return this.asegurar().ctx;
   }
 
   dispose() {
@@ -354,6 +378,65 @@ class AutoAcordes {
         // traen la duración de cada nota.
         this.atril.programar(this.id, this.notas(paso), cuando, dur, this.esGuitarra);
       }
+    }
+    this.hasta = horizonte;
+  }
+
+  parar() {
+    window.clearInterval(this.timer);
+  }
+}
+
+/**
+ * Un patrón que da vueltas: suena sus notas una y otra vez siguiendo una
+ * fase (en qué pulso del bucle estamos en cada instante del reloj). Sirve
+ * para escuchar un loop antes de ponerlo (fase desde ya, a tu tempo) y para
+ * oír las vueltas ya grabadas mientras grabas la siguiente (fase del
+ * transporte en modo loop). Mira cada 25 ms y programa 120 ms por delante:
+ * pararlo deja como mucho eso sonando.
+ */
+export class ReproductorDeBucle {
+  private timer: number;
+  private hasta: number;
+
+  constructor(
+    private readonly atril: Atril,
+    private readonly ctx: AudioContext,
+    private readonly o: {
+      id: InstrumentoId;
+      /** Pulsos que dura el bucle. */
+      largo: number;
+      bpm: number;
+      /** En qué pulso del bucle se está en el instante `t` (puede salirse: se pliega). */
+      fase: (t: number) => number;
+      /**
+       * Las notas que tocan en el instante `t` (cambian al sumar o quitar
+       * vueltas). Cada una puede llevar su instrumento; si no, el de `id`.
+       */
+      golpes: (t: number) => readonly (Golpe & { instrumento?: InstrumentoId })[];
+    },
+  ) {
+    this.hasta = ctx.currentTime + 0.02;
+    this.timer = window.setInterval(() => this.programar(), 25);
+    this.programar();
+  }
+
+  private programar() {
+    const { largo, bpm, fase, golpes, id } = this.o;
+    const pulso = 60 / bpm;
+    const ahora = this.ctx.currentTime;
+    // Si el temporizador llega tarde (pestaña en segundo plano, un render
+    // largo), lo que ya pasó se salta: tocarlo ahora amontonaría los golpes.
+    if (this.hasta < ahora) this.hasta = ahora;
+    const horizonte = ahora + 0.12;
+    if (horizonte <= this.hasta) return;
+    const pliega = (b: number) => ((b % largo) + largo) % largo;
+    const f0 = pliega(fase(this.hasta));
+    const tramo = (horizonte - this.hasta) / pulso;
+    for (const g of golpes(this.hasta)) {
+      const delante = pliega(g.beat - f0);
+      if (delante >= tramo) continue;
+      this.atril.reproducir(g.instrumento ?? id, g.nota, g.vel, this.hasta + delante * pulso, g.dur * pulso);
     }
     this.hasta = horizonte;
   }

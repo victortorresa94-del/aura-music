@@ -78,6 +78,12 @@ export interface OpcionesReproduccion {
   claquetaPulsos?: number;
   /** No parar al llegar al final del proyecto: se está tocando algo nuevo. */
   sinFin?: boolean;
+  /**
+   * Dar vueltas sobre un trozo (segundos de la línea de tiempo), como una
+   * groovebox: al llegar a `fin` vuelve a `inicio` sin cortar. Para grabar un
+   * loop sumando una capa en cada vuelta.
+   */
+  bucle?: { inicio: number; fin: number };
 }
 
 export class StudioEngine {
@@ -135,6 +141,13 @@ export class StudioEngine {
   private stopping: Promise<void> | null = null;
   /** Pilar B: grabando notas, el transporte no se para solo al final del proyecto. */
   private sinFin = false;
+  /** Pilar B: el trozo sobre el que da vueltas el transporte (modo loop), o null. */
+  private bucle: { inicio: number; fin: number } | null = null;
+  /** La vuelta ya programada: desde `tiempo` del reloj, la posición vuelve a `posicion`. */
+  private anclaSiguiente: { tiempo: number; posicion: number } | null = null;
+  private bucleTimer: number | null = null;
+  /** Pilar B: avisa cuando empieza una vuelta nueva del bucle (instante del reloj). */
+  onVuelta: ((cuando: number) => void) | null = null;
 
   onTick: ((info: TickInfo) => void) | null = null;
   onLevel: ((level: number) => void) | null = null;
@@ -338,6 +351,7 @@ export class StudioEngine {
 
   get position(): number {
     if (!this.ctx || this.state === 'stopped') return this.idlePosition;
+    this.pasarDeVuelta();
     const elapsed = this.ctx.currentTime - this.anchorTime;
     if (elapsed < 0) return this.anchorPosition; // claqueta en curso
     return this.anchorPosition + elapsed;
@@ -358,7 +372,68 @@ export class StudioEngine {
    * arranque). Es lo que coloca cada nota tocada en la pantalla en su sitio.
    */
   posicionEn(tiempoContexto: number): number {
+    this.pasarDeVuelta();
+    // En modo loop, lo que cae después de la vuelta ya programada va con ella.
+    const sig = this.anclaSiguiente;
+    if (sig && tiempoContexto >= sig.tiempo) return sig.posicion + (tiempoContexto - sig.tiempo);
     return this.anchorPosition + (tiempoContexto - this.anchorTime);
+  }
+
+  /** Pilar B: si ya ha llegado la vuelta programada, el ancla pasa a ella. */
+  private pasarDeVuelta() {
+    const sig = this.anclaSiguiente;
+    if (!sig || !this.ctx || this.ctx.currentTime < sig.tiempo) return;
+    this.anchorTime = sig.tiempo;
+    this.anchorPosition = sig.posicion;
+    this.anclaSiguiente = null;
+    if (this.grooveOrigin) {
+      this.grooveOrigin = { ctxTime: sig.tiempo, position: sig.posicion };
+      this.grooveNextPos = sig.posicion;
+    }
+  }
+
+  /**
+   * Pilar B: el modo loop. Cada 25 ms mira si se acerca el final del trozo;
+   * cuando falta poco, programa la vuelta exacta: lo que suena del proyecto
+   * vuelve a empezar en `inicio` en el instante justo del final, y lo viejo
+   * se para ahí mismo (como en `resync`). La claqueta no se toca: si el trozo
+   * son compases enteros, sigue cuadrando sola.
+   */
+  private empezarBucle() {
+    if (this.bucleTimer != null) window.clearInterval(this.bucleTimer);
+    const mirar = () => {
+      const ctx = this.ctx;
+      const bucle = this.bucle;
+      if (!ctx || !bucle || this.state !== 'playing' || !this.project) return;
+      this.pasarDeVuelta();
+      if (this.anclaSiguiente) return;
+      const finEn = this.anchorTime + (bucle.fin - this.anchorPosition);
+      if (ctx.currentTime + 0.2 < finEn) return;
+      const corte = finEn - (this.mezcla?.latencia ?? 0);
+      const viejas = this.sources;
+      this.sources = [];
+      this.scheduleProject(this.project, bucle.inicio, finEn);
+      for (const source of viejas) {
+        try {
+          source.onended = null;
+          source.stop(Math.max(ctx.currentTime, corte));
+        } catch {
+          /* ya parado */
+        }
+      }
+      window.setTimeout(() => {
+        for (const node of viejas) {
+          try {
+            node.disconnect();
+          } catch {
+            /* ya desconectado */
+          }
+        }
+      }, (finEn - ctx.currentTime + 0.3) * 1000);
+      this.anclaSiguiente = { tiempo: finEn, posicion: bucle.inicio };
+      this.onVuelta?.(finEn);
+    };
+    this.bucleTimer = window.setInterval(mirar, 25);
   }
 
   /** Segundos que faltan para que termine la claqueta. */
@@ -395,10 +470,14 @@ export class StudioEngine {
     const claquetaPulsos = Math.max(0, Math.round(opciones.claquetaPulsos ?? 0));
     const claqueta = claquetaPulsos * (60 / project.bpm);
     if (claquetaPulsos > 0) this.scheduleCountIn(project.bpm, ctx.currentTime + LEAD_TIME, claquetaPulsos, this.pulsosCompas);
-    this.sinFin = !!opciones.sinFin;
+    this.sinFin = !!opciones.sinFin || !!opciones.bucle;
     const t0 = ctx.currentTime + LEAD_TIME + claqueta;
     this.anchorTime = t0;
     this.anchorPosition = start;
+    // Pilar B: modo loop (ver `empezarBucle`).
+    this.anclaSiguiente = null;
+    this.bucle = opciones.bucle && opciones.bucle.fin > opciones.bucle.inicio ? opciones.bucle : null;
+    if (this.bucle) this.empezarBucle();
     this.setTempo(project.bpm);
     this.scheduleProject(project, start, t0);
     this.clickEnabled = settings.metronome;
@@ -490,6 +569,11 @@ export class StudioEngine {
     this.silenceGroove();
     this.stopClock();
     this.sinFin = false;
+    // Pilar B: fuera el modo loop.
+    if (this.bucleTimer != null) window.clearInterval(this.bucleTimer);
+    this.bucleTimer = null;
+    this.bucle = null;
+    this.anclaSiguiente = null;
 
     if (wasRecording && this.recorder && ctx) {
       // La cola de la interpretación todavía está viajando por el sistema:
