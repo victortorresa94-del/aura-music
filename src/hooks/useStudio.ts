@@ -87,6 +87,8 @@ export function useStudio() {
   const futureRef = useRef<Project[]>([]);
   /** Lo que dice la cabecera: si lo último ya está en disco. */
   const [guardado, setGuardado] = useState<'guardado' | 'guardando' | 'error'>('guardado');
+  /** Menús: cuándo llegó a disco lo último, para «Guardado hace 3 s». */
+  const [guardadoEn, setGuardadoEn] = useState(() => Date.now());
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
   const saveTimerRef = useRef<number | null>(null);
 
@@ -104,7 +106,10 @@ export function useStudio() {
       saveTimerRef.current = null;
       store.saveProject(next).then(
         // Si mientras tanto ha entrado otro cambio, sigue «Guardando…».
-        () => setGuardado(saveTimerRef.current ? 'guardando' : 'guardado'),
+        () => {
+          setGuardado(saveTimerRef.current ? 'guardando' : 'guardado');
+          setGuardadoEn(Date.now());
+        },
         () => setGuardado('error'),
       );
       store.rememberLastProject(next.id);
@@ -121,6 +126,7 @@ export function useStudio() {
     try {
       await store.saveProject(next);
       setGuardado('guardado');
+      setGuardadoEn(Date.now());
     } catch (error) {
       setGuardado('error');
       throw error;
@@ -1209,6 +1215,7 @@ export function useStudio() {
     hayRehacer,
     /** «Guardado», «Guardando…» o un fallo: lo enseña la cabecera. */
     guardado,
+    guardadoEn,
     guardar,
     guardarCopia,
     /** Un audio nuevo al motor, con su onda (cuadrar al tempo). */
