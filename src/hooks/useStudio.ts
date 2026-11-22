@@ -84,6 +84,10 @@ export function useStudio() {
   const projectRef = useRef(project);
   const settingsRef = useRef(settings);
   const historyRef = useRef<Project[]>([]);
+  /** Lo deshecho, para rehacerlo (Ctrl+Shift+Z). Se vacía en cuanto cambias algo. */
+  const futureRef = useRef<Project[]>([]);
+  /** Lo que dice la cabecera: si lo último ya está en disco. */
+  const [guardado, setGuardado] = useState<'guardado' | 'guardando' | 'error'>('guardado');
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
   const saveTimerRef = useRef<number | null>(null);
 
@@ -96,8 +100,14 @@ export function useStudio() {
 
   const queueSave = useCallback((next: Project) => {
     if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
+    setGuardado('guardando');
     saveTimerRef.current = window.setTimeout(() => {
-      void store.saveProject(next);
+      saveTimerRef.current = null;
+      store.saveProject(next).then(
+        // Si mientras tanto ha entrado otro cambio, sigue «Guardando…».
+        () => setGuardado(saveTimerRef.current ? 'guardando' : 'guardado'),
+        () => setGuardado('error'),
+      );
       store.rememberLastProject(next.id);
     }, 600);
   }, []);
@@ -108,7 +118,14 @@ export function useStudio() {
       window.clearTimeout(saveTimerRef.current);
       saveTimerRef.current = null;
     }
-    await store.saveProject(next);
+    setGuardado('guardando');
+    try {
+      await store.saveProject(next);
+      setGuardado('guardado');
+    } catch (error) {
+      setGuardado('error');
+      throw error;
+    }
     store.rememberLastProject(next.id);
   }, []);
 
@@ -158,6 +175,7 @@ export function useStudio() {
       grupoRef.current = options.grupo ? { clave: options.grupo, hora: ahora } : null;
       if (options.history !== false && !mismoGesto) {
         historyRef.current = [...historyRef.current.slice(-29), current];
+        futureRef.current = [];
       }
       const next = { ...updater(current), updatedAt: Date.now() };
       projectRef.current = next;
@@ -174,11 +192,31 @@ export function useStudio() {
       return;
     }
     grupoRef.current = null;
+    futureRef.current = [...futureRef.current.slice(-29), projectRef.current];
     projectRef.current = previous;
     setProjectState(previous);
     queueSave(previous);
     setStatus('Deshecho');
   }, [queueSave]);
+
+  /** Lo contrario de deshacer: vuelve lo que acabas de deshacer. */
+  const redo = useCallback(() => {
+    const siguiente = futureRef.current.pop();
+    if (!siguiente) {
+      setStatus('No hay nada que rehacer');
+      return;
+    }
+    grupoRef.current = null;
+    historyRef.current = [...historyRef.current.slice(-29), projectRef.current];
+    projectRef.current = siguiente;
+    setProjectState(siguiente);
+    queueSave(siguiente);
+    setStatus('Rehecho');
+  }, [queueSave]);
+
+  /** Para pintar Deshacer y Rehacer apagados cuando no hay nada (se mira al abrir el menú). */
+  const hayDeshacer = useCallback(() => historyRef.current.length > 0, []);
+  const hayRehacer = useCallback(() => futureRef.current.length > 0, []);
 
   /* ---------------------------------------------------------------- */
   /* Carga inicial                                                     */
@@ -943,6 +981,7 @@ export function useStudio() {
     await engine?.stop();
     const next = createProject();
     historyRef.current = [];
+    futureRef.current = [];
     projectRef.current = next;
     setProjectState(next);
     setSelectedTrackId(null);
@@ -956,6 +995,7 @@ export function useStudio() {
       const loaded = await store.loadProject(id);
       if (!loaded) return;
       historyRef.current = [];
+      futureRef.current = [];
       projectRef.current = loaded;
       setProjectState(loaded);
       setSelectedTrackId(null);
@@ -981,6 +1021,51 @@ export function useStudio() {
     (name: string) => commit((current) => ({ ...current, name }), { history: false }),
     [commit],
   );
+
+  /**
+   * «Guardar»: se guarda solo, pero quien viene de cualquier editor pulsa
+   * Ctrl+S sin pensar y tiene que ver que ha pasado algo.
+   */
+  const guardar = useCallback(async () => {
+    try {
+      await saveNow(projectRef.current);
+      setStatus('Guardado en este móvil');
+    } catch {
+      setStatus('No he podido guardar. Puede que no quede espacio en el móvil.');
+    }
+  }, [saveNow]);
+
+  /**
+   * «Guardar una copia»: la idea tal como está, con otro nombre, y te quedas
+   * en la copia (como «Guardar como» en cualquier programa). Las dos
+   * comparten el audio grabado: no se duplica nada en disco, y borrar una
+   * no le quita el audio a la otra (ver `deleteProject`).
+   */
+  const guardarCopia = useCallback(async () => {
+    await engine?.stop();
+    const original = projectRef.current;
+    const ahora = Date.now();
+    const copia: Project = {
+      ...original,
+      id: newId('prj'),
+      name: `${original.name} (copia)`.slice(0, 60),
+      createdAt: ahora,
+      updatedAt: ahora,
+    };
+    try {
+      await saveNow(original);
+      await store.saveProject(copia);
+    } catch {
+      setStatus('No he podido hacer la copia. La idea sigue igual.');
+      return;
+    }
+    historyRef.current = [];
+    futureRef.current = [];
+    projectRef.current = copia;
+    setProjectState(copia);
+    store.rememberLastProject(copia.id);
+    setStatus(`Estás en la copia. «${original.name}» sigue como estaba.`);
+  }, [engine, saveNow]);
 
   const setBpm = useCallback(
     (bpm: number) => {
@@ -1130,6 +1215,13 @@ export function useStudio() {
     undo,
     /** Cambiar el proyecto con historial (y `grupo` para juntar un arrastre). Lo usan el mezclador y el productor. */
     commit,
+    redo,
+    hayDeshacer,
+    hayRehacer,
+    /** «Guardado», «Guardando…» o un fallo: lo enseña la cabecera. */
+    guardado,
+    guardar,
+    guardarCopia,
     /** Un audio nuevo al motor, con su onda (cuadrar al tempo). */
     ponerAudio,
     // proyecto

@@ -3,14 +3,18 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { PeakData, Track } from '@/lib/daw/types';
 import type { Studio } from '@/hooks/useStudio';
+import type { Mezcla } from '@/hooks/useMezcla';
 import { cssColor, haptic, trackTint } from './theme';
-import { IconImport, IconMore, T, hintText, numeric } from './ui';
+import { IconImport, T, hintText, numeric } from './ui';
+import { CabeceraPista, botonPlano, headerCell, nombreVisible } from './cabecera/CabeceraPista';
+import { ESTILO_MANDOS } from './cabecera/ControlesPista';
 import { IconTocar, NotasClip } from './instrumentos';
 import { Repeat } from '@phosphor-icons/react';
 
 /** Ancho de la columna de pistas en el móvil. En pantallas anchas crece. */
 export const HEADER_W = 128;
-const HEADER_W_WIDE = 208;
+/* Cabe el nombre, M, S, el volumen y el panorama sin apretar. */
+const HEADER_W_WIDE = 252;
 const ROW_H = 80;
 const RULER_H = 30;
 /** Margen del clip dentro de su calle, arriba y abajo. */
@@ -21,11 +25,6 @@ const CAPTION_H = 18;
 const CANVAS_CHUNK = 1600;
 const PPS_MIN = 6;
 const PPS_MAX = 240;
-
-/** Una pista generada lleva el «IA» en la insignia: no hace falta repetirlo en el nombre. */
-function nombreVisible(track: Track): string {
-  return track.ia ? track.name.replace(/\s*·\s*IA$/i, '') : track.name;
-}
 
 /* -------------------------------------------------------------------------- */
 /* Forma de onda                                                               */
@@ -679,16 +678,6 @@ function Ruler({
 /* Línea de tiempo                                                             */
 /* -------------------------------------------------------------------------- */
 
-const headerCell = (width: number): React.CSSProperties => ({
-  position: 'sticky',
-  left: 0,
-  zIndex: 5,
-  width,
-  flexShrink: 0,
-  display: 'flex',
-  flexDirection: 'column',
-  boxShadow: `inset -1px 0 0 ${T.border}`,
-});
 
 export function Timeline({
   studio,
@@ -699,8 +688,11 @@ export function Timeline({
   beatsPerBar = 4,
   onTocar,
   onLoops,
+  mezcla,
 }: {
   studio: Studio;
+  /** El mezclador: el volumen y el panorama de la cabecera se guardan como los suyos. */
+  mezcla?: Mezcla;
   pps: number;
   theme: string;
   onOpenTrack: () => void;
@@ -722,8 +714,6 @@ export function Timeline({
     setSelectedTrackId,
     getPeaks,
     updateClip,
-    toggleMute,
-    toggleSolo,
     seek,
   } = studio;
 
@@ -873,6 +863,7 @@ export function Timeline({
           flexDirection: 'column',
         }}
       >
+        <style>{ESTILO_MANDOS}</style>
         {/* Regla */}
         <div
           style={{
@@ -920,97 +911,18 @@ export function Timeline({
                 boxShadow: `inset 0 -1px 0 ${T.rowLine}`,
               }}
             >
-              <div
-                style={{
-                  ...headerCell(headerW),
-                  background: selected ? T.raised : T.surface,
-                  padding: '6px 4px 6px 10px',
-                  transition: `background-color 160ms ${T.easeOut}`,
-                }}
-                onClick={() => setSelectedTrackId(track.id)}
-                onContextMenu={(event) => {
-                  event.preventDefault();
-                  openOptions();
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 7, height: 32, minWidth: 0 }}>
-                  {track.ia ? (
-                    <span
-                      title="La ha tocado la máquina"
-                      style={{
-                        flexShrink: 0,
-                        padding: '2px 4px',
-                        borderRadius: 4,
-                        background: T.aiSoft,
-                        color: T.ai,
-                        fontFamily: T.fontBody,
-                        fontSize: 10,
-                        fontWeight: 700,
-                        letterSpacing: '0.03em',
-                        lineHeight: 1,
-                      }}
-                    >
-                      IA
-                    </span>
-                  ) : (
-                    <span
-                      aria-hidden
-                      style={{ width: 10, height: 10, borderRadius: 3, background: tint, flexShrink: 0 }}
-                    />
-                  )}
-                  <span
-                    style={{
-                      flex: 1,
-                      minWidth: 0,
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                      fontFamily: T.fontBody,
-                      fontSize: 13,
-                      fontWeight: selected ? 600 : 500,
-                      letterSpacing: '-0.01em',
-                      color: callada ? T.dim : T.text,
-                    }}
-                    title={track.name}
-                  >
-                    {nombreVisible(track)}
-                  </span>
-                </div>
-                <div style={{ display: 'flex', gap: 4, alignItems: 'center', flex: 1 }}>
-                  <Pill active={track.muted} onClick={() => toggleMute(track.id)} title={`Silenciar ${track.name}`}>
-                    M
-                  </Pill>
-                  <Pill active={track.soloed} onClick={() => toggleSolo(track.id)} title={`Solo ${track.name}`}>
-                    S
-                  </Pill>
-                  {/* La única puerta a renombrar, colorear, duplicar o borrar
-                      una pista no puede depender de que alguien adivine que el
-                      nombre es un botón. Aquí está, a la vista, en todas. */}
-                  <button
-                    type="button"
-                    className="daw-press daw-hover"
-                    title={`Opciones de ${track.name}`}
-                    aria-label={`Opciones de ${track.name}`}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      haptic(8);
-                      openOptions();
-                    }}
-                    style={{
-                      ...botonPlano,
-                      width: 34,
-                      height: 36,
-                      marginLeft: 'auto',
-                      borderRadius: 8,
-                      display: 'grid',
-                      placeItems: 'center',
-                      flexShrink: 0,
-                    }}
-                  >
-                    <IconMore size={18} color={T.dim} />
-                  </button>
-                </div>
-              </div>
+              <CabeceraPista
+                track={track}
+                tint={tint}
+                headerW={headerW}
+                wide={headerW > HEADER_W}
+                selected={selected}
+                callada={callada}
+                studio={studio}
+                mezcla={mezcla}
+                onSelect={() => setSelectedTrackId(track.id)}
+                onOptions={openOptions}
+              />
 
               <div
                 onPointerDown={() => setSelectedTrackId(track.id)}
@@ -1018,6 +930,7 @@ export function Timeline({
                   position: 'relative',
                   width: laneWidth,
                   flexShrink: 0,
+                  // Elegida, la calle entera un punto más opaca.
                   backgroundColor: selected ? T.fill : 'transparent',
                   ...laneStyle,
                 }}
@@ -1074,17 +987,6 @@ export function Timeline({
   );
 }
 
-const botonPlano: React.CSSProperties = {
-  border: 'none',
-  margin: 0,
-  padding: 0,
-  background: 'transparent',
-  color: 'inherit',
-  font: 'inherit',
-  cursor: 'pointer',
-  touchAction: 'manipulation',
-  WebkitTapHighlightColor: 'transparent',
-};
 
 /**
  * Añadir una pista que no viene del micro. Va al final de la columna de
@@ -1242,67 +1144,6 @@ function ImportButton({
         {text}
       </button>
     </>
-  );
-}
-
-/**
- * Mute y solo. Apagado: relleno tenue y letra gris. Encendido: invertido,
- * claro sobre oscuro (u oscuro sobre claro), que se distingue a un metro sin
- * necesitar un color más. La zona que se toca es la fila entera, más alta que
- * la píldora que se ve.
- */
-function Pill({
-  children,
-  active,
-  onClick,
-  title,
-}: {
-  children: React.ReactNode;
-  active: boolean;
-  onClick: () => void;
-  title: string;
-}) {
-  return (
-    <button
-      type="button"
-      title={title}
-      aria-label={title}
-      aria-pressed={active}
-      className="daw-press"
-      onClick={(event) => {
-        event.stopPropagation();
-        haptic(8);
-        onClick();
-      }}
-      style={{
-        ...botonPlano,
-        flex: 1,
-        maxWidth: 40,
-        height: 36,
-        display: 'grid',
-        placeItems: 'center',
-      }}
-    >
-      <span
-        style={{
-          width: '100%',
-          height: 26,
-          display: 'grid',
-          placeItems: 'center',
-          borderRadius: 7,
-          background: active ? T.text : T.fill,
-          boxShadow: active ? 'none' : `inset 0 1px 0 ${T.rim}`,
-          color: active ? T.inverse : T.dim,
-          fontFamily: T.fontBody,
-          fontSize: 12,
-          fontWeight: 700,
-          letterSpacing: '0.02em',
-          transition: `background-color 140ms ${T.easeOut}, color 140ms ${T.easeOut}`,
-        }}
-      >
-        {children}
-      </span>
-    </button>
   );
 }
 
