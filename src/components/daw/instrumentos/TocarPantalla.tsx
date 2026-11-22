@@ -114,6 +114,7 @@ export function TocarPantalla({
   abierta,
   onCerrar,
   tonalidadSugerida,
+  enLoops: abrirEnLoops = false,
 }: {
   studio: Studio;
   instrumentos: Instrumentos;
@@ -121,6 +122,8 @@ export function TocarPantalla({
   onCerrar: () => void;
   /** La tonalidad que ha oído la app en tus tomas, si la hay. */
   tonalidadSugerida: Tonalidad | null;
+  /** Abrir directamente en «Loops» (desde «Poner un loop» del estudio vacío). */
+  enLoops?: boolean;
 }) {
   const { project, engine, settings, updateSettings } = studio;
   const { atril, estado, grabar, parar, escuchar, recuperar, hayCaptura, pulsosPorCompas, vuelta, deshacerVuelta, resultado } = instrumentos;
@@ -167,6 +170,10 @@ export function TocarPantalla({
   useEffect(() => {
     if (abierta) setMontada(true);
   }, [abierta]);
+
+  useEffect(() => {
+    if (abierta && abrirEnLoops) cambiar({ pestana: 'loops' });
+  }, [abierta, abrirEnLoops, cambiar]);
 
   // En «Loops» no hay instrumento a la vista: manda la última familia tocada.
   const enLoops = prefs.pestana === 'loops';
