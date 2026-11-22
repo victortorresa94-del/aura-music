@@ -18,7 +18,8 @@ const listos = new Map<PaqueteId, Map<string, AudioBuffer>>();
 
 export { nombreDeMuestra } from './preset';
 
-async function obtener(url: string): Promise<ArrayBuffer> {
+/** Los bytes de una muestra: de Cache Storage si está; si no, del servidor (y se guarda). */
+export async function obtenerMuestra(url: string): Promise<ArrayBuffer> {
   const conCache = typeof caches !== 'undefined';
   if (conCache) {
     try {
@@ -91,7 +92,7 @@ export function cargarPaquete(
     const cola = [...paquete.archivos];
     const trabajador = async () => {
       for (let archivo = cola.shift(); archivo; archivo = cola.shift()) {
-        const bytes = await obtener(urlDeMuestra(paquete, archivo));
+        const bytes = await obtenerMuestra(urlDeMuestra(paquete, archivo));
         const buffer = await ctx.decodeAudioData(bytes);
         mapa.set(nombreDeMuestra(archivo.nombre), recortarInicio(buffer, ctx));
         cargadas++;

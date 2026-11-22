@@ -3,8 +3,9 @@
  * nota y suena. Hay cuatro clases, con la misma cara:
  *
  * - batería: muestras de verdad (capas, golpes alternos, charles que se
- *   cierra) para lo que traiga el paquete, y los golpes sintetizados del kit
- *   (`rhythm/kit.ts`) para lo demás;
+ *   cierra) para lo que traiga el paquete; lo que le falte, con la muestra
+ *   de esa pieza en otro paquete (`percusion.ts`: al cajón, los bongós de la
+ *   latina). La 808 y la 909 son síntesis (`rhythm/kit.ts`), a propósito;
  * - muestras: smplr (MIT) con las muestras ya decodificadas (`muestras.ts`);
  * - osciladores: síntesis con nodos que sostiene mientras pisas
  *   (`osciladores.ts`): sub, 808, analógico, órgano, pad, sinte...;
@@ -16,7 +17,8 @@
  */
 
 import { Instrument, type NoteEvent, type Scheduler, type SmplrPreset, type StopFn } from 'smplr';
-import { playVoice } from '@/lib/daw/rhythm/kit';
+import { sintetizarVoz } from '@/lib/daw/rhythm/kit';
+import { tocarMuestra } from './percusion';
 import { esTimbreOscilador, tocarOscilador, type TimbreOscilador } from './osciladores';
 import { getPaquete, type Paquete } from './packs';
 import { notasConMuestra, presetDe } from './preset';
@@ -129,9 +131,10 @@ function vozMuestreada(
 /* -------------------------------------------------------------------------- */
 
 /**
- * Una batería: con muestras para las notas del paquete y síntesis para el
- * resto. Así un kit al que le falta, por ejemplo, el cencerro sigue teniendo
- * sus 16 pads sonando.
+ * Una batería: con muestras para las notas del paquete y, para el resto, la
+ * muestra de esa pieza en otro paquete. Así el cajón tiene bongós, congas y
+ * güiro de verdad aunque su paquete solo traiga el cajón y las palmas. Sin
+ * paquete (la 808 y la 909), todo es síntesis: es su sonido.
  */
 function vozDeBateria(
   def: DefInstrumento,
@@ -153,7 +156,11 @@ function vozDeBateria(
         return nada;
       }
       const pad = padDe(def, nota);
-      if (pad) playVoice(pad.voz, ctx, destino, cuando, gananciaDeFuerza(vel));
+      if (!pad) return nada;
+      // Con paquete, la pieza que falta se busca grabada; si aún no está (o es
+      // una caja de ritmos), se sintetiza.
+      if (paquete && tocarMuestra(pad.voz, ctx, destino, cuando, Math.max(1, Math.min(127, vel)) / 127)) return nada;
+      sintetizarVoz(pad.voz, ctx, destino, cuando, gananciaDeFuerza(vel));
       return nada;
     },
     ahogar() {

@@ -12,6 +12,7 @@
 import type { EventoTocado } from './grabacion';
 import { cargarPaquete, muestrasListas, type Progreso } from './muestras';
 import { getPaquete, type PaqueteId } from './packs';
+import { prepararPercusion } from './percusion';
 import { getInstrumento, type DefInstrumento } from './registro';
 import type { NotaRasgueada, PasoAuto } from './acordes';
 import { instanteDelToque } from './toque';
@@ -97,6 +98,12 @@ export class Atril {
   preparar(id: InstrumentoId) {
     const voz = this.voz(id);
     const def = voz.def;
+    // Un kit con muestras completa sus pads con piezas de otros paquetes
+    // (al cajón, los bongós de la latina): que estén antes del primer golpe.
+    if (def.pads && def.paquete) {
+      const propias = new Set(getPaquete(def.paquete)?.archivos.map((a) => a.midi));
+      void prepararPercusion(def.pads.filter((p) => !propias.has(p.nota)).map((p) => p.voz));
+    }
     const timbre = timbreDeBuffer(def);
     if (timbre && !voz.conMuestras && !this.enfriar.has(id) && this.ctx) {
       const notas: number[] = [];

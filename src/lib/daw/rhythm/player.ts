@@ -9,6 +9,7 @@
  */
 
 import { duracionPaso, getCompas, pasosPorCiclo } from './compases';
+import { prepararPercusion } from '@/lib/instrumentos/percusion';
 import { playVoice, type VoiceId } from './kit';
 import type { Groove } from './grooves';
 
@@ -77,7 +78,9 @@ export function golpesEntre(
       const posicion = base + hit.paso * paso + desvio;
       if (posicion < desde || posicion >= hasta) continue;
 
-      const variacion = 1 - opciones.humano * 0.25 * ruidoDeterminista(i, vuelta);
+      // La fuerza varía a los dos lados y con poco (±7 % con la mano a la
+      // mitad): con muestras y golpes alternos, más se oiría como un error.
+      const variacion = 1 + (ruidoDeterminista(i, vuelta) - 0.5) * 2 * opciones.humano * 0.14;
       salida.push({
         posicion,
         voz: hit.voz,
@@ -116,6 +119,9 @@ export async function renderGroove(
   const master = offline.createGain();
   master.gain.value = 1;
   master.connect(offline.destination);
+
+  // Las muestras de sus voces, antes de programar: un render no espera.
+  await prepararPercusion(groove.hits.map((hit) => hit.voz));
 
   for (const golpe of golpesEntre(groove, bpm, 0, duracion, opciones)) {
     playVoice(golpe.voz, offline, master, golpe.posicion, golpe.vel);

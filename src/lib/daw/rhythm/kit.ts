@@ -1,17 +1,18 @@
 /**
- * Percusión sintetizada.
+ * Las voces de percusión: qué golpes hay y cómo suenan.
  *
- * Nada de samples por ahora, y no es una decisión perezosa: la percusión de
- * mano se sintetiza sorprendentemente bien porque casi toda es ruido filtrado
- * más una resonancia corta. Una palma, una clave o un güiro son exactamente
- * eso. Y así el banco de ritmos pesa cero, funciona sin cobertura, no depende
- * de la licencia de nadie y suena idéntico en cualquier móvil.
+ * `playVoice` toca la MUESTRA grabada de cada voz (`instrumentos/percusion.ts`:
+ * Karoryfer, VCSL, Smolken, todo CC0). Lo de abajo, ruido filtrado y senos,
+ * queda para dos cosas: la 808 y la 909, que son síntesis a propósito, y de
+ * reserva si una muestra no se ha podido bajar (sin red la primera vez).
  *
- * Las congas y los bongós son lo que peor sale de aquí (una membrana tiene más
- * armónicos de los que compensa modelar). Cuando lleguen samples con licencia
- * clara, se sustituyen esas voces sin tocar ni un patrón: el motor de ritmos
- * habla de golpes, no de cómo suena cada golpe.
+ * Al principio todo era síntesis, para que el banco de ritmos pesara cero.
+ * El dueño lo oyó en el móvil (22-nov-2026): «el bolero suena hiper digital,
+ * 0 real». Los patrones no han cambiado: el motor de ritmos habla de golpes,
+ * no de cómo suena cada golpe.
  */
+
+import { tocarMuestra } from '@/lib/instrumentos/percusion';
 
 export type VoiceId =
   | 'cajon_grave'
@@ -29,6 +30,17 @@ export type VoiceId =
   | 'caja'
   | 'charles'
   | 'nudillos'
+  // Piezas de batería y latinas con muestra propia (la síntesis de reserva es la de la 909 o la 808).
+  | 'charles_pedal'
+  | 'charles_abierto'
+  | 'platillo'
+  | 'ride'
+  | 'tom_grave'
+  | 'tom_medio'
+  | 'tom_agudo'
+  | 'conga_grave'
+  | 'timbal_agudo'
+  | 'timbal_grave'
   // Pilar B: lo que hace falta para los pads (cajas de ritmos y cajón).
   | 'cajon_ghost'
   | 'chasquido'
@@ -74,6 +86,16 @@ export const VOICE_NAMES: Record<VoiceId, string> = {
   caja: 'Caja',
   charles: 'Charles',
   nudillos: 'Nudillos',
+  charles_pedal: 'Charles de pedal',
+  charles_abierto: 'Charles abierto',
+  platillo: 'Platillo',
+  ride: 'Ride',
+  tom_grave: 'Tom grave',
+  tom_medio: 'Tom medio',
+  tom_agudo: 'Tom agudo',
+  conga_grave: 'Conga grave',
+  timbal_agudo: 'Timbal agudo',
+  timbal_grave: 'Timbal grave',
   cajon_ghost: 'Cajón suave',
   chasquido: 'Pito',
   pandereta: 'Pandereta',
@@ -331,10 +353,46 @@ function tomAnalogico(g: Golpe, altura: number, cola: number) {
   ruido(g, { type: 'bandpass', freq: altura * 6, q: 1 }, 0.02, 0.12);
 }
 
+/**
+ * Un golpe: la muestra grabada si la voz la tiene y ya está en memoria; si
+ * no, su síntesis. Es lo que usan los ritmos, la claqueta y los kits con
+ * muestras de «Tocar».
+ */
 export function playVoice(voice: VoiceId, ctx: BaseAudioContext, dest: AudioNode, time: number, vel = 1) {
+  if (tocarMuestra(voice, ctx, dest, time, vel)) return;
+  sintetizarVoz(voice, ctx, dest, time, vel);
+}
+
+/**
+ * Un golpe sintetizado, siempre. Para la 808 y la 909 (que son esto) y como
+ * reserva de `playVoice`.
+ */
+export function sintetizarVoz(voice: VoiceId, ctx: BaseAudioContext, dest: AudioNode, time: number, vel = 1) {
   const g: Golpe = { ctx, dest, time, vel };
 
   switch (voice) {
+    /* ---- piezas con muestra: de reserva, la síntesis más parecida ---- */
+    case 'charles_pedal':
+      return sintetizarVoz('charles_pedal_909', ctx, dest, time, vel);
+    case 'charles_abierto':
+      return sintetizarVoz('charles_abierto_909', ctx, dest, time, vel);
+    case 'platillo':
+      return sintetizarVoz('platillo_909', ctx, dest, time, vel);
+    case 'ride':
+      return sintetizarVoz('ride_909', ctx, dest, time, vel);
+    case 'tom_grave':
+      return sintetizarVoz('tom_grave_909', ctx, dest, time, vel);
+    case 'tom_medio':
+      return sintetizarVoz('tom_medio_909', ctx, dest, time, vel);
+    case 'tom_agudo':
+      return sintetizarVoz('tom_agudo_909', ctx, dest, time, vel);
+    case 'conga_grave':
+      return sintetizarVoz('tom_grave_808', ctx, dest, time, vel);
+    case 'timbal_agudo':
+      return sintetizarVoz('conga_slap', ctx, dest, time, vel);
+    case 'timbal_grave':
+      return sintetizarVoz('tom_medio_808', ctx, dest, time, vel);
+
     /* ---- cajón y mano (pilar B) ---- */
     case 'cajon_ghost':
       // El golpe de relleno: la yema rozando la esquina, casi sin cuerpo.
