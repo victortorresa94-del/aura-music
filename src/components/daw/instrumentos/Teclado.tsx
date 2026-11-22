@@ -19,6 +19,9 @@ const ANCHO: Record<ModoTeclado, Record<TamanoTeclas, number>> = {
 
 const NEGRAS = new Set([1, 3, 6, 8, 10]);
 
+/** Alto máximo de cada fila de teclas, en px (en el móvil no se llega). */
+const ALTO_MAXIMO = 240;
+
 interface Tecla {
   nota: number;
   x: number;
@@ -76,7 +79,10 @@ export function Teclado({
 
   const teclas = useMemo<Tecla[]>(() => {
     const filas = 2;
-    const altoFila = (caja.h - 8) / filas;
+    // Con tope: en un PC alto, una tecla de medio metro no se toca mejor.
+    // Las filas se quedan abajo, donde está la mano.
+    const altoFila = Math.min(ALTO_MAXIMO, (caja.h - 8) / filas);
+    const arriba = Math.max(0, caja.h - (filas * altoFila + (filas - 1) * 8));
     const salida: Tecla[] = [];
     if (modo === 'escala') {
       const porFila = Math.max(4, Math.floor(caja.w / ANCHO.escala[tamano]));
@@ -87,7 +93,7 @@ export function Teclado({
         salida.push({
           nota,
           x: (i % porFila) * w,
-          y: (filas - 1 - fila) * (altoFila + 8),
+          y: arriba + (filas - 1 - fila) * (altoFila + 8),
           w,
           h: altoFila,
           negra: false,
@@ -103,7 +109,7 @@ export function Teclado({
     let nota = inicio;
     while (NEGRAS.has(((nota % 12) + 12) % 12)) nota--;
     for (let fila = 0; fila < filas; fila++) {
-      const y = (filas - 1 - fila) * (altoFila + 8);
+      const y = arriba + (filas - 1 - fila) * (altoFila + 8);
       for (let b = 0; b < blancasPorFila; b++) {
         salida.push({ nota, x: b * w, y, w, h: altoFila, negra: false, tonica: ((nota - tonalidad.tonica) % 12 + 12) % 12 === 0 });
         const siguiente = nota + 1;

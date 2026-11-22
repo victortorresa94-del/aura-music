@@ -842,7 +842,7 @@ export function Timeline({
     };
     // Safari de iOS manda además sus propios gestos: que no amplíen la página.
     const onGesture = (event: Event) => event.preventDefault();
-    // Las teclas + y − (y el menú Ver) llegan por `useAtajos` como evento.
+    // Las teclas + y − (y el menú Ver) llegan por `useEdicion` como evento.
     const onZoomTeclado = (event: Event) => {
       const factor = (event as CustomEvent<number>).detail;
       if (typeof factor === 'number' && factor > 0) zoomAround(zoomRef.current.pps * factor, null);
