@@ -10,6 +10,7 @@ import type { AjustesMaster, MezclaPista } from './mezcla/tipos';
 import type { PistaDeNotas } from '@/lib/instrumentos/tipos';
 import type { AjustesClaqueta } from './claqueta/claqueta';
 import type { CuadreDeToma } from './cuadrar/toma';
+import type { Ciclo, TomasDeBucle } from './bucle/bucle';
 
 export interface Clip {
   /** Clave del audio en el almacén (IndexedDB / mapa de buffers en memoria). */
@@ -57,6 +58,11 @@ export interface Track {
    * La original no se borra nunca (ver `src/lib/daw/cuadrar/toma.ts`).
    */
   cuadre?: CuadreDeToma;
+  /**
+   * Grabada con el ciclo puesto: cada vuelta es una toma del mismo audio y
+   * aquí se elige cuál suena (ver `src/lib/daw/bucle/bucle.ts`).
+   */
+  tomas?: TomasDeBucle;
 }
 
 export interface Project {
@@ -68,6 +74,8 @@ export interface Project {
   updatedAt: number;
   /** Reverb, eco, limitador y masterizado. Ausente en las ideas de antes: léelo con `masterDe`. */
   master?: AjustesMaster;
+  /** La zona que se repite al reproducir y al grabar, en pulsos. Ausente: sin ciclo. */
+  ciclo?: Ciclo;
 }
 
 /**

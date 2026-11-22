@@ -6,6 +6,8 @@ import type { Studio } from '@/hooks/useStudio';
 import { cssColor, haptic, trackTint } from './theme';
 import { IconImport, IconMore, T, hintText, numeric } from './ui';
 import { IconTocar, NotasClip } from './instrumentos';
+// Grabar en bucle: el ciclo en la regla y en las pistas.
+import { BotonCiclo, useArrastreDeCiclo, ZonaEnPistas, ZonaEnRegla } from './bucle/Ciclo';
 import { Repeat } from '@phosphor-icons/react';
 
 /** Ancho de la columna de pistas en el móvil. En pantallas anchas crece. */
@@ -589,7 +591,17 @@ function Ruler({
   showHead,
   headRef,
   onSeek,
+  arrastre,
+  children,
 }: {
+  /** Grabar en bucle: arrastrar con el ratón marca el ciclo. */
+  arrastre?: {
+    onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void;
+    onPointerMove: (event: React.PointerEvent<HTMLDivElement>) => void;
+    onPointerUp: () => void;
+  };
+  /** Lo que se dibuja encima de la regla (la zona del ciclo). */
+  children?: React.ReactNode;
   showHead: boolean;
   width: number;
   pps: number;
@@ -622,7 +634,11 @@ function Ruler({
       onPointerDown={(event) => {
         const rect = event.currentTarget.getBoundingClientRect();
         onSeek(Math.max(0, (event.clientX - rect.left) / pps));
+        arrastre?.onPointerDown(event);
       }}
+      onPointerMove={arrastre?.onPointerMove}
+      onPointerUp={arrastre?.onPointerUp}
+      onPointerCancel={arrastre?.onPointerUp}
       style={{
         position: 'relative',
         width,
@@ -653,6 +669,7 @@ function Ruler({
           {i + 1}
         </span>
       ))}
+      {children}
       <div
         ref={headRef}
         aria-hidden
@@ -747,6 +764,8 @@ export function Timeline({
   const laneWidth = Math.max((duration + 12) * pps, viewport - headerW + 200, 600);
   const beatSeconds = 60 / project.bpm;
   const recording = transport === 'recording' || transport === 'countin';
+  // Grabar en bucle: arrastrar por la regla con el ratón marca el ciclo.
+  const arrastreDeCiclo = useArrastreDeCiclo(studio, pps, beatsPerBar);
   const haySolo = project.tracks.some((track) => track.soloed);
 
   const pauseFollow = () => {
@@ -885,8 +904,12 @@ export function Timeline({
             boxShadow: `inset 0 -1px 0 ${T.border}`,
           }}
         >
-          <div style={{ ...headerCell(headerW), zIndex: 7, height: RULER_H, background: T.surface }} />
+          <div style={{ ...headerCell(headerW), zIndex: 7, height: RULER_H, background: T.surface }}>
+            {/* Grabar en bucle: el ciclo es de la regla, así que su botón vive al lado. */}
+            <BotonCiclo studio={studio} pulsosPorCompas={beatsPerBar} />
+          </div>
           <Ruler
+            arrastre={arrastreDeCiclo}
             width={laneWidth}
             pps={pps}
             bpm={project.bpm}
@@ -895,8 +918,13 @@ export function Timeline({
             showHead={project.tracks.length > 0 || recording}
             headRef={headRef}
             onSeek={seek}
-          />
+          >
+            <ZonaEnRegla studio={studio} pps={pps} pulsosPorCompas={beatsPerBar} />
+          </Ruler>
         </div>
+
+        {/* Grabar en bucle: la zona del ciclo, sombreada debajo de los clips. */}
+        <ZonaEnPistas studio={studio} pps={pps} izquierda={headerW} arriba={RULER_H} />
 
         {/* Pistas */}
         {project.tracks.map((track, index) => {

@@ -5,6 +5,7 @@ import type { Studio } from '@/hooks/useStudio';
 import { AjustesDeNotas } from './instrumentos';
 import { SeccionClaqueta } from './claqueta/SeccionClaqueta';
 import { CuadrarToma } from './cuadrar/CuadrarToma';
+import { TomasDePista } from './bucle/TomasDePista';
 import { haptic, trackTint } from './theme';
 import {
   Field,
@@ -243,6 +244,9 @@ export function TrackSheet({
           style={inputStyle}
         />
       </Field>
+
+      {/* Grabar en bucle: si se grabó con el ciclo, elegir la toma que suena. */}
+      <TomasDePista studio={studio} track={selectedTrack} />
 
       {/* Pilar B: si se tocó en la pantalla, cuadrar, humanizar y cambiar el sonido. */}
       {selectedTrack.notas ? <AjustesDeNotas studio={studio} track={selectedTrack} /> : null}

@@ -441,3 +441,44 @@ ha quedado bien».
 bucle no se note con el proyecto lleno (el motor reprograma 200 ms antes del
 final; un bloqueo más largo del hilo principal en ese momento la retrasaría)
 y que el pulgar llega bien a «Quitar» mientras toca.
+
+## 0022 · Grabar en bucle en el estudio: el ciclo y una toma por vuelta (22-nov-2026)
+
+El dueño: «debería poder grabar encima de algo reproduciéndolo como un loop».
+Es el ciclo de cualquier DAW, para tomas de micro en el estudio principal.
+- **El ciclo se marca en la regla.** Un botón «Ciclo» en la esquina de la
+  regla abre una hoja con «Repetir 1, 2, 4 u 8 compases» desde el compás del
+  cursor, un interruptor para reproducir de largo sin perder la zona y
+  «Quitar el ciclo». Con ratón se marca arrastrando por la regla (con el dedo
+  ese gesto sigue desplazando la línea de tiempo, que es lo que se espera en
+  el móvil) y los dos bordes tienen asa: se arrastran con el dedo y saltan de
+  compás en compás. Se guarda en pulsos en `Project.ciclo`, así que aguanta
+  un cambio de tempo, y no entra en Deshacer, como en cualquier DAW.
+- **Se ve qué se repite y en qué vuelta vas.** La zona va en tinta en la
+  regla (bordes, asas y un sombreado que baja tenue por las pistas) con una
+  pastilla que dice «2 compases», «Vuelta 3» al reproducir o «Toma 3» al
+  grabar. Solo grabando se pone en rojo. La pastilla no se recorta: con un
+  compás a tempo vivo sale por encima de la regla. Se actualiza leyendo
+  `engine.vueltaDelBucle` con requestAnimationFrame, sin redibujar React.
+- **El motor es el de «Tocar».** Se reutiliza `opciones.bucle` (ahora también
+  da vueltas grabando y espera durante la cuenta) y `record` acepta la zona:
+  arranca en su principio, con la claqueta delante. Reproducir con el ciclo
+  empieza en el cursor si está dentro de la zona y si no en su principio; un
+  salto más allá del final sigue de largo.
+- **Una grabación continua, cortada en vueltas.** El micro graba sin cortes y
+  al parar la toma se parte: cada vuelta es una región del mismo audio (solo
+  cambia `clip.offset`), con la misma compensación de latencia en todas, así
+  que todas cuadran igual. Suena la última vuelta entera (se admite que le
+  falte un 10 %), porque es la que acabas de tocar y casi siempre la buena;
+  elegir «la mejor» a máquina no es fiable. Las demás quedan en la hoja de la
+  pista como «Toma 1, 2, 3…»: tocar una la pone a sonar sin parar. «Una pista
+  por toma» las saca a pistas propias para superponerlas, con Deshacer. Si no
+  llegaste a una vuelta entera, es una toma normal.
+- **Detalles que cuadran:** la latencia se aprende solo con la primera vuelta
+  (después la línea de tiempo ha vuelto atrás); el repaso al soltar da vueltas
+  sobre la zona con la toma que suena; cuadrar al tempo una pista con tomas
+  cuadra la que suena y suelta las demás (siguen en Deshacer).
+**Pendiente:** no se ha grabado con un micro de verdad (el navegador de
+pruebas no tiene; se probó con una toma simulada de tres vueltas y con el
+transporte dando vueltas). Falta oírlo en un iPhone y comprobar que el pulgar
+llega a las asas sin mover la línea de tiempo.

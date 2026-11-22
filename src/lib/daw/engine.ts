@@ -61,6 +61,12 @@ export interface RecordingTake {
   startPosition: number;
   /** Compensación aplicada, en segundos. */
   latencySeconds: number;
+  /**
+   * Grabar en bucle: la zona que se repetía mientras se grababa (segundos de
+   * la línea de tiempo). La toma es una sola grabación continua; quien la
+   * recibe la corta en vueltas (ver `src/lib/daw/bucle/bucle.ts`).
+   */
+  bucle?: { inicio: number; fin: number };
 }
 
 export interface TickInfo {
@@ -148,6 +154,8 @@ export class StudioEngine {
   private bucleTimer: number | null = null;
   /** Pilar B: avisa cuando empieza una vuelta nueva del bucle (instante del reloj). */
   onVuelta: ((cuando: number) => void) | null = null;
+  /** Grabar en bucle: vueltas ya completadas desde que arrancó el transporte. */
+  private vueltas = 0;
 
   onTick: ((info: TickInfo) => void) | null = null;
   onLevel: ((level: number) => void) | null = null;
@@ -386,6 +394,7 @@ export class StudioEngine {
     this.anchorTime = sig.tiempo;
     this.anchorPosition = sig.posicion;
     this.anclaSiguiente = null;
+    this.vueltas++;
     if (this.grooveOrigin) {
       this.grooveOrigin = { ctxTime: sig.tiempo, position: sig.posicion };
       this.grooveNextPos = sig.posicion;
@@ -404,7 +413,9 @@ export class StudioEngine {
     const mirar = () => {
       const ctx = this.ctx;
       const bucle = this.bucle;
-      if (!ctx || !bucle || this.state !== 'playing' || !this.project) return;
+      // Grabar en bucle: también da vueltas grabando (y espera durante la cuenta).
+      const enMarcha = this.state === 'playing' || this.state === 'recording' || this.state === 'countin';
+      if (!ctx || !bucle || !enMarcha || !this.project) return;
       this.pasarDeVuelta();
       if (this.anclaSiguiente) return;
       const finEn = this.anchorTime + (bucle.fin - this.anchorPosition);
@@ -436,6 +447,16 @@ export class StudioEngine {
     this.bucleTimer = window.setInterval(mirar, 25);
   }
 
+  /**
+   * Grabar en bucle: en qué vuelta va (1, 2, 3…), o null sin bucle. Lo lee la
+   * regla con requestAnimationFrame para decir «Toma 3» sin redibujar React.
+   */
+  get vueltaDelBucle(): number | null {
+    if (!this.bucle || this.state === 'stopped') return null;
+    this.pasarDeVuelta();
+    return this.vueltas + 1;
+  }
+
   /** Segundos que faltan para que termine la claqueta. */
   get countInRemaining(): number {
     if (!this.ctx || this.state !== 'countin') return 0;
@@ -453,8 +474,8 @@ export class StudioEngine {
    * el cursor donde empezó la toma para que el siguiente botón rojo grabe
    * encima y no detrás.
    */
-  async playReview(project: Project, settings: StudioSettings, from: number) {
-    await this.play(project, settings, from);
+  async playReview(project: Project, settings: StudioSettings, from: number, opciones: OpcionesReproduccion = {}) {
+    await this.play(project, settings, from, opciones);
     this.reviewReturn = from;
   }
 
@@ -476,6 +497,7 @@ export class StudioEngine {
     this.anchorPosition = start;
     // Pilar B: modo loop (ver `empezarBucle`).
     this.anclaSiguiente = null;
+    this.vueltas = 0;
     this.bucle = opciones.bucle && opciones.bucle.fin > opciones.bucle.inicio ? opciones.bucle : null;
     if (this.bucle) this.empezarBucle();
     this.setTempo(project.bpm);
@@ -495,7 +517,12 @@ export class StudioEngine {
     this.startClock();
   }
 
-  async record(project: Project, settings: StudioSettings, from?: number) {
+  /**
+   * Grabar. Con `opciones.bucle` (grabar en bucle) la toma arranca al
+   * principio de la zona y el transporte da vueltas sobre ella mientras el
+   * micro sigue grabando sin cortes: cada vuelta será una toma.
+   */
+  async record(project: Project, settings: StudioSettings, from?: number, opciones: Pick<OpcionesReproduccion, 'bucle'> = {}) {
     if (this.state !== 'stopped') await this.stop();
     const ctx = await this.contextoEnMarcha();
     if (!this.recorder) throw new Error('Micrófono no disponible');
@@ -503,7 +530,12 @@ export class StudioEngine {
     this.project = project;
     this.settings = settings;
 
-    const start = from ?? this.idlePosition;
+    const bucle = opciones.bucle && opciones.bucle.fin > opciones.bucle.inicio ? opciones.bucle : null;
+    const start = bucle ? bucle.inicio : (from ?? this.idlePosition);
+    this.anclaSiguiente = null;
+    this.vueltas = 0;
+    this.bucle = bucle;
+    if (bucle) this.empezarBucle();
     this.setTempo(project.bpm);
     const beatSeconds = 60 / project.bpm;
     const countInSeconds = settings.countInBars * 4 * beatSeconds;
@@ -560,6 +592,8 @@ export class StudioEngine {
    */
   private async doStop(inmediata = false): Promise<void> {
     const wasRecording = this.state === 'recording' || this.state === 'countin';
+    // Grabar en bucle: la toma tiene que saber qué zona se repetía.
+    const bucleDeLaToma = this.bucle;
     const ctx = this.ctx;
     const endPosition = wasRecording
       ? Math.max(this.recordStartPosition, this.position)
@@ -600,6 +634,7 @@ export class StudioEngine {
           sampleRate,
           startPosition: this.recordStartPosition,
           latencySeconds: this.recordLatencySeconds,
+          ...(bucleDeLaToma ? { bucle: bucleDeLaToma } : {}),
         });
       }
       return;

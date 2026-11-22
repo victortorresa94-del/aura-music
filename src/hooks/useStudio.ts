@@ -33,6 +33,8 @@ import {
 } from '@/lib/daw/latency';
 import * as store from '@/lib/daw/storage';
 import { esCuotaLlena } from '@/lib/pwa/espacio';
+// Grabar en bucle: la zona del ciclo y el corte de la grabación en vueltas.
+import { conCiclo, segundosDelCiclo, tomasDeVueltas, type Ciclo } from '@/lib/daw/bucle/bucle';
 import {
   DEFAULT_SETTINGS,
   newId,
@@ -306,8 +308,20 @@ export function useStudio() {
       let correccion: Correccion | null = null;
       if (peak >= 0.002) {
         try {
+          /* Grabar en bucle: se mide con la primera vuelta. A partir de ahí la
+             línea de tiempo ha vuelto al principio de la zona y las pistas que
+             sonaban ya no son las que hay más adelante en el proyecto. */
+          const muestras = take.bucle
+            ? take.samples.subarray(
+                0,
+                Math.min(
+                  take.samples.length,
+                  Math.ceil((take.bucle.fin - take.bucle.inicio + take.latencySeconds + 0.3) * take.sampleRate),
+                ),
+              )
+            : take.samples;
           const desde = take.startPosition;
-          const hasta = desde + buffer.duration;
+          const hasta = desde + muestras.length / take.sampleRate;
           const referencia = pistasQueSonaban(projectRef.current.tracks, desde, hasta).flatMap(
             (pista) => {
               const audio = engine.getBuffer(pista.clip.bufferId);
@@ -323,7 +337,7 @@ export function useStudio() {
           );
           const rejilla = settingsRef.current.metronome || engine.currentGroove !== null;
           if (rejilla || referencia.length > 0) {
-            const medida = medirToma(take.samples, take.sampleRate, {
+            const medida = medirToma(muestras, take.sampleRate, {
               inicio: colocada,
               bpm: projectRef.current.bpm,
               rejilla,
@@ -345,10 +359,22 @@ export function useStudio() {
       }
       const duration = Math.max(0.08, buffer.duration - offset);
 
+      /* Grabar en bucle: la grabación entera, ya colocada con su latencia, se
+         corta en vueltas. Cada vuelta es una toma del mismo audio y suena la
+         última; las demás se eligen en el panel de la pista. */
+      const bucle = take.bucle ?? null;
+      const tomas = bucle
+        ? tomasDeVueltas({ duracionAudio: buffer.duration, colocada, inicio: bucle.inicio, fin: bucle.fin })
+        : null;
+
       const track: Track = {
         id: newId('trk'),
         name: `Pista ${projectRef.current.tracks.length + 1}`,
-        clip: { bufferId, start, offset, duration, repeats: 1 },
+        clip:
+          tomas && bucle
+            ? { bufferId, start: bucle.inicio, offset: tomas.offsets[tomas.elegida], duration: bucle.fin - bucle.inicio, repeats: 1 }
+            : { bufferId, start, offset, duration, repeats: 1 },
+        ...(tomas ? { tomas } : {}),
         volume: 1,
         muted: false,
         soloed: false,
@@ -385,6 +411,14 @@ export function useStudio() {
         }
       }
 
+      if (tomas && !sinGuardar) {
+        setStatus(
+          tomas.offsets.length === 1
+            ? 'Una vuelta entera en el ciclo: es tu toma.'
+            : `${tomas.offsets.length} tomas en el ciclo. Suena la última; elige otra en la pista.`,
+        );
+      }
+
       /* El oído, al soltar el botón. Tempo y tonalidad de lo que acabas de
          tocar salen en milisegundos y en local: no hay nada que esperar y
          nada que pedirle a la red. */
@@ -410,7 +444,9 @@ export function useStudio() {
         if (!engine || engine.transportState !== 'stopped') return;
         // PWA: si la toma se cortó al salir de la app, no suena sola al volver.
         if (document.visibilityState === 'hidden') return;
-        void engine.playReview(projectRef.current, settingsRef.current, start);
+        // Con el ciclo, el repaso da vueltas sobre la zona con la toma que suena.
+        if (tomas && bucle) void engine.playReview(projectRef.current, settingsRef.current, bucle.inicio, { bucle });
+        else void engine.playReview(projectRef.current, settingsRef.current, start);
       }, 320);
     },
     [commit, engine, saveNow, updateSettings],
@@ -578,6 +614,15 @@ export function useStudio() {
     await withLock(() => engine.stop());
   }, [engine, withLock]);
 
+  /** Grabar en bucle: la zona del ciclo en segundos, si está puesta. */
+  const zonaDeCiclo = useCallback(() => segundosDelCiclo(projectRef.current.ciclo, projectRef.current.bpm), []);
+
+  /** Poner, cambiar o quitar el ciclo. No entra en Deshacer, como en cualquier DAW. */
+  const ponerCiclo = useCallback(
+    (ciclo: Ciclo | null) => commit((current) => conCiclo(current, ciclo), { history: false }),
+    [commit],
+  );
+
   const play = useCallback(async () => {
     if (!engine) return;
     await withLock(async () => {
@@ -589,9 +634,18 @@ export function useStudio() {
         setStatus('Todavía no hay nada que reproducir');
         return;
       }
+      // Con el ciclo puesto se da vueltas sobre la zona; si el cursor está
+      // fuera, se empieza por su principio.
+      const zona = zonaDeCiclo();
+      if (zona) {
+        const cursor = engine.position;
+        const desde = cursor >= zona.inicio && cursor < zona.fin ? cursor : zona.inicio;
+        await engine.play(projectRef.current, settingsRef.current, desde, { bucle: zona });
+        return;
+      }
       await engine.play(projectRef.current, settingsRef.current);
     });
-  }, [engine, withLock]);
+  }, [engine, withLock, zonaDeCiclo]);
 
   const record = useCallback(async () => {
     if (!engine) return;
@@ -602,9 +656,11 @@ export function useStudio() {
       }
       const ok = await ensureMic();
       if (!ok) return;
-      await engine.record(projectRef.current, settingsRef.current);
+      // Con el ciclo puesto, cada vuelta será una toma.
+      const zona = zonaDeCiclo();
+      await engine.record(projectRef.current, settingsRef.current, undefined, zona ? { bucle: zona } : {});
     });
-  }, [engine, ensureMic, withLock]);
+  }, [engine, ensureMic, withLock, zonaDeCiclo]);
 
   const seek = useCallback(
     (position: number) => {
@@ -618,13 +674,15 @@ export function useStudio() {
         void withLock(async () => {
           await engine.stop();
           engine.seek(position);
-          await engine.play(projectRef.current, settingsRef.current, position);
+          // Antes del final del ciclo, sigue dando vueltas; después, sigue de largo.
+          const zona = zonaDeCiclo();
+          await engine.play(projectRef.current, settingsRef.current, position, zona && position < zona.fin ? { bucle: zona } : {});
         });
         return;
       }
       engine.seek(position);
     },
-    [engine, withLock],
+    [engine, withLock, zonaDeCiclo],
   );
 
   const rewind = useCallback(() => seek(0), [seek]);
@@ -1119,6 +1177,8 @@ export function useStudio() {
     undo,
     /** Cambiar el proyecto con historial (y `grupo` para juntar un arrastre). Lo usan el mezclador y el productor. */
     commit,
+    /** Grabar en bucle: poner o quitar la zona que se repite. */
+    ponerCiclo,
     /** Un audio nuevo al motor, con su onda (cuadrar al tempo). */
     ponerAudio,
     // proyecto
