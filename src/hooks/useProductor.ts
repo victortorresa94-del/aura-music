@@ -16,6 +16,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Studio } from '@/hooks/useStudio';
 import type { Musico, PeticionMomento } from '@/hooks/useMusico';
 import { cabecerasDeAcceso, FaltaCodigo } from '@/lib/acceso';
+import { EVENTO_CEREBRO_CAMBIADO, EVENTO_CEREBRO_DE_LA_NUBE, avisar } from '@/lib/nube/eventos';
 import type { Escucha } from '@/lib/musico/escucha';
 import type { EstiloBajo } from '@/lib/musico/bajo';
 import type { EstiloTeclas } from '@/lib/musico/teclas';
@@ -96,15 +97,21 @@ export function useProductor(studio: Studio, musico: Musico, pulsosPorCompas: nu
   const pendienteRef = useRef<string | null>(null);
 
   useEffect(() => {
-    let guardado: string | null = null;
-    try {
-      guardado = window.localStorage.getItem(CLAVE_CEREBRO);
-    } catch {
-      /* sin almacenamiento, el cerebro dura lo que la pestaña */
-    }
-    const leido = leerCerebro(guardado);
-    cerebroRef.current = leido;
-    setCerebro(leido);
+    const leer = () => {
+      let guardado: string | null = null;
+      try {
+        guardado = window.localStorage.getItem(CLAVE_CEREBRO);
+      } catch {
+        /* sin almacenamiento, el cerebro dura lo que la pestaña */
+      }
+      const leido = leerCerebro(guardado);
+      cerebroRef.current = leido;
+      setCerebro(leido);
+    };
+    leer();
+    // Cuenta (pilar D): la nube ha juntado este cerebro con el de tu otro dispositivo.
+    window.addEventListener(EVENTO_CEREBRO_DE_LA_NUBE, leer);
+    return () => window.removeEventListener(EVENTO_CEREBRO_DE_LA_NUBE, leer);
   }, []);
 
   const cambiarCerebro = useCallback((cambio: (c: Cerebro) => Cerebro) => {
@@ -116,6 +123,8 @@ export function useProductor(studio: Studio, musico: Musico, pulsosPorCompas: nu
     } catch {
       /* sin almacenamiento, el cerebro dura lo que la pestaña */
     }
+    // Cuenta (pilar D): con sesión, la nube lo sube; sin ella nadie escucha.
+    avisar(EVENTO_CEREBRO_CAMBIADO);
   }, []);
 
   const cambiarTurno = useCallback((id: string, cambio: (t: Turno) => Turno) => {

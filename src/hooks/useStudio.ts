@@ -32,6 +32,7 @@ import {
   outputLatencyMs,
 } from '@/lib/daw/latency';
 import * as store from '@/lib/daw/storage';
+import { asegurarAudioDeLaNube } from '@/lib/nube/puente';
 import { esCuotaLlena } from '@/lib/pwa/espacio';
 import {
   DEFAULT_SETTINGS,
@@ -87,6 +88,8 @@ export function useStudio() {
   const futureRef = useRef<Project[]>([]);
   /** Lo que dice la cabecera: si lo último ya está en disco. */
   const [guardado, setGuardado] = useState<'guardado' | 'guardando' | 'error'>('guardado');
+  /** Menús: cuándo llegó a disco lo último, para «Guardado hace 3 s». */
+  const [guardadoEn, setGuardadoEn] = useState(() => Date.now());
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
   const saveTimerRef = useRef<number | null>(null);
 
@@ -104,7 +107,10 @@ export function useStudio() {
       saveTimerRef.current = null;
       store.saveProject(next).then(
         // Si mientras tanto ha entrado otro cambio, sigue «Guardando…».
-        () => setGuardado(saveTimerRef.current ? 'guardando' : 'guardado'),
+        () => {
+          setGuardado(saveTimerRef.current ? 'guardando' : 'guardado');
+          setGuardadoEn(Date.now());
+        },
         () => setGuardado('error'),
       );
       store.rememberLastProject(next.id);
@@ -121,6 +127,7 @@ export function useStudio() {
     try {
       await store.saveProject(next);
       setGuardado('guardado');
+      setGuardadoEn(Date.now());
     } catch (error) {
       setGuardado('error');
       throw error;
@@ -225,6 +232,14 @@ export function useStudio() {
     async (target: Project) => {
       if (!engine) return;
       await engine.ensureContext();
+      // Cuenta (pilar D): si la idea vino de la nube, su audio baja ahora a este
+      // móvil. Sin cuenta no hace nada.
+      let bajando = false;
+      await asegurarAudioDeLaNube(target, () => {
+        bajando = true;
+        setBusy('Bajando el audio de la nube…');
+      });
+      if (bajando) setBusy(null);
       for (const track of target.tracks) {
         if (engine.hasBuffer(track.clip.bufferId)) continue;
         const audio = await store.getAudio(track.clip.bufferId);
@@ -1211,6 +1226,7 @@ export function useStudio() {
     hayRehacer,
     /** «Guardado», «Guardando…» o un fallo: lo enseña la cabecera. */
     guardado,
+    guardadoEn,
     guardar,
     guardarCopia,
     /** Un audio nuevo al motor, con su onda (cuadrar al tempo). */

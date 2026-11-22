@@ -38,9 +38,27 @@ const withSerwist = withSerwistInit({
   additionalPrecacheEntries: [{ url: '/?app=guardada', revision: version }, ...publicos()],
 });
 
+/*
+  Cuenta (pilar D): las páginas con las que Firebase hace entrar con Google,
+  servidas desde nuestro propio dominio. Hace falta solo si se pone
+  NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN a este dominio (paso opcional de
+  docs/CUENTA.md): Safari y la app instalada del iPhone no dejan a otra web
+  guardar la sesión a medias, y así la vuelta de Google es de la misma casa.
+  Sin proyecto de Firebase configurado no se añade nada.
+*/
+const proyectoFirebase = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID?.trim();
+
 const config: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  async rewrites() {
+    if (!proyectoFirebase) return [];
+    const origen = `https://${proyectoFirebase}.firebaseapp.com`;
+    return [
+      { source: '/__/auth/:ruta*', destination: `${origen}/__/auth/:ruta*` },
+      { source: '/__/firebase/:ruta*', destination: `${origen}/__/firebase/:ruta*` },
+    ];
+  },
   async headers() {
     return [
       {

@@ -20,13 +20,21 @@ import { Timeline } from './Timeline';
 import { RhythmSheet } from './RhythmSheet';
 import { ClickSheet, TrackSheet, TrackStrip } from './TrackPanel';
 import { Transport } from './Transport';
-import { IconButton, IconChevronDown, IconClose, IconSpark, IconUndo, label, numeric } from './ui';
+import { IconButton, IconClose, label, numeric } from './ui';
+// Cuenta (pilar D)
+import { useNube } from '@/hooks/useNube';
+import { IndicadorNube } from '@/components/cuenta/Cuenta';
 // Mezcla (pilar A)
 import { useMezcla } from '@/hooks/useMezcla';
-import { useAtajos } from '@/hooks/useAtajos';
 import { useClaqueta } from '@/hooks/useClaqueta';
 import { Mezclador } from './mezclador/Mezclador';
-import { IconoMezclador } from './mezclador/icono';
+// Menús: la cabecera con Archivo, Editar… (o el menú del nombre en el móvil),
+// los atajos de teclado y la pantalla «Tus ideas».
+import { useArchivo, type AccionesDePantalla } from '@/hooks/useArchivo';
+import { CabeceraEstudio, DialogosDeArchivo } from './menus/CabeceraEstudio';
+import { useMenus } from './menus/menus';
+import { MENU_CSS } from './menus/PanelDeMenu';
+import { TusIdeas, type AccesoRapido } from './inicio/TusIdeas';
 
 /**
  * Cómo se nombra el ciclo en la cabecera, en lo que ocupa una firma de compás.
@@ -69,8 +77,7 @@ export default function StudioApp() {
     () => (tonoOido ? { tonica: tonoOido.tonica, modo: tonoOido.modo } : null),
     [tonoOido],
   );
-  const { ready, project, status, busy, transport, setStatus, loadProjectAudio, engine, record, undo } =
-    studio;
+  const { ready, project, status, busy, transport, setStatus, loadProjectAudio, engine, record } = studio;
   const loadedRef = useRef<string | null>(null);
   const autoStartRef = useRef(false);
   /* Se lee en el primer render, no en un efecto: los efectos de los hijos
@@ -100,14 +107,72 @@ export default function StudioApp() {
     };
   }, [engine]);
 
-  /* Los atajos de teclado de toda la vida (Espacio, R, Supr, Ctrl+Z…), en
-     `useAtajos`. Con «Tocar» abierto el teclado toca notas; con una hoja o
-     el mezclador encima, solo Espacio, Deshacer y Rehacer. */
-  const atajos = useAtajos(studio, {
-    activo: !tocar,
-    soloTransporte: sheet !== null || mezclador,
-    pulsosPorCompas: ciclo?.pulsos ?? 4,
-  });
+  /* Menús. Ctrl+Z y los demás atajos viven ahora en `useArchivo`, junto a lo
+     que hace cada comando (se apartan si estás escribiendo en un campo). */
+  const [inicio, setInicio] = useState(false);
+  const [atajos, setAtajos] = useState(false);
+  const [introForzada, setIntroForzada] = useState(false);
+  /* «Tocar» lee su pestaña al montarse: para abrirla en un instrumento desde
+     «Tus ideas» se deja la pestaña elegida y se vuelve a montar (la clave). */
+  const [tocarClave, setTocarClave] = useState(0);
+  const { setMode: ponerTema } = theme;
+  const pantalla = useMemo<AccionesDePantalla>(
+    () => ({
+      irAInicio: () => {
+        setSheet(null);
+        setMezclador(false);
+        setTocar(false);
+        setInicio(true);
+      },
+      abrirAjustes: () => setSheet('settings'),
+      abrirPista: () => setSheet('track'),
+      abrirMezclador: () => setMezclador(true),
+      abrirProductor: () => setSheet('productor'),
+      tocar: () => {
+        engine?.unlockSync();
+        setTocarEnLoops(false);
+        setTocar(true);
+      },
+      loops: () => {
+        engine?.unlockSync();
+        setTocarEnLoops(true);
+        setTocar(true);
+      },
+      ponerTema,
+      verAtajos: () => setAtajos(true),
+      verIntro: () => setIntroForzada(true),
+    }),
+    [engine, ponerTema],
+  );
+  const archivo = useArchivo(studio, pantalla);
+  const menus = useMenus(studio, archivo, theme.mode);
+
+  /** Desde «Tus ideas»: una idea nueva y, si se ha pedido, un instrumento, la voz o los loops. */
+  const empezarCon = async (acceso: AccesoRapido | null) => {
+    engine?.unlockSync();
+    await studio.newProject();
+    setInicio(false);
+    if (!acceso) return;
+    if (acceso === 'voz') {
+      void record();
+      return;
+    }
+    if (acceso === 'loops') {
+      pantalla.loops();
+      return;
+    }
+    try {
+      // La misma clave y forma que usa «Tocar» para recordar su pestaña.
+      const clave = 'aura-music:tocar';
+      const guardadas = JSON.parse(window.localStorage.getItem(clave) ?? '{}') as Record<string, unknown>;
+      window.localStorage.setItem(clave, JSON.stringify({ ...guardadas, pestana: acceso, familia: acceso }));
+    } catch {
+      /* sin almacenamiento: se abre en la última pestaña */
+    }
+    setTocarClave((k) => k + 1);
+    setTocarEnLoops(false);
+    setTocar(true);
+  };
 
   /* Atajo del icono de la app: abrir grabando. Se marca la intro como vista
      antes de arrancar, porque si no salía encima de una grabación que ya iba
@@ -124,6 +189,12 @@ export default function StudioApp() {
 
   // PWA (pilar E): service worker, versiones nuevas, compartir y espacio.
   const pwa = usePwa(studio);
+  // Cuenta (pilar D): tu cuenta de Aura y las ideas en la nube. Sin configuración no hace nada.
+  const nube = useNube(studio);
+  const cambioEnLaAbierta = nube.estado.cambioEnLaAbierta?.dispositivo ?? null;
+  useEffect(() => {
+    if (cambioEnLaAbierta) setStatus(`Esta idea ha cambiado en el ${cambioEnLaAbierta}. Toca el nombre para verlo.`);
+  }, [cambioEnLaAbierta, setStatus]);
 
   useEffect(() => {
     if (!status) return;
@@ -137,6 +208,7 @@ export default function StudioApp() {
   useClaqueta(studio, beatsPerBar);
   const compas = nombreDelCompas(beatsPerBar);
   const pistas = project.tracks.length;
+  const subtitulo = `${pistas === 0 ? 'Sin pistas' : `${pistas} ${pistas === 1 ? 'pista' : 'pistas'}`}${groove ? ` · ${groove.nombre}` : ''}`;
 
   return (
     <div
@@ -154,138 +226,22 @@ export default function StudioApp() {
         zIndex: 300,
       }}
     >
-      {/* Cabecera: manda el proyecto y su estado musical. El padding superior
-          respeta la barra de estado y la isla dinámica con la app instalada.
-          El zoom ya no tiene botones (se pellizca, o Ctrl + rueda) y el tema
-          vive en Ajustes: aquí solo lo que se mira o se toca a menudo. */}
-      <header
-        style={{
-          position: 'relative',
-          zIndex: 8,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 2,
-          padding: '6px 6px 6px 8px',
-          paddingTop: 'max(6px, env(safe-area-inset-top))',
-          background: T.surface,
-          boxShadow: `inset 0 -1px 0 ${T.border}`,
-          flexShrink: 0,
-        }}
-      >
-        <button
-          type="button"
-          className="daw-press daw-hover"
-          onClick={() => {
-            haptic(8);
-            setSheet('settings');
-          }}
-          aria-label={`${project.name}: proyecto y ajustes`}
-          style={{
-            flex: 1,
-            minWidth: 0,
-            minHeight: 48,
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-            alignItems: 'flex-start',
-            gap: 2,
-            padding: '4px 8px',
-            border: 'none',
-            borderRadius: 10,
-            background: 'transparent',
-            textAlign: 'left',
-            cursor: 'pointer',
-          }}
-        >
-          <span style={{ display: 'flex', alignItems: 'center', gap: 4, maxWidth: '100%' }}>
-            <span
-              style={{
-                fontFamily: T.fontBody,
-                fontSize: 17,
-                fontWeight: 600,
-                letterSpacing: '-0.02em',
-                lineHeight: 1.2,
-                color: T.text,
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              }}
-            >
-              {project.name}
-            </span>
-            <IconChevronDown size={12} color={T.dim} />
-          </span>
-          <span
-            style={{
-              ...label,
-              display: 'block',
-              maxWidth: '100%',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            }}
-          >
-            {pistas === 0 ? 'Sin pistas' : `${pistas} ${pistas === 1 ? 'pista' : 'pistas'}`}
-            {groove ? ` · ${groove.nombre}` : ''}
-          </span>
-        </button>
-
-        {/* El tempo y el compás, que es lo que la máquina va a seguir. Abre
-            el tempo y la claqueta. */}
-        <button
-          type="button"
-          className="daw-press"
-          onClick={() => {
-            haptic(8);
-            setSheet('click');
-          }}
-          aria-label={`Tempo ${project.bpm} BPM, compás de ${compas.dicho}. Abrir tempo y claqueta`}
-          style={{
-            minHeight: 48,
-            padding: '0 4px',
-            border: 'none',
-            background: 'transparent',
-            cursor: 'pointer',
-            flexShrink: 0,
-          }}
-        >
-          <span
-            className="daw-hover-target"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              height: 36,
-              padding: '0 12px',
-              borderRadius: 10,
-              background: T.fill,
-              boxShadow: `inset 0 1px 0 ${T.rim}`,
-            }}
-          >
-            <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 4 }}>
-              <span style={{ ...numeric, fontSize: 16, fontWeight: 500, color: T.text }}>{project.bpm}</span>
-              <span style={{ ...label, fontSize: 11, fontWeight: 600 }}>BPM</span>
-            </span>
-            <span aria-hidden style={{ width: 1, height: 16, background: T.border }} />
-            <span style={{ ...numeric, fontSize: 14, color: T.text }}>{compas.valor}</span>
-          </span>
-        </button>
-
-        {/* El productor: el único verde de la cabecera, porque es Aura. */}
-        <IconButton title="Productor" onClick={() => setSheet('productor')}>
-          <IconSpark size={21} color={T.ai} />
-        </IconButton>
-        {/* El mezclador ocupa el sitio del engranaje: los ajustes ya se
-            abren tocando el nombre del proyecto (y desde la latencia del
-            dock), y en 375 px no cabía un botón más sin dejar el nombre
-            en dos letras. */}
-        <IconButton title="Mezclador" onClick={() => setMezclador(true)}>
-          <IconoMezclador size={21} color={T.text} />
-        </IconButton>
-        <IconButton title="Deshacer" onClick={undo}>
-          <IconUndo size={20} color={T.text} />
-        </IconButton>
-      </header>
+      {/* Cabecera con sus menús (src/components/daw/menus): en el PC, la barra
+          Archivo, Editar, Pista, Ver y Ayuda; en el móvil, el nombre de la
+          idea abre el menú. El tempo, el productor y el mezclador, a la
+          derecha. Respeta la barra de estado con la app instalada. */}
+      <CabeceraEstudio
+        studio={studio}
+        archivo={archivo}
+        menus={menus}
+        compas={compas}
+        subtitulo={subtitulo}
+        tonalidad={tonoOido?.nombre ?? null}
+        onAbrirTempo={() => setSheet('click')}
+        onProductor={() => setSheet('productor')}
+        onMezclar={() => setMezclador(true)}
+        nube={<IndicadorNube nube={nube} />}
+      />
 
       <main style={{ flex: 1, minHeight: 0, position: 'relative', display: 'flex', flexDirection: 'column' }}>
         <Timeline
@@ -402,6 +358,7 @@ export default function StudioApp() {
         theme={theme}
         open={sheet === 'settings'}
         onClose={() => setSheet(null)}
+        nube={nube}
       />
 
       <Mezclador
@@ -413,6 +370,7 @@ export default function StudioApp() {
       />
 
       <TocarPantalla
+        key={tocarClave}
         studio={studio}
         instrumentos={instrumentos}
         abierta={tocar}
@@ -421,13 +379,41 @@ export default function StudioApp() {
         enLoops={tocarEnLoops}
       />
 
-      <FirstRun studio={studio} suprimida={autoGrabar} onRecord={() => void record()} />
+      <FirstRun
+        studio={studio}
+        suprimida={autoGrabar}
+        forzada={introForzada}
+        onCerrada={() => setIntroForzada(false)}
+        onRecord={() => void record()}
+      />
+
+      {/* Menús: la raíz «Tus ideas», borrar con confirmación y los atajos. */}
+      <TusIdeas
+        studio={studio}
+        archivo={archivo}
+        abierta={inicio}
+        tema={theme.resolved}
+        onAbrirIdea={async (id) => {
+          if (id !== project.id) await studio.openProject(id);
+          setInicio(false);
+        }}
+        onNueva={() => void empezarCon(null)}
+        onAcceso={(acceso) => void empezarCon(acceso)}
+        onImportar={async (fichero) => {
+          await studio.newProject();
+          setInicio(false);
+          await studio.importFile(fichero);
+        }}
+        onAjustes={() => setSheet('settings')}
+      />
+      <DialogosDeArchivo studio={studio} archivo={archivo} atajos={atajos} onCerrarAtajos={() => setAtajos(false)} />
       {/* PWA (pilar E): avisos bajo la cabecera y, en iPhone sin instalar, cómo instalarla. */}
       <AvisosPwa studio={studio} pwa={pwa} onAbrirAjustes={() => setSheet('settings')} />
       <GuiaInstalarIphone />
 
       <style>{`
         ${THEME_CSS}
+        ${MENU_CSS}
         html, body { overscroll-behavior: none; overflow: hidden; height: 100%; background: var(--daw-bg); }
         body::before, body::after { display: none !important; }
         .daw-root, .daw-root *, .daw-root *::before, .daw-root *::after { box-sizing: border-box; }
@@ -716,10 +702,15 @@ function BarraDelOido({
 function FirstRun({
   studio,
   suprimida,
+  forzada = false,
+  onCerrada,
   onRecord,
 }: {
   studio: ReturnType<typeof useStudio>;
   suprimida: boolean;
+  /** Menús: «Ayuda › Ver la introducción» la enseña aunque ya la hayas visto. */
+  forzada?: boolean;
+  onCerrada?: () => void;
   onRecord: () => void;
 }) {
   const [visible, setVisible] = useState(false);
@@ -728,14 +719,15 @@ function FirstRun({
   useEffect(() => {
     if (!ready || suprimida) return;
     const seen = window.localStorage.getItem('compas:intro');
-    setVisible(!seen && project.tracks.length === 0);
-  }, [ready, suprimida, project.tracks.length]);
+    setVisible(forzada || (!seen && project.tracks.length === 0));
+  }, [ready, suprimida, project.tracks.length, forzada]);
 
   if (!visible) return null;
 
   const close = (thenRecord: boolean) => {
     window.localStorage.setItem('compas:intro', '1');
     setVisible(false);
+    onCerrada?.();
     haptic(10);
     if (thenRecord) onRecord();
   };

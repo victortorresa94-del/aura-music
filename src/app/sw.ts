@@ -56,6 +56,12 @@ const serwist = new Serwist({
       handler: new NetworkOnly(),
     },
     {
+      // Cuenta (pilar D): las páginas de entrar con Google (`/__/auth/*`, el
+      // proxy a Firebase de next.config.ts) van siempre a la red y no se guardan.
+      matcher: ({ url, sameOrigin }) => sameOrigin && url.pathname.startsWith('/__/'),
+      handler: new NetworkOnly(),
+    },
+    {
       matcher: ({ request, sameOrigin }) => sameOrigin && request.mode === 'navigate',
       handler: new NetworkFirst({
         cacheName: CACHES.paginas,

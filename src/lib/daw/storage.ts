@@ -1,9 +1,12 @@
 /**
- * Persistencia local. Todo se queda en el móvil: nada sube a ningún servidor.
+ * Persistencia local. Todo se guarda primero en el móvil, y aquí manda: con
+ * tu cuenta de Aura, la nube se pone al día después y en segundo plano
+ * (`src/lib/nube/`), sin que nada de esto la espere.
  * El audio se guarda como PCM de 16 bits (la mitad de espacio que en coma
  * flotante y sin diferencia audible en una maqueta).
  */
 
+import { EVENTO_IDEA_BORRADA, EVENTO_IDEA_GUARDADA, avisar } from '@/lib/nube/eventos';
 import { EVENTO_ALMACENAMIENTO_LLENO, esCuotaLlena } from '@/lib/pwa/espacio';
 import { floatToInt16, int16ToFloat } from './audio';
 import { audiosDePista } from './cuadrar/toma';
@@ -101,8 +104,18 @@ function tx<T>(store: string, mode: IDBTransactionMode, run: (store: IDBObjectSt
 /* Proyectos                                                                   */
 /* -------------------------------------------------------------------------- */
 
-export async function saveProject(project: Project): Promise<void> {
+/**
+ * Cuenta (pilar D): al guardar o borrar una idea se avisa con un evento, y la
+ * nube (si hay cuenta) la sube en segundo plano. `silencioso` es para lo que
+ * escribe la propia nube al bajar una idea: si avisara, la volvería a subir.
+ */
+export interface OpcionesDeEscritura {
+  silencioso?: boolean;
+}
+
+export async function saveProject(project: Project, opciones: OpcionesDeEscritura = {}): Promise<void> {
   await tx(PROJECTS, 'readwrite', (store) => store.put(project) as IDBRequest<IDBValidKey>);
+  if (!opciones.silencioso) avisar(EVENTO_IDEA_GUARDADA, { id: project.id });
 }
 
 export async function loadProject(id: string): Promise<Project | null> {
@@ -115,19 +128,21 @@ export async function listProjects(): Promise<Project[]> {
   return (result ?? []).sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
-export async function deleteProject(project: Project): Promise<void> {
-  /* Solo el audio que no usa ninguna otra idea: «Guardar una copia» hace que
-     dos ideas compartan las mismas tomas, y borrar una no puede dejar muda a
-     la otra. También la versión que no suena de una toma cuadrada. */
-  const enUso = new Set<string>();
-  for (const otra of await listProjects()) {
-    if (otra.id === project.id) continue;
-    for (const track of otra.tracks) for (const id of audiosDePista(track)) enUso.add(id);
-  }
+export async function deleteProject(project: Project, opciones: OpcionesDeEscritura = {}): Promise<void> {
+  /* Cuenta (pilar D): un audio solo se borra si no lo usa ninguna otra idea.
+     Hasta ahora no pasaba (cada idea tenía sus audios), pero una copia hecha
+     al resolver un choque con la nube comparte los de la original, y borrar
+     una dejaría muda a la otra. */
+  const otras = (await listProjects()).filter((otra) => otra.id !== project.id);
+  const enUso = new Set(otras.flatMap((otra) => otra.tracks.flatMap((track) => audiosDePista(track))));
+  // También la versión que no suena de una toma cuadrada.
   for (const track of project.tracks) {
-    for (const id of audiosDePista(track)) if (!enUso.has(id)) await deleteAudio(id);
+    for (const id of audiosDePista(track)) {
+      if (!enUso.has(id)) await deleteAudio(id);
+    }
   }
   await tx(PROJECTS, 'readwrite', (store) => store.delete(project.id) as IDBRequest<undefined>);
+  if (!opciones.silencioso) avisar(EVENTO_IDEA_BORRADA, { id: project.id });
 }
 
 /* -------------------------------------------------------------------------- */
@@ -172,6 +187,46 @@ export async function getAudio(
     channels.push(int16ToFloat(pcm.subarray(c * frames, (c + 1) * frames)));
   }
   return { channels, sampleRate: record.sampleRate };
+}
+
+/**
+ * Cuenta (pilar D): el audio tal cual está guardado, en enteros de 16 bits y
+ * con los canales seguidos. La nube lo sube y lo baja así, sin pasar por coma
+ * flotante, para que lo que llega al otro móvil sea idéntico muestra a muestra.
+ */
+export interface AudioPcm16 {
+  pcm: Int16Array;
+  canales: number;
+  /** Muestras por canal. */
+  muestras: number;
+  sampleRate: number;
+}
+
+export async function getAudioPcm16(id: string): Promise<AudioPcm16 | null> {
+  const record = await tx<AudioRecord | undefined>(AUDIO, 'readonly', (store) => store.get(id));
+  if (!record) return null;
+  const pcm = new Int16Array(record.data);
+  const canales = record.channels ?? 1;
+  const muestras = record.length || Math.floor(pcm.length / canales);
+  return { pcm, canales, muestras, sampleRate: record.sampleRate };
+}
+
+export async function putAudioPcm16(id: string, audio: AudioPcm16): Promise<void> {
+  const copia = audio.pcm.slice(0, audio.canales * audio.muestras);
+  const record: AudioRecord = {
+    id,
+    sampleRate: audio.sampleRate,
+    length: audio.muestras,
+    channels: audio.canales,
+    data: copia.buffer as ArrayBuffer,
+  };
+  await tx(AUDIO, 'readwrite', (store) => store.put(record) as IDBRequest<IDBValidKey>);
+}
+
+/** ¿Está este audio en el móvil? Sin leerlo entero. */
+export async function hasAudio(id: string): Promise<boolean> {
+  const cuantos = await tx<number>(AUDIO, 'readonly', (store) => store.count(id));
+  return cuantos > 0;
 }
 
 export async function deleteAudio(id: string): Promise<void> {
