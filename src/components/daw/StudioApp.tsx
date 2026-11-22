@@ -298,6 +298,7 @@ export default function StudioApp() {
       <main style={{ flex: 1, minHeight: 0, position: 'relative', display: 'flex', flexDirection: 'column' }}>
         <Timeline
           studio={studio}
+          mezcla={mezcla}
           pps={pps}
           theme={theme.resolved}
           beatsPerBar={beatsPerBar}
