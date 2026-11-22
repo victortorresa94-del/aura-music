@@ -1,0 +1,130 @@
+{
+  "id": "organo",
+  "nombre": "Órgano de tubos renacentista, registro lleno (Versilian Community Sample Library)",
+  "obra": "VCSL Renaissance Organ, registro «Full» (toma «Room»)",
+  "autor": "Versilian Studios (Versilian Community Sample Library)",
+  "origen": "https://github.com/sgossner/VCSL/tree/master/Aerophones/Edge-blown%20Aerophones/Renaissance%20Organ/Full",
+  "licencia": "CC0-1.0",
+  "urlLicencia": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "creditos": "",
+  "archivos": [
+    {
+      "nombre": "36.mp3",
+      "midi": 36,
+      "vel": [
+        1,
+        127
+      ],
+      "bytes": 38283
+    },
+    {
+      "nombre": "40.mp3",
+      "midi": 40,
+      "vel": [
+        1,
+        127
+      ],
+      "bytes": 38452
+    },
+    {
+      "nombre": "44.mp3",
+      "midi": 44,
+      "vel": [
+        1,
+        127
+      ],
+      "bytes": 37593
+    },
+    {
+      "nombre": "48.mp3",
+      "midi": 48,
+      "vel": [
+        1,
+        127
+      ],
+      "bytes": 40169
+    },
+    {
+      "nombre": "52.mp3",
+      "midi": 52,
+      "vel": [
+        1,
+        127
+      ],
+      "bytes": 41159
+    },
+    {
+      "nombre": "56.mp3",
+      "midi": 56,
+      "vel": [
+        1,
+        127
+      ],
+      "bytes": 45137
+    },
+    {
+      "nombre": "60.mp3",
+      "midi": 60,
+      "vel": [
+        1,
+        127
+      ],
+      "bytes": 50598
+    },
+    {
+      "nombre": "64.mp3",
+      "midi": 64,
+      "vel": [
+        1,
+        127
+      ],
+      "bytes": 48414
+    },
+    {
+      "nombre": "68.mp3",
+      "midi": 68,
+      "vel": [
+        1,
+        127
+      ],
+      "bytes": 53042
+    },
+    {
+      "nombre": "72.mp3",
+      "midi": 72,
+      "vel": [
+        1,
+        127
+      ],
+      "bytes": 53224
+    },
+    {
+      "nombre": "76.mp3",
+      "midi": 76,
+      "vel": [
+        1,
+        127
+      ],
+      "bytes": 49142
+    },
+    {
+      "nombre": "80.mp3",
+      "midi": 80,
+      "vel": [
+        1,
+        127
+      ],
+      "bytes": 51066
+    },
+    {
+      "nombre": "84.mp3",
+      "midi": 84,
+      "vel": [
+        1,
+        127
+      ],
+      "bytes": 59910
+    }
+  ],
+  "bytes": 606189
+}

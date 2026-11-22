@@ -1,0 +1,265 @@
+{
+  "id": "pizzicato",
+  "nombre": "Cuerdas en pizzicato: chelos y violines (VS Chamber Orchestra: Community Edition)",
+  "obra": "VSCO 2 CE: Cello Section pizzT, notas 36 a 57; Violin Section Pizz, notas 62 a 83",
+  "autor": "Versilian Studios (Sam Gossner y Simon Dalzell)",
+  "origen": "https://github.com/sgossner/VSCO-2-CE/tree/master/Strings",
+  "licencia": "CC0-1.0",
+  "urlLicencia": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "creditos": "",
+  "archivos": [
+    {
+      "nombre": "36-v1.mp3",
+      "midi": 36,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 12427
+    },
+    {
+      "nombre": "36-v2.mp3",
+      "midi": 36,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 21728
+    },
+    {
+      "nombre": "40-v1.mp3",
+      "midi": 40,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 12300
+    },
+    {
+      "nombre": "40-v2.mp3",
+      "midi": 40,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 22688
+    },
+    {
+      "nombre": "43-v1.mp3",
+      "midi": 43,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 15024
+    },
+    {
+      "nombre": "43-v2.mp3",
+      "midi": 43,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 14793
+    },
+    {
+      "nombre": "47-v1.mp3",
+      "midi": 47,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 13050
+    },
+    {
+      "nombre": "47-v2.mp3",
+      "midi": 47,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 13946
+    },
+    {
+      "nombre": "50-v1.mp3",
+      "midi": 50,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 15239
+    },
+    {
+      "nombre": "50-v2.mp3",
+      "midi": 50,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 16825
+    },
+    {
+      "nombre": "53-v1.mp3",
+      "midi": 53,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 12023
+    },
+    {
+      "nombre": "53-v2.mp3",
+      "midi": 53,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 12384
+    },
+    {
+      "nombre": "57-v1.mp3",
+      "midi": 57,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 8345
+    },
+    {
+      "nombre": "57-v2.mp3",
+      "midi": 57,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 13605
+    },
+    {
+      "nombre": "62-v1.mp3",
+      "midi": 62,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 11940
+    },
+    {
+      "nombre": "62-v2.mp3",
+      "midi": 62,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 20809
+    },
+    {
+      "nombre": "66-v1.mp3",
+      "midi": 66,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 6980
+    },
+    {
+      "nombre": "66-v2.mp3",
+      "midi": 66,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 9901
+    },
+    {
+      "nombre": "69-v1.mp3",
+      "midi": 69,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 10292
+    },
+    {
+      "nombre": "69-v2.mp3",
+      "midi": 69,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 7917
+    },
+    {
+      "nombre": "72-v1.mp3",
+      "midi": 72,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 5626
+    },
+    {
+      "nombre": "72-v2.mp3",
+      "midi": 72,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 5991
+    },
+    {
+      "nombre": "76-v1.mp3",
+      "midi": 76,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 7190
+    },
+    {
+      "nombre": "76-v2.mp3",
+      "midi": 76,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 8258
+    },
+    {
+      "nombre": "79-v1.mp3",
+      "midi": 79,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 10242
+    },
+    {
+      "nombre": "79-v2.mp3",
+      "midi": 79,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 8128
+    },
+    {
+      "nombre": "83-v1.mp3",
+      "midi": 83,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 6017
+    },
+    {
+      "nombre": "83-v2.mp3",
+      "midi": 83,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 7294
+    }
+  ],
+  "bytes": 330962
+}

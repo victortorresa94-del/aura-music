@@ -1,0 +1,193 @@
+{
+  "id": "contrabajo",
+  "nombre": "Contrabajo pizzicato (D. Smolken, contrabajo Otto Rubner de 1958)",
+  "obra": "D. Smolken's double bass, articulación pizz",
+  "autor": "D. Smolken (Karoryfer Samples)",
+  "origen": "https://github.com/sfzinstruments/dsmolken.double-bass/tree/master/pizz",
+  "licencia": "CC0-1.0",
+  "urlLicencia": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "creditos": "",
+  "archivos": [
+    {
+      "nombre": "27-v1.mp3",
+      "midi": 27,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 12921
+    },
+    {
+      "nombre": "27-v2.mp3",
+      "midi": 27,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 15689
+    },
+    {
+      "nombre": "31-v1.mp3",
+      "midi": 31,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 13022
+    },
+    {
+      "nombre": "31-v2.mp3",
+      "midi": 31,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 16748
+    },
+    {
+      "nombre": "34-v1.mp3",
+      "midi": 34,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 13154
+    },
+    {
+      "nombre": "34-v2.mp3",
+      "midi": 34,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 15920
+    },
+    {
+      "nombre": "38-v1.mp3",
+      "midi": 38,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 15213
+    },
+    {
+      "nombre": "38-v2.mp3",
+      "midi": 38,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 18480
+    },
+    {
+      "nombre": "41-v1.mp3",
+      "midi": 41,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 12691
+    },
+    {
+      "nombre": "41-v2.mp3",
+      "midi": 41,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 15196
+    },
+    {
+      "nombre": "45-v1.mp3",
+      "midi": 45,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 13233
+    },
+    {
+      "nombre": "45-v2.mp3",
+      "midi": 45,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 14282
+    },
+    {
+      "nombre": "48-v1.mp3",
+      "midi": 48,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 12219
+    },
+    {
+      "nombre": "48-v2.mp3",
+      "midi": 48,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 15223
+    },
+    {
+      "nombre": "52-v1.mp3",
+      "midi": 52,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 12533
+    },
+    {
+      "nombre": "52-v2.mp3",
+      "midi": 52,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 14728
+    },
+    {
+      "nombre": "55-v1.mp3",
+      "midi": 55,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 12557
+    },
+    {
+      "nombre": "55-v2.mp3",
+      "midi": 55,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 13708
+    },
+    {
+      "nombre": "57-v1.mp3",
+      "midi": 57,
+      "vel": [
+        1,
+        63
+      ],
+      "bytes": 11624
+    },
+    {
+      "nombre": "57-v2.mp3",
+      "midi": 57,
+      "vel": [
+        64,
+        127
+      ],
+      "bytes": 11473
+    }
+  ],
+  "bytes": 280614
+}

@@ -151,8 +151,9 @@ describe('calibración del toque', () => {
 
 describe('registro', () => {
   it('los kits tienen 16 pads con las mismas notas General MIDI', () => {
-    const kits = INSTRUMENTOS.filter((i) => i.pads);
-    expect(kits.length).toBe(3);
+    // La percusión latina tiene sus propias notas (congas, bongós, timbales).
+    const kits = INSTRUMENTOS.filter((i) => i.pads && i.id !== 'percusion-latina');
+    expect(kits.length).toBe(4);
     const notas = kits[0].pads?.map((p) => p.nota);
     for (const k of kits) {
       expect(k.pads).toHaveLength(16);

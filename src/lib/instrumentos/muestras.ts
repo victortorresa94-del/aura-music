@@ -9,16 +9,14 @@
  */
 
 import { getPaquete, urlDeMuestra, type Paquete, type PaqueteId } from './packs';
+import { nombreDeMuestra } from './preset';
 
 export const CACHE_MUESTRAS = 'aura-samples-v1';
 
 const decodificados = new Map<PaqueteId, Promise<Map<string, AudioBuffer>>>();
 const listos = new Map<PaqueteId, Map<string, AudioBuffer>>();
 
-/** Nombre de la muestra dentro del preset de smplr: el fichero sin extensión. */
-export function nombreDeMuestra(nombre: string): string {
-  return nombre.replace(/\.[a-z0-9]+$/i, '');
-}
+export { nombreDeMuestra } from './preset';
 
 async function obtener(url: string): Promise<ArrayBuffer> {
   const conCache = typeof caches !== 'undefined';

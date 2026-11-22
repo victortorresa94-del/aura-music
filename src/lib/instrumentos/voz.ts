@@ -1,10 +1,15 @@
 /**
  * Una «voz» es un instrumento enchufado a un contexto de audio: se le pide una
- * nota y suena. Hay tres clases, con la misma cara:
+ * nota y suena. Hay cuatro clases, con la misma cara:
  *
- * - batería: los golpes sintetizados del kit (`rhythm/kit.ts`);
+ * - batería: muestras de verdad (capas, golpes alternos, charles que se
+ *   cierra) para lo que traiga el paquete, y los golpes sintetizados del kit
+ *   (`rhythm/kit.ts`) para lo demás;
  * - muestras: smplr (MIT) con las muestras ya decodificadas (`muestras.ts`);
- * - síntesis: notas calculadas en TypeScript (`sinte.ts`) y guardadas.
+ * - osciladores: síntesis con nodos que sostiene mientras pisas
+ *   (`osciladores.ts`): sub, 808, analógico, órgano, pad, sinte...;
+ * - síntesis en buffer: notas calculadas en TypeScript (`sinte.ts`) y
+ *   guardadas: piano, piano eléctrico, colchón, bajo y cuerda pulsada.
  *
  * Sirve igual para el contexto en directo y para un OfflineAudioContext, que
  * es lo que garantiza que el WAV suene como lo que oíste al tocar.
@@ -12,10 +17,13 @@
 
 import { Instrument, type NoteEvent, type Scheduler, type SmplrPreset, type StopFn } from 'smplr';
 import { playVoice } from '@/lib/daw/rhythm/kit';
+import { esTimbreOscilador, tocarOscilador, type TimbreOscilador } from './osciladores';
 import { getPaquete, type Paquete } from './packs';
+import { notasConMuestra, presetDe } from './preset';
 import { padDe, type DefInstrumento } from './registro';
 import { LARGO_NOTA, sintetizarNota, type TimbreSintetico } from './sinte';
-import { nombreDeMuestra } from './muestras';
+
+export { presetDe } from './preset';
 
 /** Suelta una nota que se dejó sonando (la tecla que se levanta). */
 export type Soltar = (cuando?: number) => void;
@@ -50,15 +58,100 @@ export function gananciaDeFuerza(vel: number): number {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Muestras (smplr)                                                            */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * smplr programa lo que cae más allá de 200 ms con un setInterval que mira el
+ * reloj del contexto. En un OfflineAudioContext ese reloj corre a toda
+ * velocidad y el intervalo llega tarde: las notas se perderían. Con este
+ * programador todo se entrega al momento, con su instante exacto, y es el
+ * propio motor de audio quien espera.
+ */
+const programadorInmediato: Scheduler = {
+  schedule(event: NoteEvent, callback: (event: NoteEvent) => void): StopFn {
+    callback(event);
+    return () => undefined;
+  },
+  stop() {
+    /* no hay cola */
+  },
+};
+
+const Muestreado = Instrument<{ preset: SmplrPreset; buffers: Map<string, AudioBuffer> }>((_ctx, opciones, smplr) =>
+  smplr.loadInstrument(opciones.preset, { buffers: opciones.buffers }),
+);
+
+function instrumentoDeMuestras(paquete: Paquete, muestras: Map<string, AudioBuffer>, ctx: BaseAudioContext, destino: AudioNode) {
+  return Muestreado(ctx, {
+    preset: presetDe(paquete),
+    buffers: muestras,
+    destination: destino,
+    scheduler: programadorInmediato,
+    // Un acorde rasgueado y repetido, o un redoble, no puede acumular voces
+    // sin fin en un móvil.
+    maxVoices: paquete.percusion ? 40 : 48,
+  });
+}
+
+function vozMuestreada(
+  def: DefInstrumento,
+  paquete: Paquete,
+  muestras: Map<string, AudioBuffer>,
+  ctx: BaseAudioContext,
+  destino: AudioNode,
+): Voz {
+  const instrumento = instrumentoDeMuestras(paquete, muestras, ctx, destino);
+  return {
+    def,
+    conMuestras: true,
+    lista: instrumento.ready,
+    tocar(nota, vel, cuando, dur) {
+      const parar = instrumento.start({
+        note: nota,
+        velocity: Math.max(1, Math.min(127, Math.round(vel))),
+        time: cuando,
+        duration: dur ?? null,
+      });
+      return def.sostiene ? (momento) => parar(momento) : nada;
+    },
+    ahogar(cuando) {
+      instrumento.stop({ time: cuando });
+    },
+    dispose() {
+      instrumento.dispose();
+    },
+  };
+}
+
+/* -------------------------------------------------------------------------- */
 /* Batería                                                                     */
 /* -------------------------------------------------------------------------- */
 
-function vozDeBateria(def: DefInstrumento, ctx: BaseAudioContext, destino: AudioNode): Voz {
+/**
+ * Una batería: con muestras para las notas del paquete y síntesis para el
+ * resto. Así un kit al que le falta, por ejemplo, el cencerro sigue teniendo
+ * sus 16 pads sonando.
+ */
+function vozDeBateria(
+  def: DefInstrumento,
+  ctx: BaseAudioContext,
+  destino: AudioNode,
+  paquete: Paquete | null,
+  muestras: Map<string, AudioBuffer> | null | undefined,
+): Voz {
+  const conMuestras = !!(paquete && muestras && muestras.size > 0);
+  const instrumento = conMuestras ? instrumentoDeMuestras(paquete as Paquete, muestras as Map<string, AudioBuffer>, ctx, destino) : null;
+  const muestreadas = conMuestras ? notasConMuestra(paquete as Paquete) : new Set<number>();
   return {
     def,
-    conMuestras: false,
-    lista: Promise.resolve(),
+    conMuestras,
+    lista: instrumento ? instrumento.ready : Promise.resolve(),
     tocar(nota, vel, cuando) {
+      if (instrumento && muestreadas.has(nota)) {
+        instrumento.start({ note: nota, velocity: Math.max(1, Math.min(127, Math.round(vel))), time: cuando, duration: null });
+        return nada;
+      }
       const pad = padDe(def, nota);
       if (pad) playVoice(pad.voz, ctx, destino, cuando, gananciaDeFuerza(vel));
       return nada;
@@ -67,13 +160,52 @@ function vozDeBateria(def: DefInstrumento, ctx: BaseAudioContext, destino: Audio
       /* un golpe de batería no se para */
     },
     dispose() {
-      /* las voces del kit se apagan solas */
+      instrumento?.dispose();
     },
   };
 }
 
 /* -------------------------------------------------------------------------- */
-/* Síntesis                                                                    */
+/* Osciladores                                                                 */
+/* -------------------------------------------------------------------------- */
+
+function vozDeOsciladores(def: DefInstrumento, timbre: TimbreOscilador, ctx: BaseAudioContext, destino: AudioNode): Voz {
+  const sonando = new Map<number, { desde: number; soltar: (t?: number) => void }>();
+  let siguiente = 0;
+  return {
+    def,
+    conMuestras: false,
+    lista: Promise.resolve(),
+    tocar(nota, vel, cuando, dur) {
+      const soltar = tocarOscilador(timbre, ctx, destino, nota, gananciaDeFuerza(vel), cuando, def.sostiene ? dur : undefined);
+      const id = siguiente++;
+      sonando.set(id, { desde: cuando, soltar });
+      // Lo que ya se soltó se olvida pasado un rato: no hace falta guardarlo.
+      if (sonando.size > 64) sonando.delete(sonando.keys().next().value as number);
+      return def.sostiene
+        ? (momento) => {
+            soltar(momento);
+            sonando.delete(id);
+          }
+        : nada;
+    },
+    ahogar(cuando) {
+      for (const [id, { desde, soltar }] of sonando) {
+        if (desde < cuando) {
+          soltar(cuando);
+          sonando.delete(id);
+        }
+      }
+    },
+    dispose() {
+      for (const { soltar } of sonando.values()) soltar();
+      sonando.clear();
+    },
+  };
+}
+
+/* -------------------------------------------------------------------------- */
+/* Síntesis en buffer                                                          */
 /* -------------------------------------------------------------------------- */
 
 /** Notas sintetizadas ya calculadas: el AudioBuffer no es de ningún contexto. */
@@ -128,8 +260,7 @@ export function precalentar(timbre: TimbreSintetico, notas: number[], ctx: BaseA
   };
 }
 
-function vozSintetica(def: DefInstrumento, ctx: BaseAudioContext, destino: AudioNode): Voz {
-  const timbre = def.sintesis;
+function vozSintetica(def: DefInstrumento, timbre: TimbreSintetico, ctx: BaseAudioContext, destino: AudioNode): Voz {
   const activas = new Set<AudioBufferSourceNode>();
   const soltadores = new Map<AudioBufferSourceNode, { desde: number; soltar: (t: number, tau: number) => void }>();
   return {
@@ -190,95 +321,6 @@ function vozSintetica(def: DefInstrumento, ctx: BaseAudioContext, destino: Audio
 }
 
 /* -------------------------------------------------------------------------- */
-/* Muestras (smplr)                                                            */
-/* -------------------------------------------------------------------------- */
-
-/**
- * smplr programa lo que cae más allá de 200 ms con un setInterval que mira el
- * reloj del contexto. En un OfflineAudioContext ese reloj corre a toda
- * velocidad y el intervalo llega tarde: las notas se perderían. Con este
- * programador todo se entrega al momento, con su instante exacto, y es el
- * propio motor de audio quien espera.
- */
-const programadorInmediato: Scheduler = {
-  schedule(event: NoteEvent, callback: (event: NoteEvent) => void): StopFn {
-    callback(event);
-    return () => undefined;
-  },
-  stop() {
-    /* no hay cola */
-  },
-};
-
-const Muestreado = Instrument<{ preset: SmplrPreset; buffers: Map<string, AudioBuffer> }>((_ctx, opciones, smplr) =>
-  smplr.loadInstrument(opciones.preset, { buffers: opciones.buffers }),
-);
-
-/** El preset de smplr de un paquete: cada muestra cubre hasta medio camino de sus vecinas. */
-export function presetDe(paquete: Paquete): SmplrPreset {
-  const raices = [...new Set(paquete.archivos.map((a) => a.midi))].sort((a, b) => a - b);
-  const rango = (midi: number): [number, number] => {
-    const i = raices.indexOf(midi);
-    const lo = i === 0 ? 0 : Math.floor((raices[i - 1] + midi) / 2) + 1;
-    const hi = i === raices.length - 1 ? 127 : Math.floor((midi + raices[i + 1]) / 2);
-    return [lo, hi];
-  };
-  const hayCapas = paquete.archivos.some((a) => a.capa);
-  return {
-    meta: { name: paquete.nombre, license: paquete.licencia, source: paquete.origen },
-    samples: { baseUrl: `/samples/${paquete.id}`, formats: ['mp3'] },
-    defaults: { ampAttack: paquete.sonido.ataque, ampRelease: paquete.sonido.suelta },
-    groups: [
-      {
-        regions: paquete.archivos.map((archivo) => ({
-          sample: nombreDeMuestra(archivo.nombre),
-          pitch: archivo.midi,
-          keyRange: rango(archivo.midi),
-          ...(hayCapas ? { velRange: (archivo.capa === 'p' ? [1, 84] : [85, 127]) as [number, number] } : {}),
-        })),
-      },
-    ],
-  };
-}
-
-function vozMuestreada(
-  def: DefInstrumento,
-  paquete: Paquete,
-  muestras: Map<string, AudioBuffer>,
-  ctx: BaseAudioContext,
-  destino: AudioNode,
-): Voz {
-  const instrumento = Muestreado(ctx, {
-    preset: presetDe(paquete),
-    buffers: muestras,
-    destination: destino,
-    scheduler: programadorInmediato,
-    // Un acorde rasgueado y repetido no puede acumular voces sin fin en un móvil.
-    maxVoices: 48,
-  });
-  return {
-    def,
-    conMuestras: true,
-    lista: instrumento.ready,
-    tocar(nota, vel, cuando, dur) {
-      const parar = instrumento.start({
-        note: nota,
-        velocity: Math.max(1, Math.min(127, Math.round(vel))),
-        time: cuando,
-        duration: dur ?? null,
-      });
-      return def.sostiene ? (momento) => parar(momento) : nada;
-    },
-    ahogar(cuando) {
-      instrumento.stop({ time: cuando });
-    },
-    dispose() {
-      instrumento.dispose();
-    },
-  };
-}
-
-/* -------------------------------------------------------------------------- */
 /* La fábrica                                                                  */
 /* -------------------------------------------------------------------------- */
 
@@ -292,8 +334,14 @@ export function crearVoz(
   destino: AudioNode,
   muestras?: Map<string, AudioBuffer> | null,
 ): Voz {
-  if (def.pads) return vozDeBateria(def, ctx, destino);
   const paquete = getPaquete(def.paquete);
+  if (def.pads) return vozDeBateria(def, ctx, destino, paquete, muestras);
   if (paquete && muestras && muestras.size > 0) return vozMuestreada(def, paquete, muestras, ctx, destino);
-  return vozSintetica(def, ctx, destino);
+  if (esTimbreOscilador(def.sintesis)) return vozDeOsciladores(def, def.sintesis, ctx, destino);
+  return vozSintetica(def, def.sintesis, ctx, destino);
+}
+
+/** El timbre de buffer de un instrumento, si lo usa (para calcular sus notas antes). */
+export function timbreDeBuffer(def: DefInstrumento): TimbreSintetico | null {
+  return def.pads || esTimbreOscilador(def.sintesis) ? null : def.sintesis;
 }
