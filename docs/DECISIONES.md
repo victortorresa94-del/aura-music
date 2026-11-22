@@ -491,3 +491,43 @@ hiper digital, 0 real, y muchas percusiones en general».
 de 6 a 14 dB más fuerte que con la síntesis, que era muy floja; si molesta,
 se baja con el volumen de la claqueta. La VCSL no trae slap de conga: el
 tumbao del bolero usa el golpe apagado del quinto.
+
+## 0023 · Lo básico de un DAW: cabecera, selección, atajos y edición (22-nov-2026)
+
+El dueño: «necesito atajos de teclado de toda la vida, como estar encima de
+una pista, darle a la tecla borrar y ciao» y «necesito poder tocar el volumen
+de cada pista».
+- **Cabecera de pista con lo de siempre** (`cabecera/CabeceraPista.tsx`):
+  nombre y «⋯»; M, S y el volumen; en el PC también el panorama, como
+  perilla (una segunda raya al lado del volumen se confundía con él). Los
+  mandos siguen las reglas del mezclador: arrastre relativo, se oye al
+  mover, se guarda al soltar (un paso de Deshacer), doble clic al 0 dB o al
+  centro, misma escala de fader. En el móvil el fader mide 48 px pero el
+  recorrido son 180 px de dedo: se afina igual. El panorama no cabe en
+  128 px y sigue en el mezclador.
+- **Elegida = la fila más opaca** (cabecera y calle) y el filo de tinta en el
+  clip. Sin franja de color a un lado: el color aquí significa algo.
+- **Atajos en un módulo propio.** `lib/daw/atajos.ts` dice qué tecla es cada
+  atajo y su nombre en español (la lista `ATAJOS`, para el menú Editar y
+  Ayuda → Atajos); `hooks/useAtajos.ts` dice qué hace cada uno y da
+  `ejecutar(id)` para que el menú y la tecla llamen a lo mismo. No cuentan
+  escribiendo en un campo, ni con «Tocar» abierto (el teclado toca notas);
+  con una hoja o el mezclador encima solo Espacio, Deshacer y Rehacer.
+  Ctrl y ⌘ valen lo mismo. Ctrl+R y Ctrl+S siguen siendo del navegador (y
+  del menú Archivo): R y S graban y cortan solo sin modificador.
+- **Una pista sigue siendo un clip.** Cortar en el cursor (S) deja la segunda
+  mitad en una pista nueva justo debajo, con la misma mezcla; pegar (Ctrl+V)
+  crea una pista con el clip en el cursor. Es lo mismo que al grabar, cada
+  toma en su pista. Pasar a varios clips por pista tocaba el motor, el
+  mezclador, el guardado, el productor y el músico a la vez, con cinco
+  sesiones trabajando en paralelo: no compensaba. Por eso tampoco se
+  arrastran clips de una pista a otra.
+- **Cortar un clip con repeticiones** corta entre dos vueltas, la más
+  cercana: media vuelta más varias enteras no cabe en un clip.
+- **Con el ratón se arrastra a la primera** (clips y regla); con el dedo, el
+  primer toque elige y el segundo arrastra, para que desplazar la lista no
+  mueva clips sin querer. Un clic sin mover ya no deja un paso de Deshacer
+  vacío. El imán a la rejilla vale también al recortar los bordes; Alt lo
+  suelta. Clic en la regla o en la calle vacía lleva el cursor ahí.
+- **Rehacer** es el de la rama de menús (`redo`, `hayRehacer`), traído tal
+  cual para que las dos ramas no choquen.
