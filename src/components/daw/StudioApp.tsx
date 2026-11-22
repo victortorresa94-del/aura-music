@@ -111,7 +111,7 @@ export default function StudioApp() {
   /* Menús. Ctrl+Z y los demás atajos viven ahora en `useArchivo`, junto a lo
      que hace cada comando (se apartan si estás escribiendo en un campo). */
   const [inicio, setInicio] = useState(false);
-  const [atajosAbiertos, setAtajos] = useState(false);
+  const [atajos, setAtajos] = useState(false);
   const [introForzada, setIntroForzada] = useState(false);
   /* «Tocar» lee su pestaña al montarse: para abrirla en un instrumento desde
      «Tus ideas» se deja la pestaña elegida y se vuelve a montar (la clave). */
@@ -146,15 +146,7 @@ export default function StudioApp() {
     [engine, ponerTema],
   );
   const archivo = useArchivo(studio, pantalla);
-  /* Los atajos de edición (Espacio, R, Ctrl+C/V/X/D, S, M, Supr…). Con
-     «Tocar» o «Tus ideas» delante no cuentan: el teclado toca notas, o no
-     hay estudio a la vista. Con una hoja o el mezclador, solo el transporte. */
-  const atajos = useAtajos(studio, {
-    activo: !tocar && !inicio,
-    soloTransporte: sheet !== null || mezclador || atajosAbiertos,
-    pulsosPorCompas: ciclo?.pulsos ?? 4,
-  });
-  const menus = useMenus(studio, archivo, theme.mode, atajos);
+  const menus = useMenus(studio, archivo, theme.mode);
 
   /** Desde «Tus ideas»: una idea nueva y, si se ha pedido, un instrumento, la voz o los loops. */
   const empezarCon = async (acceso: AccesoRapido | null) => {
@@ -416,7 +408,7 @@ export default function StudioApp() {
         onAjustes={() => setSheet('settings')}
         refresco={nube.cambios}
       />
-      <DialogosDeArchivo studio={studio} archivo={archivo} atajos={atajosAbiertos} onCerrarAtajos={() => setAtajos(false)} />
+      <DialogosDeArchivo studio={studio} archivo={archivo} atajos={atajos} onCerrarAtajos={() => setAtajos(false)} />
       {/* PWA (pilar E): avisos bajo la cabecera y, en iPhone sin instalar, cómo instalarla. */}
       <AvisosPwa studio={studio} pwa={pwa} onAbrirAjustes={() => setSheet('settings')} />
       <GuiaInstalarIphone />

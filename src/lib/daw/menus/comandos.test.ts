@@ -22,10 +22,10 @@ describe('comandoDeTecla', () => {
     expect(comandoDeTecla(tecla('S', { ctrlKey: true, shiftKey: true }), false)).toBe('guardarCopia');
   });
 
-  it('deja Deshacer y Rehacer a los atajos de edición, que son su único dueño', () => {
-    expect(comandoDeTecla(tecla('z', { ctrlKey: true }), false)).toBeNull();
-    expect(comandoDeTecla(tecla('Z', { ctrlKey: true, shiftKey: true }), false)).toBeNull();
-    expect(comandoDeTecla(tecla('y', { ctrlKey: true }), false)).toBeNull();
+  it('rehace con Ctrl+Mayús+Z y con Ctrl+Y', () => {
+    expect(comandoDeTecla(tecla('z', { ctrlKey: true }), false)).toBe('deshacer');
+    expect(comandoDeTecla(tecla('Z', { ctrlKey: true, shiftKey: true }), false)).toBe('rehacer');
+    expect(comandoDeTecla(tecla('y', { ctrlKey: true }), false)).toBe('rehacer');
   });
 
   it('en Mac usa ⌘ y no reacciona a Ctrl', () => {

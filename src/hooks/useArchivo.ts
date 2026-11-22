@@ -194,6 +194,7 @@ export function useArchivo(studio: Studio, pantalla: AccionesDePantalla) {
 
   const ejecutar = useCallback(
     (id: IdComando) => {
+      const pista = studio.selectedTrack;
       switch (id) {
         case 'nueva':
           void studio.newProject().then(() => setStatus('Idea nueva. Toca el botón rojo cuando quieras.'));
@@ -235,6 +236,12 @@ export function useArchivo(studio: Studio, pantalla: AccionesDePantalla) {
         case 'borrar':
           setPorBorrar(studio.project);
           return;
+        case 'deshacer':
+          studio.undo();
+          return;
+        case 'rehacer':
+          studio.redo();
+          return;
         case 'ajustes':
         case 'latencia':
           pantalla.abrirAjustes();
@@ -246,7 +253,22 @@ export function useArchivo(studio: Studio, pantalla: AccionesDePantalla) {
           pantalla.loops();
           return;
         case 'opcionesPista':
-          if (studio.selectedTrack) pantalla.abrirPista();
+          if (pista) pantalla.abrirPista();
+          return;
+        case 'duplicarPista':
+          if (pista) studio.duplicateTrack(pista.id);
+          return;
+        case 'silenciarPista':
+          if (pista) studio.toggleMute(pista.id);
+          return;
+        case 'soloPista':
+          if (pista) studio.toggleSolo(pista.id);
+          return;
+        case 'borrarPista':
+          if (pista) {
+            studio.deleteTrack(pista.id);
+            setStatus(`«${pista.name}» borrada. Puedes deshacer.`);
+          }
           return;
         case 'mezclador':
           pantalla.abrirMezclador();
