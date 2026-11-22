@@ -1039,6 +1039,21 @@ export function useStudio() {
     [settings, engine?.ctx, transport],
   );
 
+  /**
+   * Meter un audio hecho en el móvil (una toma cuadrada al tempo) en el
+   * motor, con sus picos para que la onda se dibuje. No lo guarda en disco:
+   * eso lo hace quien lo crea, esperando a que acabe.
+   */
+  const ponerAudio = useCallback(
+    (bufferId: string, channels: Float32Array[], sampleRate: number) => {
+      if (!engine) return;
+      engine.putBuffer(bufferId, engine.createBufferFromSamples(channels, sampleRate));
+      peaksRef.current.set(bufferId, computePeaks(channels[0], sampleRate));
+      setPeaksVersion((version) => version + 1);
+    },
+    [engine],
+  );
+
   const getPeaks = useCallback(
     (bufferId: string) => peaksRef.current.get(bufferId) ?? null,
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1104,6 +1119,8 @@ export function useStudio() {
     undo,
     /** Cambiar el proyecto con historial (y `grupo` para juntar un arrastre). Lo usan el mezclador y el productor. */
     commit,
+    /** Un audio nuevo al motor, con su onda (cuadrar al tempo). */
+    ponerAudio,
     // proyecto
     newProject,
     openProject,

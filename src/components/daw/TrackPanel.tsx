@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import type { Studio } from '@/hooks/useStudio';
 import { AjustesDeNotas } from './instrumentos';
 import { SeccionClaqueta } from './claqueta/SeccionClaqueta';
+import { CuadrarToma } from './cuadrar/CuadrarToma';
 import { haptic, trackTint } from './theme';
 import {
   Field,
@@ -245,6 +246,8 @@ export function TrackSheet({
 
       {/* Pilar B: si se tocó en la pantalla, cuadrar, humanizar y cambiar el sonido. */}
       {selectedTrack.notas ? <AjustesDeNotas studio={studio} track={selectedTrack} /> : null}
+      {/* Y si es audio (guitarra, voz), cuadrarla al tempo sin perder la original. */}
+      {selectedTrack.notas ? null : <CuadrarToma studio={studio} track={selectedTrack} />}
 
       <Field
         title="Repetir el bloque"
@@ -520,7 +523,7 @@ export function ClickSheet({
           value={settings.countInBars}
           options={[0, 1, 2].map((bars) => ({
             value: bars,
-            text: bars === 0 ? 'Sin cuenta' : `${bars} compás${bars > 1 ? 'es' : ''}`,
+            text: bars === 0 ? 'Sin cuenta' : `${bars} ${bars > 1 ? 'compases' : 'compás'}`,
           }))}
           onChange={(bars) => updateSettings({ countInBars: bars })}
         />

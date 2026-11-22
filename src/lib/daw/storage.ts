@@ -6,6 +6,7 @@
 
 import { EVENTO_ALMACENAMIENTO_LLENO, esCuotaLlena } from '@/lib/pwa/espacio';
 import { floatToInt16, int16ToFloat } from './audio';
+import { audiosDePista } from './cuadrar/toma';
 import { DEFAULT_SETTINGS, isIOS, type Project, type StudioSettings } from './types';
 
 const DB_NAME = 'compas';
@@ -115,8 +116,9 @@ export async function listProjects(): Promise<Project[]> {
 }
 
 export async function deleteProject(project: Project): Promise<void> {
+  // También la versión que no suena de una toma cuadrada.
   for (const track of project.tracks) {
-    await deleteAudio(track.clip.bufferId);
+    for (const id of audiosDePista(track)) await deleteAudio(id);
   }
   await tx(PROJECTS, 'readwrite', (store) => store.delete(project.id) as IDBRequest<undefined>);
 }
@@ -180,7 +182,8 @@ export async function collectGarbage(): Promise<number> {
   const projects = await listProjects();
   const alive = new Set<string>();
   projects.forEach((project) =>
-    project.tracks.forEach((track) => alive.add(track.clip.bufferId)),
+    // La toma original de una pista cuadrada sigue viva aunque no suene.
+    project.tracks.forEach((track) => audiosDePista(track).forEach((id) => alive.add(id))),
   );
   const records = await tx<AudioRecord[]>(AUDIO, 'readonly', (store) => store.getAll());
   let removed = 0;

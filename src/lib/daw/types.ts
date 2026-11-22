@@ -9,6 +9,7 @@
 import type { AjustesMaster, MezclaPista } from './mezcla/tipos';
 import type { PistaDeNotas } from '@/lib/instrumentos/tipos';
 import type { AjustesClaqueta } from './claqueta/claqueta';
+import type { CuadreDeToma } from './cuadrar/toma';
 
 export interface Clip {
   /** Clave del audio en el almacén (IndexedDB / mapa de buffers en memoria). */
@@ -51,6 +52,11 @@ export interface Track {
    * exporta como cualquier otra. Las pistas sin este campo son audio.
    */
   notas?: PistaDeNotas;
+  /**
+   * Toma de audio cuadrada al tempo: la original y la cuadrada, y cuál suena.
+   * La original no se borra nunca (ver `src/lib/daw/cuadrar/toma.ts`).
+   */
+  cuadre?: CuadreDeToma;
 }
 
 export interface Project {

@@ -312,3 +312,37 @@ masterizar, y el WAV sale masterizado); medidores con estado de React.
 **Pendiente:** probar en un iPhone de verdad; el masterizado bloquea el hilo
 unos segundos en canciones largas (pasarlo a un Worker); chorus y ranuras
 de efectos libres, que el plan pedía y aquí no caben aún.
+
+## 0019 · La claqueta de varias formas y cuadrar tomas de audio (22-nov-2026)
+
+El dueño: «el tic-toc nunca me ha funcionado muy bien… quisiera ponerlo a
+negras y en modo bombo, o ponerle ritmos básicos de fondo para grabar, como
+rumba suave», y «quiero grabar pistas y que se regraben al tiempo».
+**Claqueta** (`src/lib/daw/claqueta/`): sonido (tic-tac, bombo, bombo y caja,
+shaker, palmas, baqueta) con las voces del kit de ritmos, cada cuánto
+(blancas, negras, corcheas, tresillos) con acento en el 1 que se puede
+quitar, volumen propio y un ritmo de fondo (rumba suave, pop, balada,
+bulería, bossa) con «Cuánto» y «Fuerza» bajos. Va por el bus de la claqueta:
+no pasa por la mezcla, no se graba y no se exporta. La cuenta atrás usa el
+mismo sonido. En la hoja de tempo, a dos toques; cada opción suena al
+tocarla y se recuerda (`StudioSettings.claqueta`, opcional: sin ella, el
+tic-tac de siempre, idéntico). El motor sigue llevando un puntero al
+siguiente paso, así que mover el tempo a media toma no da saltos, y la
+latencia aprendida mide igual (la rejilla son los pulsos, suene lo que suene).
+**Cuadrar tomas de audio** (`src/lib/daw/cuadrar/`): busca los ataques con
+`detectarGolpes`, corta 5 ms antes de cada uno, acerca cada trozo a la
+rejilla del proyecto con la fuerza elegida (50-100 %) y los une con fundidos
+de 4 ms. Si queda un hueco o un trozo pisa al siguiente, lo estira o lo
+encoge con WSOLA (entre 0,7 y 1,45 veces) sin cambiar el tono. Lo que cae
+lejos de la rejilla no se mueve. No destructivo: la pista guarda la toma
+original y la cuadrada (`Track.cuadre`); «Como la toqué / Cuadrada» a un
+toque, «Dejar como la toqué» y Deshacer. El recolector de audio cuenta la
+original como viva. El paso «cuadrar» del productor vale ahora también para
+tomas de audio (solo con la fuerza).
+**Descartado:** una voz que cuenta «un, dos, tres, cuatro». El navegador no
+puede programar `speechSynthesis` en el reloj de audio (llega cuando quiere,
+100-500 ms tarde) y una voz sintetizada a mano no se entendía; queda para
+cuando haya muestras grabadas con licencia.
+**Descartado:** reutilizar el ritmo de la hoja de Ritmos como fondo. Ese va
+por la mezcla y es material musical; el de la claqueta es una señal de
+servicio con su volumen.

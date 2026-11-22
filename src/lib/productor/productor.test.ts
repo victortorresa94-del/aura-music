@@ -71,15 +71,24 @@ describe('normalizarPlan', () => {
     );
   });
 
-  it('solo cuadra pistas tocadas en la pantalla, y limita fuerza y swing', () => {
+  it('cuadra pistas que existen, tocadas en la pantalla o tomas de audio, y limita fuerza y swing', () => {
     const pasos: Plan['pasos'] = [
       { tipo: 'cuadrar', pista: 'Batería 808', fuerza: 140, swing: -5, humanizar: false, porque: 'x' },
       { tipo: 'cuadrar', pista: 'Guitarra grabada', fuerza: 70, swing: 0, humanizar: false, porque: 'x' },
+      { tipo: 'cuadrar', pista: 'Una que no existe', fuerza: 70, swing: 0, humanizar: false, porque: 'x' },
     ];
     const p = normalizarPlan(plan(pasos), { hayTomas: true, bpm: 96, pistasDeNotas: ['Batería 808'] });
     expect(p.pasos).toHaveLength(1);
     expect(p.pasos[0]).toMatchObject({ pista: 'Batería 808', fuerza: 100, swing: 0 });
     expect(normalizarPlan(plan(pasos), { hayTomas: true, bpm: 96 }).pasos).toHaveLength(0);
+    // Con la lista de pistas, la toma de audio también se cuadra (cortando en los golpes).
+    const conAudio = normalizarPlan(plan(pasos), {
+      hayTomas: true,
+      bpm: 96,
+      pistasDeNotas: ['Batería 808'],
+      pistas: ['Batería 808', 'Guitarra grabada'],
+    });
+    expect(conAudio.pasos.map((s) => (s.tipo === 'cuadrar' ? s.pista : ''))).toEqual(['Batería 808', 'Guitarra grabada']);
   });
 });
 

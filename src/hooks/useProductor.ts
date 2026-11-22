@@ -22,6 +22,8 @@ import type { EstiloTeclas } from '@/lib/musico/teclas';
 import type { Track } from '@/lib/daw/types';
 import type { Paso, Plan } from '@/lib/productor/plan';
 import { rehacerPistaDeNotas } from '@/hooks/useInstrumentos';
+import { cuadrarToma } from '@/hooks/useCuadrar';
+import { CUADRE_POR_DEFECTO } from '@/lib/daw/cuadrar/cuadrar';
 import { getInstrumento } from '@/lib/instrumentos/registro';
 import { ajustesParaCuadrar, describirDiagnostico, diagnosticar } from '@/lib/musico/groove';
 import type { ContextoProductor, TurnoProductor } from '@/lib/productor/prompt';
@@ -193,8 +195,20 @@ export function useProductor(studio: Studio, musico: Musico, pulsosPorCompas: nu
         }
         case 'cuadrar': {
           // Pilar B: lo mismo que el botón «Cuadrar» de la pista, con los ajustes de Claude.
-          const pista = s.project.tracks.find((t) => t.notas && t.name === paso.pista);
-          if (!pista?.notas) return { estado: 'saltado', nota: 'No encuentro esa pista tocada en la pantalla.' };
+          const pista =
+            s.project.tracks.find((t) => t.notas && t.name === paso.pista) ??
+            s.project.tracks.find((t) => t.name === paso.pista);
+          if (!pista) return { estado: 'saltado', nota: 'No encuentro esa pista.' };
+          if (!pista.notas) {
+            // Una toma de audio: se corta en los golpes. Aquí solo manda la fuerza.
+            const cuadre = await cuadrarToma(s, pista.id, {
+              ...CUADRE_POR_DEFECTO,
+              fuerza: Math.min(1, Math.max(0.5, paso.fuerza / 100)),
+            });
+            if (!cuadre) return { estado: 'saltado', nota: 'No había golpes que mover en esa toma.' };
+            cambiarCerebro((c) => apuntarUso(c, 'cuadrar:audio'));
+            return { estado: 'hecho' };
+          }
           const ajustes = ajustesParaCuadrar(pista.notas.bruto, pista.notas.ajustes, {
             fuerza: paso.fuerza / 100,
             swing: paso.swing / 100,

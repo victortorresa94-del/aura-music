@@ -78,7 +78,7 @@ export const PasoSchema = z.discriminatedUnion('tipo', [
   // Pilar B: cuadrar una pista tocada en la pantalla (ver src/lib/musico/groove).
   z.object({
     tipo: z.literal('cuadrar'),
-    pista: z.string().describe('Nombre exacto de una pista tocada en la pantalla.'),
+    pista: z.string().describe('Nombre exacto de la pista: tocada en la pantalla o toma de audio.'),
     fuerza: z.number().describe('De 0 a 100: cuánto se lleva a la rejilla. 70 corrige sin dejarlo de máquina.'),
     swing: z.number().describe('De 0 a 100. 0 es recto; a partir de 30 ya se nota.'),
     humanizar: z.boolean().describe('Además, un poco de mano: desvíos pequeños y con memoria.'),
@@ -171,8 +171,9 @@ export function normalizarPlan(plan: Plan, situacion: SituacionDelPlan): Plan {
         });
         break;
       case 'cuadrar':
-        // Solo lo tocado en la pantalla: el audio grabado no tiene notas que mover.
-        if (!situacion.pistasDeNotas?.includes(paso.pista)) break;
+        // Lo tocado en la pantalla mueve notas; una toma de audio se corta en
+        // los golpes (src/lib/daw/cuadrar). Tiene que ser una pista que exista.
+        if (!situacion.pistasDeNotas?.includes(paso.pista) && !situacion.pistas?.includes(paso.pista)) break;
         pasos.push({
           ...paso,
           fuerza: Math.round(limitar(Number.isFinite(paso.fuerza) ? paso.fuerza : 70, 0, 100)),
