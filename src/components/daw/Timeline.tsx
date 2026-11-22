@@ -8,6 +8,8 @@ import { cssColor, haptic, trackTint } from './theme';
 import { IconImport, T, hintText, numeric } from './ui';
 import { CabeceraPista, botonPlano, headerCell, nombreVisible } from './cabecera/CabeceraPista';
 import { ESTILO_MANDOS } from './cabecera/ControlesPista';
+import { EVENTO_VER_CURSOR, EVENTO_ZOOM } from '@/hooks/useAtajos';
+import { alPulso, TROZO_MINIMO } from '@/lib/daw/edicion';
 import { IconTocar, NotasClip } from './instrumentos';
 import { Repeat } from '@phosphor-icons/react';
 
@@ -200,58 +202,73 @@ function ClipBlock({
   onEdit: (patch: Partial<Track['clip']>) => void;
   onOptions: () => void;
 }) {
-  const drag = useRef<{ mode: DragMode; x: number; clip: Track['clip'] } | null>(null);
+  const drag = useRef<{ mode: DragMode; x: number; clip: Track['clip']; empezado: boolean } | null>(null);
   const [arrastrando, setArrastrando] = useState(false);
   const { clip } = track;
   const width = Math.max(6, clip.duration * clip.repeats * pps);
 
+  // El imán a la rejilla (si está puesto en Ajustes). Con Alt se suelta.
   const snapValue = useCallback(
-    (value: number) => {
-      if (!snap || beatSeconds <= 0) return value;
-      const nearest = Math.round(value / beatSeconds) * beatSeconds;
-      return Math.abs(nearest - value) < beatSeconds * 0.25 ? nearest : value;
-    },
+    (value: number, libre = false) => alPulso(value, beatSeconds, snap && !libre),
     [snap, beatSeconds],
   );
 
   const begin = (mode: DragMode) => (event: React.PointerEvent) => {
+    if (event.button !== 0) return;
     if (!selected) {
       onSelect();
-      return; // primer toque selecciona; el segundo ya arrastra
+      // Con el dedo, el primer toque elige y el segundo ya arrastra: si no,
+      // desplazar la lista movería clips sin querer. Con el ratón no hay ese
+      // riesgo y se arrastra a la primera, como en cualquier DAW.
+      if (event.pointerType !== 'mouse') return;
     }
     event.stopPropagation();
     (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
-    drag.current = { mode, x: event.clientX, clip: { ...clip } };
-    setArrastrando(true);
-    onBeginEdit();
+    drag.current = { mode, x: event.clientX, clip: { ...clip }, empezado: false };
   };
 
   const move = (event: React.PointerEvent) => {
     const state = drag.current;
     if (!state) return;
     event.stopPropagation();
-    const delta = (event.clientX - state.x) / pps;
+    const dx = event.clientX - state.x;
+    // Hasta que no se mueve de verdad no es un arrastre: un clic no deja un
+    // paso de Deshacer vacío ni mueve el clip medio píxel.
+    if (!state.empezado) {
+      if (Math.abs(dx) < 3) return;
+      state.empezado = true;
+      setArrastrando(true);
+      onBeginEdit();
+    }
+    const delta = dx / pps;
     const base = state.clip;
+    const libre = event.altKey;
 
     if (state.mode === 'move') {
-      onEdit({ start: Math.max(0, snapValue(base.start + delta)) });
+      onEdit({ start: Math.max(0, snapValue(base.start + delta, libre)) });
       return;
     }
 
     if (state.mode === 'left') {
       // Recorte de entrada: se come buffer por delante y desplaza el inicio.
-      const maxIn = base.duration - 0.08;
-      const shift = Math.min(Math.max(delta, -base.offset), maxIn);
+      // El imán va sobre el borde, que es lo que se ve.
+      const maxIn = base.duration - TROZO_MINIMO;
+      const deseado = snapValue(Math.max(0, base.start + delta), libre) - base.start;
+      const shift = Math.min(Math.max(deseado, -base.offset, -base.start), maxIn);
       onEdit({
         offset: base.offset + shift,
-        start: Math.max(0, base.start + shift),
+        start: base.start + shift,
         duration: base.duration - shift,
       });
       return;
     }
 
     const maxOut = track.sourceDuration - base.offset;
-    onEdit({ duration: Math.min(Math.max(0.08, base.duration + delta), maxOut) });
+    // Con repeticiones el borde derecho cambia lo que dura cada vuelta: el
+    // imán solo tiene sentido con una.
+    const fin =
+      base.repeats === 1 ? snapValue(base.start + base.duration + delta, libre) - base.start : base.duration + delta;
+    onEdit({ duration: Math.min(Math.max(TROZO_MINIMO, fin), maxOut) });
   };
 
   const end = (event: React.PointerEvent) => {
@@ -588,6 +605,7 @@ function Ruler({
   showHead,
   headRef,
   onSeek,
+  onScrub,
 }: {
   showHead: boolean;
   width: number;
@@ -597,7 +615,10 @@ function Ruler({
   recording: boolean;
   headRef: React.RefObject<HTMLDivElement | null>;
   onSeek: (t: number) => void;
+  /** Mientras se arrastra: mueve el cursor sin reprogramar lo que suena. */
+  onScrub: (t: number) => void;
 }) {
+  const arrastre = useRef(false);
   const beatPx = (60 / bpm) * pps;
   const barPx = beatPx * beatsPerBar;
   // Un número cada tantos compases como haga falta para que no se pisen.
@@ -618,9 +639,31 @@ function Ruler({
 
   return (
     <div
+      title="Clic para llevar el cursor ahí. Con el ratón, arrastra."
       onPointerDown={(event) => {
+        if (event.button !== 0) return;
         const rect = event.currentTarget.getBoundingClientRect();
         onSeek(Math.max(0, (event.clientX - rect.left) / pps));
+        // Con el ratón se arrastra el cursor por la regla, atrás o adelante.
+        // Con el dedo no: deslizar la regla desplaza la línea de tiempo.
+        if (event.pointerType === 'mouse') {
+          event.currentTarget.setPointerCapture(event.pointerId);
+          arrastre.current = true;
+        }
+      }}
+      onPointerMove={(event) => {
+        if (!arrastre.current) return;
+        const rect = event.currentTarget.getBoundingClientRect();
+        onScrub(Math.max(0, (event.clientX - rect.left) / pps));
+      }}
+      onPointerUp={(event) => {
+        if (!arrastre.current) return;
+        arrastre.current = false;
+        const rect = event.currentTarget.getBoundingClientRect();
+        onSeek(Math.max(0, (event.clientX - rect.left) / pps));
+      }}
+      onPointerCancel={() => {
+        arrastre.current = false;
       }}
       style={{
         position: 'relative',
@@ -799,13 +842,10 @@ export function Timeline({
     };
     // Safari de iOS manda además sus propios gestos: que no amplíen la página.
     const onGesture = (event: Event) => event.preventDefault();
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.ctrlKey || event.metaKey || event.altKey) return;
-      const target = event.target as HTMLElement | null;
-      const tag = target?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target?.isContentEditable) return;
-      if (event.key === '+' || event.key === '=') zoomAround(zoomRef.current.pps * 1.4, null);
-      else if (event.key === '-' || event.key === '_') zoomAround(zoomRef.current.pps / 1.4, null);
+    // Las teclas + y − (y el menú Ver) llegan por `useAtajos` como evento.
+    const onZoomTeclado = (event: Event) => {
+      const factor = (event as CustomEvent<number>).detail;
+      if (typeof factor === 'number' && factor > 0) zoomAround(zoomRef.current.pps * factor, null);
     };
 
     node.addEventListener('touchstart', onTouchStart, { passive: true });
@@ -815,7 +855,7 @@ export function Timeline({
     node.addEventListener('wheel', onWheel, { passive: false });
     node.addEventListener('gesturestart', onGesture);
     node.addEventListener('gesturechange', onGesture);
-    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener(EVENTO_ZOOM, onZoomTeclado);
     return () => {
       node.removeEventListener('touchstart', onTouchStart);
       node.removeEventListener('touchmove', onTouchMove);
@@ -824,9 +864,42 @@ export function Timeline({
       node.removeEventListener('wheel', onWheel);
       node.removeEventListener('gesturestart', onGesture);
       node.removeEventListener('gesturechange', onGesture);
-      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener(EVENTO_ZOOM, onZoomTeclado);
     };
   }, []);
+
+  /* Inicio, Fin y las flechas mueven el cursor: si se va fuera de la vista,
+     la línea de tiempo lo sigue (aunque no esté sonando). */
+  useEffect(() => {
+    const verCursor = () => {
+      const node = scrollRef.current;
+      const engine = studio.engine;
+      if (!node || !engine) return;
+      requestAnimationFrame(() => {
+        const { pps: actual, headerW: col } = zoomRef.current;
+        const x = engine.position * actual;
+        const izquierda = node.scrollLeft;
+        const visible = node.clientWidth - col;
+        if (x < izquierda + 24 || x > izquierda + visible - 48) {
+          node.scrollLeft = Math.max(0, x - visible * 0.3);
+        }
+      });
+    };
+    window.addEventListener(EVENTO_VER_CURSOR, verCursor);
+    return () => window.removeEventListener(EVENTO_VER_CURSOR, verCursor);
+  }, [studio.engine]);
+
+  /* Arrastrar el cursor por la regla. Parado, el cursor va con el ratón;
+     sonando, se oye desde donde sueltes (reprogramar a cada píxel daría
+     tirones). */
+  const scrub = useCallback(
+    (t: number) => {
+      const engine = studio.engine;
+      if (!engine) return;
+      if (engine.transportState === 'stopped') engine.seek(t);
+    },
+    [studio.engine],
+  );
 
   /* ----------------------------- rejilla -------------------------------- */
   /* Compás más marcado, pulso más tenue. Va en cada calle (y en el relleno
@@ -886,6 +959,7 @@ export function Timeline({
             showHead={project.tracks.length > 0 || recording}
             headRef={headRef}
             onSeek={seek}
+            onScrub={scrub}
           />
         </div>
 
@@ -926,6 +1000,13 @@ export function Timeline({
 
               <div
                 onPointerDown={() => setSelectedTrackId(track.id)}
+                onClick={(event) => {
+                  // Un clic en la calle vacía lleva el cursor ahí, como en la
+                  // regla. En un clip no: ahí se elige y se arrastra.
+                  if ((event.target as HTMLElement).closest('[data-clip]')) return;
+                  const rect = event.currentTarget.getBoundingClientRect();
+                  seek(alPulso(Math.max(0, (event.clientX - rect.left) / pps), beatSeconds, settings.snapToGrid));
+                }}
                 style={{
                   position: 'relative',
                   width: laneWidth,

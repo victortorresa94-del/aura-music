@@ -570,3 +570,77 @@ propio espacio, que las reglas ya aíslan); probar en un iPhone de verdad la
 ventana de Google en la app instalada; limitar tamaño y tipo del audio con
 una regla de Storage propia para `aura-music/`; predictores LPC en el FLAC
 (ffmpeg al máximo saca un 15 % menos que el nuestro).
+
+## 0024 · Lo básico de un DAW: cabecera, selección, atajos y edición (22-nov-2026)
+
+El dueño: «necesito atajos de teclado de toda la vida, como estar encima de
+una pista, darle a la tecla borrar y ciao» y «necesito poder tocar el volumen
+de cada pista».
+- **Cabecera de pista con lo de siempre** (`cabecera/CabeceraPista.tsx`):
+  nombre y «⋯»; M, S y el volumen; en el PC también el panorama, como
+  perilla (una segunda raya al lado del volumen se confundía con él). Los
+  mandos siguen las reglas del mezclador: arrastre relativo, se oye al
+  mover, se guarda al soltar (un paso de Deshacer), doble clic al 0 dB o al
+  centro, misma escala de fader. En el móvil el fader mide 48 px pero el
+  recorrido son 180 px de dedo: se afina igual. El panorama no cabe en
+  128 px y sigue en el mezclador.
+- **Elegida = la fila más opaca** (cabecera y calle) y el filo de tinta en el
+  clip. Sin franja de color a un lado: el color aquí significa algo.
+- **Atajos en un módulo propio.** `lib/daw/atajos.ts` dice qué tecla es cada
+  atajo y su nombre en español (la lista `ATAJOS`, para el menú Editar y
+  Ayuda → Atajos); `hooks/useAtajos.ts` dice qué hace cada uno y da
+  `ejecutar(id)` para que el menú y la tecla llamen a lo mismo. No cuentan
+  escribiendo en un campo, ni con «Tocar» abierto (el teclado toca notas);
+  con una hoja o el mezclador encima solo Espacio, Deshacer y Rehacer.
+  Ctrl y ⌘ valen lo mismo. Ctrl+R y Ctrl+S siguen siendo del navegador (y
+  del menú Archivo): R y S graban y cortan solo sin modificador.
+- **Una pista sigue siendo un clip.** Cortar en el cursor (S) deja la segunda
+  mitad en una pista nueva justo debajo, con la misma mezcla; pegar (Ctrl+V)
+  crea una pista con el clip en el cursor. Es lo mismo que al grabar, cada
+  toma en su pista. Pasar a varios clips por pista tocaba el motor, el
+  mezclador, el guardado, el productor y el músico a la vez, con cinco
+  sesiones trabajando en paralelo: no compensaba. Por eso tampoco se
+  arrastran clips de una pista a otra.
+- **Cortar un clip con repeticiones** corta entre dos vueltas, la más
+  cercana: media vuelta más varias enteras no cabe en un clip.
+- **Con el ratón se arrastra a la primera** (clips y regla); con el dedo, el
+  primer toque elige y el segundo arrastra, para que desplazar la lista no
+  mueva clips sin querer. Un clic sin mover ya no deja un paso de Deshacer
+  vacío. El imán a la rejilla vale también al recortar los bordes; Alt lo
+  suelta. Clic en la regla o en la calle vacía lleva el cursor ahí.
+- **Rehacer** es el de la rama de menús (`redo`, `hayRehacer`), traído tal
+  cual para que las dos ramas no choquen.
+
+## 0025 · La barra de tiempo en «Tocar» (22-nov-2026)
+
+El dueño, con el bajo y el GO:KEYS a 1786 px: «cuando grabo MIDI también
+debería ver la barra de tiempo, poder echar pa' atrás, etc.».
+- **Una tira de tiempo bajo GRABAR** (`TiraDeTiempo.tsx`), en las cinco
+  pestañas: compases numerados, el cursor (rojo grabando), la zona del loop
+  y, en pequeño, las notas. Lo que estás grabando sale en tinta, plegado al
+  loop si grabas en bucle; las pistas del mismo instrumento, en gris; las
+  demás pistas de notas, atenuadas; el audio, como una raya abajo. Caben
+  unos 28 px por compás: 8 en un móvil y hasta 32 en un PC, por páginas que
+  siguen al cursor.
+- **Mover el cursor sin salir de «Tocar»:** tocar o arrastrar en la tira lo
+  lleva a ese compás (con captura del puntero, también si el dedo se sale), y
+  los botones van al principio y un compás atrás o adelante. Las flechas e
+  Inicio solo funcionan con el foco en la tira, para no cruzarse con los
+  atajos del estudio. GRABAR empieza donde está el cursor, al principio de
+  su compás, con la cuenta atrás de siempre.
+- **Sin tocar el motor:** `irA` (en `useInstrumentos`) usa lo que ya tenía
+  `engine.ts`. Parado, `seek`. Escuchando, para, salta y vuelve a sonar
+  «sin fin», porque el `seek` del estudio lo relanzaría con fin. Grabando no
+  se mueve: se perdería la toma.
+- **«¿Ha quedado bien?», en una fila:** «Tal cual / Cuadrado / Del todo»,
+  deshacer y vale. Se monta encima de la fila de sonidos, con su misma
+  altura, así que el teclado no se mueve ni un píxel. Antes era una tarjeta
+  de 131 px que lo empujaba hacia abajo. La pregunta escrita sale de 480 px
+  en adelante.
+- **En PC, una columna:** todo «Tocar» va en unos 940 px centrados, GRABAR
+  no pasa de 360 px y «Ajustes» se va al final. Las filas de teclas tienen
+  tope de 240 px de alto, pegadas abajo, y las tiras de acordes de 520 px en
+  total. En el móvil no cambia nada.
+**Pendiente:** verlo en el iPhone y con el GO:KEYS. El cursor se mueve con
+rAF y el panel del navegador de pruebas estaba oculto, así que el
+movimiento no se ha visto; lo demás se ha medido en el DOM.

@@ -24,7 +24,8 @@ import { Pads } from './Pads';
 import { BotonBarra, Teclado, type ModoTeclado, type TamanoTeclas } from './Teclado';
 import { ChipMidi } from './ChipMidi';
 import { BibliotecaLoops } from './Loops';
-import { TarjetaResultado } from './TarjetaResultado';
+import { BarraResultado } from './TarjetaResultado';
+import { TiraDeTiempo } from './TiraDeTiempo';
 import { useTecladoMidi } from '@/hooks/useTecladoMidi';
 import { useTecladoPC } from '@/hooks/useTecladoPC';
 
@@ -97,6 +98,12 @@ const FAMILIAS: { id: Pestana; nombre: string }[] = [
   { id: 'bajo', nombre: 'Bajo' },
   { id: 'loops', nombre: 'Loops' },
 ];
+/**
+ * El margen de los lados: el de siempre en el móvil y, en una pantalla ancha,
+ * lo que haga falta para que el contenido quede en una columna de 960 px.
+ */
+const LATERAL = (minimo: number) => `max(${minimo}px, calc((100% - 960px) / 2 + ${minimo}px))`;
+
 const ES_FAMILIA = (p: unknown): p is Familia => p === 'pads' || p === 'teclado' || p === 'acordes' || p === 'bajo';
 
 const TECLAS = () => [...instrumentosDe('teclas'), ...instrumentosDe('guitarra')];
@@ -196,6 +203,7 @@ export function TocarPantalla({
 
   const grabando = estado !== 'libre';
   const sonando = studio.transport !== 'stopped';
+  const verResultado = !!resultado && !grabando;
   const enBucle = grabando && prefs.bucle > 0;
 
   /** GRABAR o parar. Desde «Loops» vuelve antes al último instrumento: grabar es tocar. */
@@ -296,7 +304,9 @@ export function TocarPantalla({
           alignItems: 'center',
           // Caben cinco herramientas y GRABAR a 375 px: 48 de ancho y 4 de aire.
           gap: 4,
-          padding: '8px 10px',
+          // En un PC ancho, lo de dentro va en una columna de unos 940 px: a
+          // 1786 px el teclado del bajo se estiraba a lo bestia.
+          padding: `8px ${LATERAL(10)}`,
           background: T.surface,
           boxShadow: `inset 0 -1px 0 ${T.border}`,
         }}
@@ -365,12 +375,18 @@ export function TocarPantalla({
             <ArrowCounterClockwise size={20} weight="bold" color={T.text} />
           </Herramienta>
         ) : null}
-        <Herramienta titulo="Ajustes del toque" etiqueta="Ajustes" onClick={() => setPanel('ajustes')}>
+        {/* En una pantalla ancha, GRABAR llega a su tope y lo que sobra lo
+            coge el margen de «Ajustes», que se va al final. En el móvil no
+            sobra nada y el margen se queda en cero. */}
+        <Herramienta titulo="Ajustes del toque" etiqueta="Ajustes" onClick={() => setPanel('ajustes')} alFinal>
           <GearSix size={20} weight="bold" color={T.text} />
         </Herramienta>
       </header>
 
-      <div style={{ padding: '10px 12px 0', display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ padding: `10px ${LATERAL(12)} 0`, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {/* Dónde estás: compases, cursor, loop y notas, y para moverte. Lo
+            primero bajo GRABAR, que es lo que se mira al grabar. */}
+        <TiraDeTiempo studio={studio} instrumentos={instrumentos} instrumento={instrumento} bucleCompases={prefs.bucle} />
         {/* Un teclado MIDI conectado (o el aviso para conectarlo): una línea. */}
         <ChipMidi
           midi={midi}
@@ -396,8 +412,11 @@ export function TocarPantalla({
           ))}
         </div>
         {/* Y con qué: los sonidos de esa familia, en baldosas que se deslizan.
-            En «Loops» no: la biblioteca trae sus propios filtros. */}
-        <div style={{ display: enLoops ? 'none' : 'flex', alignItems: 'center', gap: 6 }}>
+            En «Loops» no: la biblioteca trae sus propios filtros. Tras grabar,
+            «¿Ha quedado bien?» se monta encima de esta fila, con su misma
+            altura, para que el instrumento no se mueva. */}
+        <div style={{ position: 'relative', display: enLoops ? 'none' : 'block' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, visibility: verResultado && !enLoops ? 'hidden' : 'visible' }}>
           <div
             role="radiogroup"
             aria-label="Sonido"
@@ -428,15 +447,29 @@ export function TocarPantalla({
             </BotonBarra>
           ) : null}
         </div>
-        {textoCarga && !enLoops ? <p style={{ ...hintText, fontSize: 12, marginTop: -2 }}>{textoCarga}</p> : null}
-        {resultado && !grabando ? (
-          <TarjetaResultado
-            resultado={resultado}
-            onCuadrar={instrumentos.cuadrarResultado}
-            onDeshacer={instrumentos.deshacerResultado}
-            onCerrar={instrumentos.cerrarResultado}
-          />
+          {verResultado && !enLoops && resultado ? (
+            <div style={{ position: 'absolute', inset: 0, background: T.bg }}>
+              <BarraResultado
+                resultado={resultado}
+                onCuadrar={instrumentos.cuadrarResultado}
+                onDeshacer={instrumentos.deshacerResultado}
+                onCerrar={instrumentos.cerrarResultado}
+              />
+            </div>
+          ) : null}
+        </div>
+        {/* En «Loops» no hay fila de sonidos: la barra va en su sitio, sobre la lista. */}
+        {verResultado && enLoops && resultado ? (
+          <div style={{ height: 48 }}>
+            <BarraResultado
+              resultado={resultado}
+              onCuadrar={instrumentos.cuadrarResultado}
+              onDeshacer={instrumentos.deshacerResultado}
+              onCerrar={instrumentos.cerrarResultado}
+            />
+          </div>
         ) : null}
+        {textoCarga && !enLoops ? <p style={{ ...hintText, fontSize: 12, marginTop: -2 }}>{textoCarga}</p> : null}
       </div>
 
       {/* El instrumento: todo lo que queda, abajo, donde llega el pulgar. */}
@@ -447,7 +480,7 @@ export function TocarPantalla({
           minHeight: 0,
           display: 'flex',
           alignItems: 'flex-end',
-          padding: '12px 16px 4px',
+          padding: `12px ${LATERAL(16)} 4px`,
         }}
       >
         {montada ? (
@@ -601,6 +634,10 @@ export function TocarPantalla({
         .tocar-tecla-negra[data-on] { background: ${T.dim} !important; }
         .tocar-tira[data-on] { background: color-mix(in srgb, ${T.text} 12%, ${T.surface}) !important; }
         .tocar-chips::-webkit-scrollbar { display: none; }
+        /* La pregunta escrita, solo si cabe: a 375 px manda el control. */
+        .tocar-resultado-pregunta { display: none; }
+        @media (min-width: 480px) { .tocar-resultado-pregunta { display: inline; } }
+        .tocar-tira-tiempo:focus-visible { box-shadow: inset 0 0 0 2px ${T.focus} !important; }
         @media (prefers-reduced-motion: reduce) {
           .tocar-pad[data-on], .tocar-tecla[data-on], .tocar-tira[data-on] { transform: none; }
         }
@@ -737,6 +774,7 @@ function Herramienta({
   activo,
   desactivado,
   visible,
+  alFinal,
 }: {
   children: React.ReactNode;
   titulo: string;
@@ -746,6 +784,8 @@ function Herramienta({
   desactivado?: boolean;
   /** Desactivado pero a la vista: no se puede tocar, pero lo que dice importa. */
   visible?: boolean;
+  /** Se va al final de la fila con lo que sobre. */
+  alFinal?: boolean;
 }) {
   return (
     <button
@@ -763,6 +803,7 @@ function Herramienta({
         width: 48,
         height: 52,
         flexShrink: 0,
+        marginLeft: alFinal ? 'auto' : undefined,
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -853,6 +894,8 @@ function BotonGrabar({
       style={{
         flex: 1,
         minWidth: 0,
+        // A 1786 px medía 732: un botón así pesa más que lo que graba.
+        maxWidth: 360,
         height: 52,
         display: 'flex',
         alignItems: 'center',
