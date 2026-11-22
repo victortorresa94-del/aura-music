@@ -17,6 +17,9 @@ import { ritmosParaTempo } from '@/lib/musico/bateria';
 import { ESTILOS_TECLAS } from '@/lib/musico/teclas';
 import { getGroove } from '@/lib/daw/rhythm/grooves';
 import { INSTRUMENTOS } from '@/lib/ia/tipos';
+// Mezcla (pilar A): el productor también mezcla.
+import { textoGanancia } from '@/lib/daw/mezcla/escala';
+import { IDS_PREAJUSTES, NOMBRE_ESPACIO, preajuste } from '@/lib/daw/mezcla/tipos';
 
 const porque = z.string().describe('Una frase corta, en español, de por qué este paso.');
 
@@ -38,6 +41,29 @@ export const PasoSchema = z.discriminatedUnion('tipo', [
   z.object({
     tipo: z.literal('tempo'),
     bpm: z.number(),
+    porque,
+  }),
+  z.object({
+    tipo: z.literal('mezcla'),
+    pista: z.number().describe('Número de la pista en la lista del proyecto (1, 2…). 0 es el master.'),
+    nombre: z.string().describe('El nombre de esa pista, tal cual sale en la lista, o «Master».'),
+    volumenDb: z
+      .number()
+      .nullable()
+      .describe('Volumen NUEVO en dB: 0 es como se grabó, −6 la mitad, +3 algo más fuerte. null = no tocar.'),
+    panorama: z.number().nullable().describe('De −100 (todo a la izquierda) a 100 (todo a la derecha). null = no tocar.'),
+    preajuste: z.enum(IDS_PREAJUSTES).nullable().describe('Un preajuste de efectos del catálogo, o null.'),
+    graves: z.number().nullable().describe('Ecualizador en dB, de −12 a 12. null = no tocar.'),
+    medios: z.number().nullable(),
+    agudos: z.number().nullable(),
+    compresor: z.number().nullable().describe('De 0 a 100. null = no tocar.'),
+    saturacion: z.number().nullable(),
+    reverb: z.number().nullable().describe('Envío a la reverb compartida, de 0 a 100. null = no tocar.'),
+    eco: z.number().nullable(),
+    espacio: z
+      .enum(['estudio', 'sala', 'catedral'])
+      .nullable()
+      .describe('Solo con el master: dónde suena la reverb que comparten todas las pistas.'),
     porque,
   }),
   z.object({
@@ -73,12 +99,16 @@ export type Paso = z.infer<typeof PasoSchema>;
 export type Plan = z.infer<typeof PlanSchema>;
 
 export const MAX_PASOS = 4;
+/** Mezclar no cuesta nada ni tarda: «déjalo como una maqueta de bar» toca varias pistas a la vez. */
+export const MAX_PASOS_MEZCLA = 8;
 export const SEGUNDOS_CANCION = { min: 10, max: 120 } as const;
 
 export interface SituacionDelPlan {
   /** Hay tomas grabadas: el tempo ya no se toca, lo marca el audio. */
   hayTomas: boolean;
   bpm: number;
+  /** Los nombres de las pistas, en orden: el paso `mezcla` las nombra por su número. */
+  pistas?: string[];
   /** Pilar B: nombres de las pistas tocadas en la pantalla, las únicas que se cuadran. */
   pistasDeNotas?: string[];
 }
@@ -96,8 +126,18 @@ const recortar = (texto: string, largo: number) => texto.trim().slice(0, largo);
  */
 export function normalizarPlan(plan: Plan, situacion: SituacionDelPlan): Plan {
   const pasos: Paso[] = [];
+  let mezclas = 0;
   for (const paso of plan.pasos) {
-    if (pasos.length >= MAX_PASOS) break;
+    if (paso.tipo === 'mezcla') {
+      if (mezclas >= MAX_PASOS_MEZCLA) continue;
+      const limpio = normalizarMezcla(paso, situacion);
+      if (limpio) {
+        pasos.push(limpio);
+        mezclas++;
+      }
+      continue;
+    }
+    if (pasos.length - mezclas >= MAX_PASOS) continue;
     switch (paso.tipo) {
       case 'al_momento': {
         let estilo = paso.estilo;
@@ -150,6 +190,64 @@ export function normalizarPlan(plan: Plan, situacion: SituacionDelPlan): Plan {
   };
 }
 
+type PasoMezcla = Extract<Paso, { tipo: 'mezcla' }>;
+
+const numero = (v: number | null, min: number, max: number, redondeo = 1) =>
+  v === null || !Number.isFinite(v) ? null : Math.round(limitar(v, min, max) / redondeo) * redondeo;
+
+/**
+ * Una pista que existe, valores en su rango y algo que cambiar. Al master
+ * solo se le cambia el volumen y el sitio de la reverb; el resto no tiene
+ * sentido en él. Si no queda nada que hacer, el paso se quita.
+ */
+function normalizarMezcla(paso: PasoMezcla, situacion: SituacionDelPlan): PasoMezcla | null {
+  const n = Math.round(paso.pista);
+  const master = n === 0;
+  if (!master && (n < 1 || (situacion.pistas && n > situacion.pistas.length))) return null;
+  const nombre = master ? 'Master' : (situacion.pistas?.[n - 1] ?? recortar(paso.nombre, 60));
+  const limpio: PasoMezcla = {
+    tipo: 'mezcla',
+    pista: n,
+    nombre,
+    volumenDb: numero(paso.volumenDb, -60, 6, 0.5),
+    panorama: master ? null : numero(paso.panorama, -100, 100),
+    preajuste: master || !paso.preajuste || !preajuste(paso.preajuste) ? null : paso.preajuste,
+    graves: master ? null : numero(paso.graves, -12, 12, 0.5),
+    medios: master ? null : numero(paso.medios, -12, 12, 0.5),
+    agudos: master ? null : numero(paso.agudos, -12, 12, 0.5),
+    compresor: master ? null : numero(paso.compresor, 0, 100),
+    saturacion: master ? null : numero(paso.saturacion, 0, 100),
+    reverb: master ? null : numero(paso.reverb, 0, 100),
+    eco: master ? null : numero(paso.eco, 0, 100),
+    espacio: master ? paso.espacio : null,
+    porque: recortar(paso.porque, 200),
+  };
+  const algo = Object.entries(limpio).some(
+    ([clave, valor]) => !['tipo', 'pista', 'nombre', 'porque'].includes(clave) && valor !== null,
+  );
+  return algo ? limpio : null;
+}
+
+/** «Voz · voz cálida, a −3 dB, reverb 40 %». */
+function resumenDeMezcla(paso: PasoMezcla): string {
+  const partes: string[] = [];
+  if (paso.preajuste) partes.push((preajuste(paso.preajuste)?.nombre ?? paso.preajuste).toLowerCase());
+  if (paso.volumenDb !== null) partes.push(`a ${textoGanancia(paso.volumenDb)}`);
+  if (paso.panorama !== null) {
+    partes.push(paso.panorama === 0 ? 'al centro' : `${Math.abs(paso.panorama)} a la ${paso.panorama < 0 ? 'izquierda' : 'derecha'}`);
+  }
+  for (const banda of ['graves', 'medios', 'agudos'] as const) {
+    const v = paso[banda];
+    if (v !== null) partes.push(`${banda} ${textoGanancia(v)}`);
+  }
+  if (paso.compresor !== null) partes.push(`compresor ${paso.compresor} %`);
+  if (paso.saturacion !== null) partes.push(`saturación ${paso.saturacion} %`);
+  if (paso.reverb !== null) partes.push(`reverb ${paso.reverb} %`);
+  if (paso.eco !== null) partes.push(`eco ${paso.eco} %`);
+  if (paso.espacio) partes.push(`reverb en ${NOMBRE_ESPACIO[paso.espacio].toLowerCase()}`);
+  return partes.join(', ');
+}
+
 /** Cómo se lee un paso en la lista: «Bajo caminante, al momento». */
 export function tituloDelPaso(paso: Paso): string {
   switch (paso.tipo) {
@@ -165,6 +263,8 @@ export function tituloDelPaso(paso: Paso): string {
       return `Tempo a ${paso.bpm} BPM`;
     case 'cancion':
       return `Canción de ${paso.segundos} s${paso.letra ? ' con letra' : ''}`;
+    case 'mezcla':
+      return `${paso.nombre} · ${resumenDeMezcla(paso)}`;
     case 'cuadrar':
       return `Cuadrar ${paso.pista} al ${paso.fuerza} %${paso.humanizar ? ' y humanizar' : ''}`;
   }

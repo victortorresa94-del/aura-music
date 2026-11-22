@@ -83,6 +83,64 @@ describe('normalizarPlan', () => {
   });
 });
 
+describe('paso de mezcla', () => {
+  const mezcla = (cambios: Partial<Extract<Plan['pasos'][number], { tipo: 'mezcla' }>>): Plan['pasos'][number] => ({
+    tipo: 'mezcla',
+    pista: 1,
+    nombre: 'Voz',
+    volumenDb: null,
+    panorama: null,
+    preajuste: null,
+    graves: null,
+    medios: null,
+    agudos: null,
+    compresor: null,
+    saturacion: null,
+    reverb: null,
+    eco: null,
+    espacio: null,
+    porque: 'x',
+    ...cambios,
+  });
+  const situacion = { hayTomas: true, bpm: 96, pistas: ['Voz', 'Guitarra'] };
+
+  it('«súbele la voz»: se queda con la pista, el número y el nombre de verdad', () => {
+    const p = normalizarPlan(plan([mezcla({ nombre: 'la voz', volumenDb: 2.2 })]), situacion);
+    expect(p.pasos).toEqual([expect.objectContaining({ tipo: 'mezcla', pista: 1, nombre: 'Voz', volumenDb: 2 })]);
+    expect(tituloDelPaso(p.pasos[0])).toBe('Voz · a +2 dB');
+  });
+
+  it('«más reverb a la guitarra»: valores en su rango y título legible', () => {
+    const p = normalizarPlan(plan([mezcla({ pista: 2, reverb: 140, preajuste: 'guitarra-flamenca', graves: -30 })]), situacion);
+    expect(p.pasos[0]).toMatchObject({ pista: 2, nombre: 'Guitarra', reverb: 100, graves: -12, preajuste: 'guitarra-flamenca' });
+    expect(tituloDelPaso(p.pasos[0])).toBe('Guitarra · guitarra flamenca, graves \u221212 dB, reverb 100 %');
+  });
+
+  it('quita lo que no tiene arreglo: pistas que no existen, preajustes inventados, pasos vacíos', () => {
+    const p = normalizarPlan(
+      plan([mezcla({ pista: 7, volumenDb: 3 }), mezcla({ preajuste: 'lo-fi' as never }), mezcla({ pista: -1, reverb: 20 })]),
+      situacion,
+    );
+    expect(p.pasos).toHaveLength(0);
+  });
+
+  it('al master solo le toca el volumen y la sala', () => {
+    const p = normalizarPlan(plan([mezcla({ pista: 0, espacio: 'catedral', reverb: 50, volumenDb: -2 })]), situacion);
+    expect(p.pasos[0]).toMatchObject({ pista: 0, nombre: 'Master', espacio: 'catedral', reverb: null, volumenDb: -2 });
+    expect(tituloDelPaso(p.pasos[0])).toBe('Master · a \u22122 dB, reverb en catedral');
+  });
+
+  it('los pasos de mezcla no se comen el sitio de los demás', () => {
+    const pasos: Plan['pasos'] = [
+      ...Array.from({ length: 10 }, () => mezcla({ volumenDb: 1 })),
+      { tipo: 'al_momento', instrumento: 'bajo', estilo: 'caminante', porque: 'x' },
+    ];
+    const p = normalizarPlan(plan(pasos), situacion);
+    expect(p.pasos.filter((s) => s.tipo === 'mezcla')).toHaveLength(8);
+    expect(p.pasos.some((s) => s.tipo === 'al_momento')).toBe(true);
+  });
+});
+
 describe('cerebro', () => {
   it('apunta sin repetir lo que ya sabía', () => {
     let c = apuntarNotas(cerebroVacio(), ['Le tira la rumba']);
@@ -152,6 +210,49 @@ describe('prompt', () => {
     expect(m).toContain('ACE-Step en su GPU de RunPod): apagado');
     expect(m).toContain('Le tira la rumba');
     expect(m.trim().endsWith('Ponle un bajo funky')).toBe(true);
+  });
+
+  it('cuenta cómo está mezclada cada pista, numerada, y el sistema sabe mezclar', () => {
+    const conMezcla = PeticionProductorSchema.parse({
+      ...peticion,
+      pedido: 'Súbele la voz',
+      contexto: {
+        ...peticion.contexto,
+        pistas: [
+          {
+            nombre: 'Voz',
+            ia: false,
+            segundos: 12,
+            mezcla: {
+              volumenDb: -3,
+              panorama: 0,
+              preajuste: 'voz-calida',
+              graves: 2,
+              medios: -1.5,
+              agudos: 2.5,
+              compresor: 55,
+              saturacion: 15,
+              reverb: 22,
+              eco: 8,
+              silenciada: false,
+            },
+          },
+        ],
+        master: { espacio: 'sala', volumenDb: 0 },
+      },
+    });
+    const m = armarMensaje(conMezcla);
+    expect(m).toContain('1. Voz');
+    expect(m).toContain('-3 dB');
+    expect(m).toContain('reverb 22 %');
+    expect(m).toContain('Master (pista 0)');
+    expect(SISTEMA).toContain('6. mezcla');
+    expect(SISTEMA).toContain('guitarra-flamenca');
+  });
+
+  it('un móvil con la versión de antes (sin mezcla en el contexto) sigue valiendo', () => {
+    expect(PeticionProductorSchema.safeParse(peticion).success).toBe(true);
+    expect(armarMensaje(peticion)).toContain('1. Guitarra (12 s, grabada por él)');
   });
 
   it('cuenta las pistas tocadas en la pantalla con su diagnóstico', () => {

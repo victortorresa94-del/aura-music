@@ -22,6 +22,8 @@ import { CalibrarToque } from './Calibrar';
 import { BaldosaFamilia, BaldosaInstrumento } from './Baldosas';
 import { Pads } from './Pads';
 import { BotonBarra, Teclado, type ModoTeclado, type TamanoTeclas } from './Teclado';
+import { ChipMidi } from './ChipMidi';
+import { useTecladoMidi } from '@/hooks/useTecladoMidi';
 
 type Pestana = 'pads' | 'teclado' | 'acordes' | 'bajo';
 
@@ -149,6 +151,8 @@ export function TocarPantalla({
   const instrumento: InstrumentoId =
     prefs.pestana === 'pads' ? prefs.kit : prefs.pestana === 'teclado' ? prefs.teclas : prefs.pestana === 'acordes' ? prefs.acordes : bajo;
   const def = getInstrumento(instrumento);
+  // Un teclado MIDI (por USB) toca lo que esté abierto, y se graba igual que el dedo.
+  const { midi, conectar: conectarMidi } = useTecladoMidi({ activo: abierta, atril, def });
 
   // El instrumento se prepara al abrirlo: voz, muestras y notas calculadas.
   useEffect(() => {
@@ -286,6 +290,14 @@ export function TocarPantalla({
       </header>
 
       <div style={{ padding: '10px 12px 0', display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {/* Un teclado MIDI conectado (o el aviso para conectarlo): una línea. */}
+        <ChipMidi
+          midi={midi}
+          onConectar={() => {
+            engine?.unlockSync();
+            void conectarMidi();
+          }}
+        />
         {/* Qué tocas: las cuatro familias, cada una con su icono. */}
         <div role="radiogroup" aria-label="Qué tocar" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 6 }}>
           {FAMILIAS.map((familia) => (

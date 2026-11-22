@@ -25,6 +25,10 @@ import { rehacerPistaDeNotas } from '@/hooks/useInstrumentos';
 import { getInstrumento } from '@/lib/instrumentos/registro';
 import { ajustesParaCuadrar, describirDiagnostico, diagnosticar } from '@/lib/musico/groove';
 import type { ContextoProductor, TurnoProductor } from '@/lib/productor/prompt';
+// Mezcla (pilar A)
+import { aplicarCambio, conMaster } from '@/lib/daw/mezcla/acciones';
+import { dbALineal, linealADb } from '@/lib/daw/mezcla/escala';
+import { masterDe, mezclaDe, preajusteActual } from '@/lib/daw/mezcla/tipos';
 import {
   apuntarIdea,
   apuntarNotas,
@@ -56,6 +60,12 @@ export interface Turno {
   sugerencias: string[];
   aprendido: string[];
   error?: string;
+}
+
+/** Un volumen en dB con un decimal, como se lo contamos a Claude (el silencio, −60). */
+function dbDicho(lineal: number): number {
+  const db = linealADb(lineal);
+  return Number.isFinite(db) ? Math.max(-60, Math.round(db * 10) / 10) : -60;
 }
 
 /** La toma sobre la que se toca: la elegida si es tuya; si no, la última que grabaste. */
@@ -151,6 +161,23 @@ export function useProductor(studio: Studio, musico: Musico, pulsosPorCompas: nu
           s.setBpm(paso.bpm);
           return { estado: 'hecho' };
         }
+        case 'mezcla': {
+          // Un paso, un Deshacer: todo lo que cambia va en el mismo commit.
+          if (paso.pista === 0) {
+            s.commit((p) => {
+              let siguiente = paso.espacio ? conMaster(p, { espacio: paso.espacio }) : p;
+              if (paso.volumenDb !== null) siguiente = conMaster(siguiente, { volumen: dbALineal(paso.volumenDb) });
+              return siguiente;
+            });
+            cambiarCerebro((c) => apuntarUso(c, 'mezcla:master'));
+            return { estado: 'hecho' };
+          }
+          const pista = s.project.tracks[paso.pista - 1];
+          if (!pista) return { estado: 'saltado', nota: 'Esa pista ya no está.' };
+          s.commit((p) => aplicarCambio(p, pista.id, paso));
+          cambiarCerebro((c) => apuntarUso(c, `mezcla:${paso.preajuste ?? 'a mano'}`));
+          return { estado: 'hecho' };
+        }
         case 'cancion': {
           if (!iaLista) return { estado: 'saltado', nota: 'La IA está apagada.' };
           const ok = await m.crearCancion({
@@ -201,27 +228,48 @@ export function useProductor(studio: Studio, musico: Musico, pulsosPorCompas: nu
 
       const contexto: ContextoProductor = {
         proyecto: { nombre: s.project.name, bpm: s.project.bpm, pulsosPorCompas, ritmo },
-        pistas: s.project.tracks.map((t) => ({
-          nombre: t.name,
-          ia: Boolean(t.ia),
-          segundos: t.clip.duration * t.clip.repeats,
-          // Pilar B: lo tocado en la pantalla va con su diagnóstico de tiempo.
-          notas: t.notas
-            ? {
-                instrumento: getInstrumento(t.notas.instrumento).nombre.toLowerCase(),
-                diagnostico:
-                  t.notas.bruto.length > 3
-                    ? describirDiagnostico(
-                        diagnosticar(t.notas.bruto, {
-                          bpm: t.notas.bpm,
-                          inicioBeat: (t.clip.start * t.notas.bpm) / 60,
-                          pulsosPorCompas: t.notas.pulsosPorCompas,
-                        }),
-                      )
-                    : null,
-              }
-            : null,
-        })),
+        pistas: s.project.tracks.map((t) => {
+          // Cómo está mezclada cada pista: «súbele la voz» parte de aquí.
+          const m = mezclaDe(t);
+          return {
+            nombre: t.name,
+            ia: Boolean(t.ia),
+            segundos: t.clip.duration * t.clip.repeats,
+            // Pilar B: lo tocado en la pantalla va con su diagnóstico de tiempo.
+            notas: t.notas
+              ? {
+                  instrumento: getInstrumento(t.notas.instrumento).nombre.toLowerCase(),
+                  diagnostico:
+                    t.notas.bruto.length > 3
+                      ? describirDiagnostico(
+                          diagnosticar(t.notas.bruto, {
+                            bpm: t.notas.bpm,
+                            inicioBeat: (t.clip.start * t.notas.bpm) / 60,
+                            pulsosPorCompas: t.notas.pulsosPorCompas,
+                          }),
+                        )
+                      : null,
+                }
+              : null,
+            mezcla: {
+              volumenDb: dbDicho(t.volume),
+              panorama: Math.round(m.panorama * 100),
+              preajuste: preajusteActual(m, masterDe(s.project).espacio),
+              graves: m.graves,
+              medios: m.medios,
+              agudos: m.agudos,
+              compresor: Math.round(m.compresor * 100),
+              saturacion: Math.round(m.saturacion * 100),
+              reverb: Math.round(m.reverb * 100),
+              eco: Math.round(m.eco * 100),
+              silenciada: t.muted,
+            },
+          };
+        }),
+        master: {
+          espacio: masterDe(s.project).espacio,
+          volumenDb: dbDicho(masterDe(s.project).volumen),
+        },
         toma:
           toma && oido
             ? {

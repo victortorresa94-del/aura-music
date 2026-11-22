@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { downloadBlob, encodeWav, slugify } from '@/lib/daw/audio';
-import { listInputDevices } from '@/lib/daw/recorder';
+import { listInputDevices, listOutputDevices, sePuedeElegirSalida } from '@/lib/daw/recorder';
 import { listProjects } from '@/lib/daw/storage';
 import type { Project } from '@/lib/daw/types';
 import type { Studio } from '@/hooks/useStudio';
@@ -51,6 +51,7 @@ export function SettingsSheet({
   } = studio;
 
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
+  const [salidas, setSalidas] = useState<MediaDeviceInfo[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [phase, setPhase] = useState<CalibrationPhase>('idle');
   const [result, setResult] = useState<string | null>(null);
@@ -63,6 +64,7 @@ export function SettingsSheet({
     // El espacio lo mide CampoEspacio con storage.estimate(): leer todo el
     // audio a memoria para sumarlo era lento con muchas ideas.
     setDevices(await listInputDevices());
+    if (sePuedeElegirSalida()) setSalidas(await listOutputDevices());
   }, []);
 
   useEffect(() => {
@@ -379,6 +381,27 @@ export function SettingsSheet({
           </p>
         </div>
       </Field>
+
+      {salidas.length > 0 ? (
+        <Field
+          title="Salida"
+          hint="Por dónde suena todo el estudio. Elige tu interfaz de audio para escucharlo en sus cascos. Si no salen los nombres, permite el micro y vuelve a abrir Ajustes."
+        >
+          <select
+            value={settings.outputDeviceId ?? ''}
+            onChange={(event) => updateSettings({ outputDeviceId: event.target.value || null })}
+            aria-label="Salida de audio"
+            style={{ ...inputStyle, appearance: 'auto' }}
+          >
+            <option value="">Salida del sistema</option>
+            {salidas.map((device, i) => (
+              <option key={device.deviceId} value={device.deviceId}>
+                {device.label || `Salida ${i + 1}`}
+              </option>
+            ))}
+          </select>
+        </Field>
+      ) : null}
 
       <Field title="Entrada">
         {devices.length > 1 ? (

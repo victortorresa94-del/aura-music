@@ -7,21 +7,28 @@ import type { Project, StudioSettings } from './types';
  * `resume()` puede no volver nunca, como hace iOS 26 al regresar de otra app.
  */
 function contextoFalso(opciones: { resumeCuelga: boolean }) {
+  const param = () => ({
+    value: 1,
+    setValueAtTime: () => undefined,
+    setTargetAtTime: () => undefined,
+    cancelScheduledValues: () => undefined,
+    linearRampToValueAtTime: () => undefined,
+  });
+  // Mezcla (pilar A): el master y los buses viven en el grafo de mezcla, que
+  // también usa filtros, panorama, retardo y analizadores.
   const nodo = () => ({
     connect: () => undefined,
     disconnect: () => undefined,
-    gain: {
-      value: 1,
-      setValueAtTime: () => undefined,
-      setTargetAtTime: () => undefined,
-      cancelScheduledValues: () => undefined,
-      linearRampToValueAtTime: () => undefined,
-    },
-    threshold: { value: 0 },
-    knee: { value: 0 },
-    ratio: { value: 0 },
-    attack: { value: 0 },
-    release: { value: 0 },
+    gain: param(),
+    threshold: param(),
+    knee: param(),
+    ratio: param(),
+    attack: param(),
+    release: param(),
+    frequency: param(),
+    Q: param(),
+    pan: param(),
+    delayTime: param(),
   });
   return class {
     state: AudioContextState = 'suspended';
@@ -30,6 +37,13 @@ function contextoFalso(opciones: { resumeCuelga: boolean }) {
     destination = nodo();
     createGain = nodo;
     createDynamicsCompressor = nodo;
+    createBiquadFilter = nodo;
+    createWaveShaper = nodo;
+    createStereoPanner = nodo;
+    createDelay = nodo;
+    createChannelSplitter = nodo;
+    createAnalyser = nodo;
+    createConvolver = nodo;
     createBuffer(_c: number, length: number, sampleRate: number) {
       const data = new Float32Array(length);
       return { duration: length / sampleRate, length, sampleRate, numberOfChannels: 1, getChannelData: () => data };

@@ -36,6 +36,33 @@ local. Si puedes esperar veinte segundos, puede ir a una API.
             estimarDesfase + desplazar (cuadre) ────────────┘
 ```
 
+## La mezcla: un solo grafo para oír y para exportar
+
+```
+  pista: recorte → graves · medios · agudos → compresor → saturación (×2)
+         → panorama → fader ──┬──────────────────────────────┐
+                               ├─ envío → reverb (sala por código) ─┤
+                               └─ envío → eco (a tempo) ────────────┤
+                                                                     ▼
+  ritmo, tono de prueba ───────────────────────────────→ master: volumen → limitador → salida
+```
+
+- `buildMixGraph` (`src/lib/daw/mezcla/grafo.ts`) monta lo mismo en el
+  `AudioContext` del motor y en el `OfflineAudioContext` de `renderMix`: el
+  WAV suena como se oye. Los números de cada efecto viven aparte, en TS
+  puro y con tests (`efectos.ts`, `sala.ts`, `sonoridad.ts`, `masterizar.ts`).
+- La cadena retrasa unos 9 ms (el compresor mira 6 ms por delante y la
+  saturación sobremuestrea). Se mide una vez con un impulso y el motor
+  adelanta las fuentes eso mismo: las pistas siguen cayendo a la par que el
+  click y el ritmo.
+- La mezcla se guarda en `Track.mezcla` y `Project.master`, opcionales: una
+  idea de antes se lee con `mezclaDe` / `masterDe` y suena igual (medido:
+  mismos picos, diferencia residual de −42 dB).
+- Arrastrar un fader se oye al momento (`useMezcla().oir`) y se guarda al
+  soltar, una vez (`guardar`): un arrastre es un paso de Deshacer y la app
+  no se redibuja a 60 por segundo. Los medidores leen los `AnalyserNode` en
+  un solo `requestAnimationFrame` y mueven el DOM a mano.
+
 ## La nube: un contrato y no un proveedor
 
 `src/lib/ia/tipos.ts` define `ProveedorDePistas` con tres operaciones:

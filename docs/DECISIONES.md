@@ -277,8 +277,43 @@ jRhodes3 (CC BY-NC) y Ovation Guitar (sin licencia).
 **Pendiente:** piano roll; plantillas de groove sacadas del Groove MIDI
 Dataset (CC BY 4.0); repetición de nota en los pads; teclados MIDI en Android;
 medir la latencia real en un iPhone.
+## 0018 · El mezclador: un grafo, efectos nativos y masterizado en TS (17-nov-2026)
 
-## 0018 · Instrumentos 2.0: batería de verdad, seis bajos y un icono para cada cosa (22-nov-2026)
+Pilar A de la ola 1. Mezclador a pantalla completa (el botón de los faders
+de la cabecera, en el sitio del engranaje, que repetía lo que ya hace tocar
+el nombre del proyecto): una tira por pista con panorama, fader en dB,
+medidor, mute, solo y efectos, y el master fijo a la derecha. Efectos por
+pista con seis preajustes («Seco», «Voz cálida», «Guitarra flamenca»,
+«Batería con pegada», «Sala», «Catedral») y dos buses compartidos, reverb y
+eco a tempo. Todo con nodos del navegador y un solo `buildMixGraph` para
+oír y para exportar; `renderMix` ya no copia el limitador a mano.
+**Reverb:** respuesta de sala generada por código (ruido con caída, paso
+bajo que se cierra y semilla fija): 0 bytes y sin licencias. El nivel de
+vuelta de cada sitio está igualado a oído y medida (el estudio volvía 11 dB
+más bajo que la catedral con el mismo envío).
+**Neutro de verdad:** el compresor de Chrome saca estéreo aunque le entre
+mono, y el panorama dejaba de aplicar la ley de igual potencia (+3 dB). La
+cadena vuelve a mono antes de panear y una idea de antes suena igual que
+antes (mismos picos al exportar). La cadena retrasa ~9 ms y el motor lo
+compensa adelantando las fuentes, como la compensación de retardo de un DAW.
+**Masterizar de un toque:** sonoridad integrada según BS.1770 (filtro K y
+puertas) y pico verdadero con sobremuestreo ×4, en TS. Sube hasta −14 LUFS
+(o −16 «para el móvil») con techo −1 dBTP y un limitador con mirada
+adelante; se aplica al exportar la mezcla entera, nunca a las pistas
+sueltas. Tests con señales sintéticas, también una batería que obliga a
+limitar 20 dB.
+**El productor mezcla:** paso `mezcla` con valores absolutos (el contexto le
+cuenta cómo está cada pista); hasta ocho por pedido, aparte de los cuatro
+de siempre.
+**Descartado:** Tone.js y worklets propios para los efectos (los nodos
+nativos bastan y van en el hilo de audio); masterizar en directo (el
+limitador en TS necesita la canción entera: lo que suena es la mezcla sin
+masterizar, y el WAV sale masterizado); medidores con estado de React.
+**Pendiente:** probar en un iPhone de verdad; el masterizado bloquea el hilo
+unos segundos en canciones largas (pasarlo a un Worker); chorus y ranuras
+de efectos libres, que el plan pedía y aquí no caben aún.
+
+## 0019 · Instrumentos 2.0: batería de verdad, seis bajos y un icono para cada cosa (22-nov-2026)
 
 El dueño, tras probarlo en su iPhone: «el bajo suena feote, deberíamos tener
 varios tipos de bajo», «el crash suena poco real», «un icono tipo Aura para

@@ -6,6 +6,7 @@
  * y ajustar volumen. Nada más.
  */
 
+import type { AjustesMaster, MezclaPista } from './mezcla/tipos';
 import type { PistaDeNotas } from '@/lib/instrumentos/tipos';
 
 export interface Clip {
@@ -38,6 +39,11 @@ export interface Track {
    */
   ia?: boolean;
   /**
+   * Panorama, ecualizador, compresor, saturación y envíos (el mezclador).
+   * Las pistas de antes no lo traen y suenan neutras: léelo con `mezclaDe`.
+   */
+  mezcla?: MezclaPista;
+  /**
    * Pilar B: si la pista se tocó en la pantalla, sus notas en bruto, los
    * ajustes y el instrumento (ver `src/lib/instrumentos/tipos.ts`). El clip
    * apunta al audio hecho con ellas, así que el motor la reproduce y la
@@ -53,6 +59,8 @@ export interface Project {
   tracks: Track[];
   createdAt: number;
   updatedAt: number;
+  /** Reverb, eco, limitador y masterizado. Ausente en las ideas de antes: léelo con `masterDe`. */
+  master?: AjustesMaster;
 }
 
 /**
@@ -91,6 +99,12 @@ export interface StudioSettings {
   /** Cancelación de eco. Off por defecto: destroza el sonido de un instrumento. */
   echoCancellation: boolean;
   inputDeviceId: string | null;
+  /**
+   * Por dónde suena el estudio: la tarjeta del PC, una interfaz de audio con
+   * cascos, unos altavoces. null = la salida por defecto del sistema. Solo en
+   * navegadores con `AudioContext.setSinkId` (Chrome y Edge en el PC).
+   */
+  outputDeviceId: string | null;
   metronome: boolean;
   countInBars: number;
   snapToGrid: boolean;
@@ -109,6 +123,7 @@ export const DEFAULT_SETTINGS: StudioSettings = {
   latenciaAprendida: null,
   echoCancellation: false,
   inputDeviceId: null,
+  outputDeviceId: null,
   metronome: false,
   countInBars: 1,
   snapToGrid: false,

@@ -142,10 +142,20 @@ export function useStudio() {
    * después de tocar un ajuste tiene que usar el valor nuevo, y React no
    * garantiza que el estado esté aplicado en ese momento: el ref sí.
    */
+  /* Mezcla (pilar A): un arrastre es un solo paso de Deshacer. Los cambios
+     con el mismo `grupo` (el fader de una pista, el envío de reverb de
+     otra…) que llegan seguidos, con menos de un segundo entre uno y otro,
+     comparten la entrada del historial que abrió el primero. */
+  const grupoRef = useRef<{ clave: string; hora: number } | null>(null);
+
   const commit = useCallback(
-    (updater: (current: Project) => Project, options: { history?: boolean } = {}) => {
+    (updater: (current: Project) => Project, options: { history?: boolean; grupo?: string } = {}) => {
       const current = projectRef.current;
-      if (options.history !== false) {
+      const ahora = Date.now();
+      const anterior = grupoRef.current;
+      const mismoGesto = !!options.grupo && anterior?.clave === options.grupo && ahora - anterior.hora < 1000;
+      grupoRef.current = options.grupo ? { clave: options.grupo, hora: ahora } : null;
+      if (options.history !== false && !mismoGesto) {
         historyRef.current = [...historyRef.current.slice(-29), current];
       }
       const next = { ...updater(current), updatedAt: Date.now() };
@@ -162,6 +172,7 @@ export function useStudio() {
       setStatus('No hay nada que deshacer');
       return;
     }
+    grupoRef.current = null;
     projectRef.current = previous;
     setProjectState(previous);
     queueSave(previous);
@@ -223,6 +234,11 @@ export function useStudio() {
   /* ---------------------------------------------------------------- */
 
   // Antes que el motor: cerrar una toma también afina la latencia.
+  // La salida de audio elegida (la interfaz con cascos, por ejemplo) se aplica al motor.
+  useEffect(() => {
+    if (engine) void engine.setSalida(settings.outputDeviceId ?? null);
+  }, [engine, settings.outputDeviceId]);
+
   const updateSettings = useCallback((patch: Partial<StudioSettings>) => {
     const next = { ...settingsRef.current, ...patch };
     settingsRef.current = next;
@@ -618,7 +634,7 @@ export function useStudio() {
   /* ---------------------------------------------------------------- */
 
   const updateTrack = useCallback(
-    (trackId: string, patch: Partial<Track>, options?: { history?: boolean }) => {
+    (trackId: string, patch: Partial<Track>, options?: { history?: boolean; grupo?: string }) => {
       commit(
         (current) => ({
           ...current,
@@ -649,8 +665,13 @@ export function useStudio() {
 
   const setVolume = useCallback(
     (trackId: string, volume: number) => {
-      engine?.setTrackVolume(trackId, volume);
-      updateTrack(trackId, { volume }, { history: false });
+      const track = projectRef.current.tracks.find((item) => item.id === trackId);
+      const haySolo = projectRef.current.tracks.some((item) => item.soloed);
+      const suena = !!track && (haySolo ? track.soloed : !track.muted);
+      engine?.setTrackVolume(trackId, volume, suena);
+      // Antes el volumen no entraba en el historial; ahora sí, y un arrastre
+      // entero cuenta como un solo paso.
+      updateTrack(trackId, { volume }, { grupo: `volumen:${trackId}` });
     },
     [engine, updateTrack],
   );
@@ -1081,6 +1102,8 @@ export function useStudio() {
     printGroove,
     addGeneratedTrack,
     undo,
+    /** Cambiar el proyecto con historial (y `grupo` para juntar un arrastre). Lo usan el mezclador y el productor. */
+    commit,
     // proyecto
     newProject,
     openProject,
