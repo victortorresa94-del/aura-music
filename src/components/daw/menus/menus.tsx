@@ -10,6 +10,7 @@
 import {
   ArrowClockwise,
   ArrowCounterClockwise,
+  ClipboardText,
   ClockCounterClockwise,
   Copy,
   CopySimple,
@@ -29,6 +30,7 @@ import {
   PianoKeys,
   PlayCircle,
   Repeat,
+  Scissors,
   ShareNetwork,
   SlidersHorizontal,
   Sparkle,
@@ -39,6 +41,7 @@ import {
   Waveform,
   XSquare,
 } from '@phosphor-icons/react';
+import { hayAlgoCopiado } from '@/hooks/useEdicion';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Archivo } from '@/hooks/useArchivo';
 import type { Studio } from '@/hooks/useStudio';
@@ -140,12 +143,23 @@ export function useMenus(studio: Studio, archivo: Archivo, tema: ThemeMode) {
     item('borrar', 'Borrar idea…', <Trash size={I} />, { peligro: true }),
   ];
 
+  const sinPista = !pista;
+  // Cortar el clip solo si el cursor cae dentro del de la pista elegida.
+  const cursor = studio.engine?.position ?? 0;
+  const cursorEnClip =
+    !!pista && cursor > pista.clip.start && cursor < pista.clip.start + pista.clip.duration * pista.clip.repeats;
   const editarMenu: Entrada[] = [
     item('deshacer', 'Deshacer', <ArrowCounterClockwise size={I} />, { desactivado: !studio.hayDeshacer() }),
     item('rehacer', 'Rehacer', <ArrowClockwise size={I} />, { desactivado: !studio.hayRehacer() }),
+    SEP('e1'),
+    item('cortarPista', 'Cortar', <Scissors size={I} />, { desactivado: sinPista }),
+    item('copiarPista', 'Copiar', <Copy size={I} />, { desactivado: sinPista }),
+    item('pegarPista', 'Pegar en el cursor', <ClipboardText size={I} />, { desactivado: !hayAlgoCopiado() }),
+    item('duplicarPista', 'Duplicar', <CopySimple size={I} />, { desactivado: sinPista }),
+    item('dividirClip', 'Cortar el clip en el cursor', <Scissors size={I} />, { desactivado: !cursorEnClip }),
+    item('borrarPista', 'Borrar la pista', <Trash size={I} />, { desactivado: sinPista, peligro: !sinPista }),
   ];
 
-  const sinPista = !pista;
   const pistaMenu: Entrada[] = [
     item('tocar', 'Tocar un instrumento…', <PianoKeys size={I} />),
     item('loops', 'Poner un loop…', <Repeat size={I} />),

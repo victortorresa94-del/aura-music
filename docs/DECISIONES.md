@@ -586,14 +586,17 @@ de cada pista».
   128 px y sigue en el mezclador.
 - **Elegida = la fila más opaca** (cabecera y calle) y el filo de tinta en el
   clip. Sin franja de color a un lado: el color aquí significa algo.
-- **Atajos en un módulo propio.** `lib/daw/atajos.ts` dice qué tecla es cada
-  atajo y su nombre en español (la lista `ATAJOS`, para el menú Editar y
-  Ayuda → Atajos); `hooks/useAtajos.ts` dice qué hace cada uno y da
-  `ejecutar(id)` para que el menú y la tecla llamen a lo mismo. No cuentan
-  escribiendo en un campo, ni con «Tocar» abierto (el teclado toca notas);
-  con una hoja o el mezclador encima solo Espacio, Deshacer y Rehacer.
-  Ctrl y ⌘ valen lo mismo. Ctrl+R y Ctrl+S siguen siendo del navegador (y
-  del menú Archivo): R y S graban y cortan solo sin modificador.
+- **Atajos en la misma tabla que los menús.** Los de un DAW (Espacio, R,
+  S, M, Mayús+S, Supr, flechas, Inicio, Fin, Ctrl+C/X/V/D, + y −) se suman a
+  `lib/daw/menus/comandos.ts` (0023 de menús): un solo registro para la
+  barra, el menú del móvil, la chuleta de Ayuda y el teclado. Lo que hacen
+  vive en `hooks/useEdicion.ts`, al que delega `useArchivo().ejecutar`.
+  `atajoPermitido` decide dónde valen: las teclas sueltas que editan la
+  línea de tiempo solo con el estudio a la vista (no con una hoja, el
+  mezclador o «Tus ideas» encima), y con «Tocar» abierto tampoco Espacio,
+  porque el teclado toca notas. En un deslizador, las flechas lo mueven a
+  él. Ctrl+S sigue siendo Guardar y Ctrl+R del navegador: S y R solas
+  cortan y graban.
 - **Una pista sigue siendo un clip.** Cortar en el cursor (S) deja la segunda
   mitad en una pista nueva justo debajo, con la misma mezcla; pegar (Ctrl+V)
   crea una pista con el clip en el cursor. Es lo mismo que al grabar, cada
@@ -663,15 +666,14 @@ primario, salvia solo para la IA y rojo solo para grabar y borrar.
   Exportar (WAV, pistas sueltas, idea .zip), Importar audio…, Importar una
   idea (.zip)…, Compartir…, Ajustes y cuenta…, Cerrar idea y Borrar idea… en
   rojo con confirmación (no se deshace).
-- **Una tabla, un dueño por tecla.** Los atajos de la idea (Ctrl+N, O, S,
-  Mayús+S, W y Ctrl+,) están en `src/lib/daw/menus/comandos.ts`; los de
-  edición (Espacio, R, Ctrl+Z, C, V, X, D, S, M, Supr…) en
-  `src/lib/daw/atajos.ts`. Editar, Pista y Ver se pintan desde esa lista y
-  llaman a `useAtajos`: lo que dice el menú es lo que hace la tecla. Ctrl+Z
-  estaba en dos oyentes y deshacía dos veces; ahora solo en uno. Con un menú
-  abierto las letras sueltas no llegan al estudio (una R se ponía a grabar).
-  Ctrl+N y Ctrl+W solo llegan con la app instalada: en una pestaña son del
-  navegador.
+- **Una sola tabla de atajos.** Todos (los de la idea, Ctrl+N, O, S,
+  Mayús+S, W y Ctrl+,, y los de edición que añadió la 0024: Espacio, R,
+  Ctrl+Z, C, V, X, D, S, M, Supr…) viven en `src/lib/daw/menus/comandos.ts`,
+  y un solo oyente en `useArchivo` decide si valen según lo que hay delante
+  (el estudio, una hoja o «Tocar»). Lo que dice el menú es lo que hace la
+  tecla. Con un menú abierto las letras sueltas no llegan al estudio (una R
+  se ponía a grabar). Ctrl+N y Ctrl+W solo llegan con la app instalada: en
+  una pestaña son del navegador.
 - **«Tus ideas» es la raíz:** a ella llevan Abrir y Cerrar idea. «¿Qué
   tocamos hoy?», Nueva idea, Importar audio, seis accesos rápidos (Batería,
   Teclado, Acordes, Bajo, Grabar voz, Loops: cada uno empieza una idea nueva

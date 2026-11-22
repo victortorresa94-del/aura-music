@@ -22,9 +22,18 @@ import {
   type AudioDeIdea,
 } from '@/lib/pwa/copia';
 import { esCuotaLlena } from '@/lib/pwa/espacio';
-import { comandoDeTecla, escribiendo, type IdComando } from '@/lib/daw/menus/comandos';
+import {
+  atajoPermitido,
+  comandoDeTecla,
+  escribiendo,
+  SE_REPITEN,
+  teclaDelMando,
+  type IdComando,
+  type ModoTeclado,
+} from '@/lib/daw/menus/comandos';
 import type { Project } from '@/lib/daw/types';
 import type { Studio } from './useStudio';
+import { useEdicion } from './useEdicion';
 
 /** Lo que el estudio sabe hacer con su pantalla. */
 export interface AccionesDePantalla {
@@ -38,6 +47,14 @@ export interface AccionesDePantalla {
   ponerTema: (modo: 'light' | 'dark' | 'system') => void;
   verAtajos: () => void;
   verIntro: () => void;
+  /**
+   * Qué hay en pantalla, para los atajos de teclas sueltas: con una hoja o
+   * el mezclador encima no editan la línea de tiempo, y con «Tocar» abierto
+   * el teclado toca notas. Sin él, como si el estudio estuviera a la vista.
+   */
+  modoTeclado?: () => ModoTeclado;
+  /** Pulsos por compás (4, o el ciclo del ritmo): las flechas saltan de compás en compás. */
+  pulsosPorCompas?: () => number;
 }
 
 /** ¿Mac? Para enseñar ⌘ y escuchar ⌘ en vez de Ctrl. */
@@ -61,6 +78,10 @@ export function useArchivo(studio: Studio, pantalla: AccionesDePantalla) {
   useEffect(() => {
     mac.current = esMac();
   }, []);
+  // Transporte, portapapeles, cortar clips, cambiar de pista, zoom…
+  const pantallaRef = useRef(pantalla);
+  pantallaRef.current = pantalla;
+  const edicion = useEdicion(studio, () => pantallaRef.current.pulsosPorCompas?.() ?? 4);
 
   /**
    * Compartir o descargar. Cerrar la hoja de compartir sin elegir no es un
@@ -194,6 +215,9 @@ export function useArchivo(studio: Studio, pantalla: AccionesDePantalla) {
 
   const ejecutar = useCallback(
     (id: IdComando) => {
+      // Los de la línea de tiempo (y duplicar, silenciar, solo y borrar la
+      // pista) los resuelve `useEdicion`.
+      if (edicion.ejecutar(id)) return;
       const pista = studio.selectedTrack;
       switch (id) {
         case 'nueva':
@@ -255,21 +279,6 @@ export function useArchivo(studio: Studio, pantalla: AccionesDePantalla) {
         case 'opcionesPista':
           if (pista) pantalla.abrirPista();
           return;
-        case 'duplicarPista':
-          if (pista) studio.duplicateTrack(pista.id);
-          return;
-        case 'silenciarPista':
-          if (pista) studio.toggleMute(pista.id);
-          return;
-        case 'soloPista':
-          if (pista) studio.toggleSolo(pista.id);
-          return;
-        case 'borrarPista':
-          if (pista) {
-            studio.deleteTrack(pista.id);
-            setStatus(`«${pista.name}» borrada. Puedes deshacer.`);
-          }
-          return;
         case 'mezclador':
           pantalla.abrirMezclador();
           return;
@@ -293,23 +302,28 @@ export function useArchivo(studio: Studio, pantalla: AccionesDePantalla) {
           return;
       }
     },
-    [studio, engine, pantalla, setStatus, exportarMezcla, exportarPistas, exportarZip],
+    [studio, engine, pantalla, setStatus, exportarMezcla, exportarPistas, exportarZip, edicion],
   );
 
-  /* Los atajos de teclado. Un solo oyente para todos (antes solo había
-     Ctrl+Z). Se apartan si estás escribiendo en un campo: ahí Ctrl+Z deshace
-     lo escrito, no la última acción de la idea. Con una hoja abierta también
-     funcionan, como en cualquier programa. */
+  /* Los atajos de teclado. Un solo oyente para todos. Se apartan si estás
+     escribiendo en un campo: ahí Ctrl+Z deshace lo escrito y Retroceso
+     borra una letra, no una pista. Los de Archivo y Deshacer valen también
+     con una hoja abierta, como en cualquier programa; los de teclas sueltas
+     que editan la línea de tiempo, solo con el estudio a la vista
+     (`atajoPermitido`). En un deslizador, las flechas lo mueven a él. */
   const ejecutarRef = useRef(ejecutar);
   ejecutarRef.current = ejecutar;
   useEffect(() => {
     const alPulsar = (event: KeyboardEvent) => {
-      // Si otro oyente ya la ha atendido (los atajos de edición de la pista,
-      // por ejemplo), no se hace dos veces.
-      if (event.defaultPrevented || event.repeat || escribiendo(event.target as HTMLElement | null)) return;
+      const objetivo = event.target as HTMLElement | null;
+      if (event.defaultPrevented || escribiendo(objetivo)) return;
       const id = comandoDeTecla(event, mac.current);
       if (!id) return;
+      if (!atajoPermitido(id, pantallaRef.current.modoTeclado?.() ?? 'estudio')) return;
+      if (teclaDelMando(objetivo, id)) return;
+      // Espacio con el foco en un botón: reproduce, y no pulsa además el botón.
       event.preventDefault();
+      if (event.repeat && !SE_REPITEN.has(id)) return;
       ejecutarRef.current(id);
     };
     window.addEventListener('keydown', alPulsar);

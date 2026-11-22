@@ -17,7 +17,7 @@ import { CaretDown, Sparkle } from '@phosphor-icons/react';
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import type { Archivo } from '@/hooks/useArchivo';
 import type { Studio } from '@/hooks/useStudio';
-import { ATAJOS, textoAtajo, type IdComando } from '@/lib/daw/menus/comandos';
+import { NOMBRES_DE_COMANDOS, SECCIONES_DE_ATAJOS, textoAtajo } from '@/lib/daw/menus/comandos';
 import { IconoMezclador } from '../mezclador/icono';
 import { haptic, T } from '../theme';
 import { IconButton, IconSpark, IconUndo, Sheet, TextButton, hintText, label, numeric } from '../ui';
@@ -475,17 +475,6 @@ function MenuDeIdea({
 /* Lo que se abre desde los menús                                              */
 /* -------------------------------------------------------------------------- */
 
-const NOMBRES_DE_ATAJOS: Partial<Record<IdComando, string>> = {
-  nueva: 'Nueva idea',
-  abrir: 'Abrir',
-  guardar: 'Guardar',
-  guardarCopia: 'Guardar como copia',
-  cerrar: 'Cerrar idea',
-  deshacer: 'Deshacer',
-  rehacer: 'Rehacer',
-  ajustes: 'Ajustes',
-};
-
 /** Borrar la idea (con confirmación, que no se deshace) y la chuleta de atajos. Van en la raíz, como las demás hojas. */
 export function DialogosDeArchivo({
   studio,
@@ -534,8 +523,11 @@ export function DialogosDeArchivo({
       </Sheet>
 
       <Sheet open={atajos} title="Atajos de teclado" onClose={onCerrarAtajos}>
+        {SECCIONES_DE_ATAJOS.map((seccion) => (
+        <div key={seccion.titulo}>
+        <h3 style={{ fontFamily: T.fontBody, fontSize: 13, fontWeight: 600, color: T.dim, margin: '0 4px 6px' }}>{seccion.titulo}</h3>
         <div style={{ borderRadius: 14, background: T.fill, boxShadow: `inset 0 1px 0 ${T.rim}`, overflow: 'hidden', marginBottom: 14 }}>
-          {(Object.keys(ATAJOS) as IdComando[]).map((id, i) => (
+          {seccion.ids.map((id, i) => (
             <div
               key={id}
               style={{
@@ -550,11 +542,13 @@ export function DialogosDeArchivo({
                 color: T.text,
               }}
             >
-              <span>{NOMBRES_DE_ATAJOS[id] ?? id}</span>
+              <span>{NOMBRES_DE_COMANDOS[id] ?? id}</span>
               <kbd style={{ fontFamily: T.fontBody, fontSize: 13, color: T.dim, fontVariantNumeric: 'tabular-nums' }}>{textoAtajo(id, mac)}</kbd>
             </div>
           ))}
         </div>
+        </div>
+        ))}
         <p style={hintText}>
           En una pestaña del navegador, {mac ? '⌘N y ⌘W' : 'Ctrl+N y Ctrl+W'} son del navegador (abren y cierran ventanas). Con la app instalada funcionan.
         </p>
