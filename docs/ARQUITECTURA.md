@@ -87,6 +87,26 @@ web debería quedarse colgada tanto. La ruta POST devuelve la tarea con un
 - La subida está limitada a 4,2 MB y 60 s (el tope de una función de Vercel
   es 4,5 MB por petición): la toma se manda en mono a 32 kHz, 45 s como mucho.
 
+## Tu cuenta y las ideas en la nube (pilar D)
+
+Local primero: IndexedDB manda en cada dispositivo y la nube (el Firebase de
+Aura) se pone al día por detrás. Todo vive en `src/lib/nube/`:
+
+| Pieza | Qué hace |
+|---|---|
+| `config.ts` | Lee `NEXT_PUBLIC_FIREBASE_*`. Sin ellas no hay nube y no se carga nada. |
+| `firebase.ts` | Carga el SDK a trozos (auth, `firestore/lite`, storage) y da un `Remoto` por cuenta. |
+| `local.ts` | El `Local`: `storage.ts` en silencio y el cerebro de localStorage. |
+| `motor.ts` | Tirar (comparar y bajar documentos), la cola de subidas y bajar audio al abrir. |
+| `reconciliar.ts` | Qué hacer con cada idea (subir, bajar, borrar, choque y copia) y la limpieza a 30 días. Puro. |
+| `cola.ts`, `cerebro.ts`, `flac.ts`, `documento.ts` | Cola con reintentos, mezcla del cerebro, FLAC de 16 bits y la idea como documento. Puros. |
+
+Enganches en el resto: `storage.ts` avisa con eventos al guardar y borrar
+(`eventos.ts`), `useStudio.loadProjectAudio` pide el audio que falte por
+`puente.ts`, el productor avisa y relee su cerebro, y `useNube` (en
+`StudioApp`) une la sesión, el motor y el estudio. La interfaz está en
+`src/components/cuenta/Cuenta.tsx`. Por qué así, en la decisión 0022.
+
 ## Decisiones de diseño de la interfaz
 
 - **Ámbar = lo ha tocado la máquina.** El tema del estudio solo tiene dos

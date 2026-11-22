@@ -491,3 +491,82 @@ hiper digital, 0 real, y muchas percusiones en general».
 de 6 a 14 dB más fuerte que con la síntesis, que era muy floja; si molesta,
 se baja con el volumen de la claqueta. La VCSL no trae slap de conga: el
 tumbao del bolero usa el golpe apagado del quinto.
+
+## 0023 · Tu cuenta de Aura y las mismas ideas en el móvil y en el PC (22-nov-2026)
+
+Pilar D, ola 2 (fase 1). En Ajustes, «Tu cuenta de Aura»: entrar con Google
+o con correo y contraseña en el Firebase de Aura (`aether-app-59bd1`), ver
+quién está dentro y salir. Con sesión, las ideas, su audio y el cerebro del
+productor se ponen al día solos entre dispositivos. Sin configuración
+(`NEXT_PUBLIC_FIREBASE_*`) no se carga el SDK ni se enseña nada: la app es la
+de antes. Pasos del usuario en `docs/CUENTA.md`.
+- **Local primero.** IndexedDB sigue mandando: grabar y guardar no esperan a
+  la red. `storage.ts` avisa con un evento al guardar o borrar
+  (`saveProject(p, { silencioso })` para lo que escribe la propia nube) y el
+  motor (`src/lib/nube/motor.ts`) sube por detrás. No sabe de Firebase ni de
+  IndexedDB: habla con un `Remoto` y un `Local`, y así se prueba entero con los
+  dos simulados (`motor.test.ts`, dos dispositivos contra una nube en
+  memoria).
+- **Dónde va.** Cada idea, en `users/{uid}/auraMusicProjects/{id}` como texto
+  JSON (Firestore no admite listas dentro de listas y tumba un `undefined`;
+  pasado 600 KB va en gzip), con `updatedAt`, el dispositivo, sus audios y la
+  hora del servidor para pedir solo lo nuevo. Cada audio, un FLAC en
+  `users/{uid}/aura-music/{id}/{bufferId}` con subida reanudable. El cerebro,
+  en `users/{uid}/auraMusic/cerebro`. Las reglas de Aura ya lo permiten
+  (`users/{uid}/**` del dueño).
+- **FLAC propio en TypeScript** (`flac.ts`): predictores fijos y Rice con
+  particiones, que es FLAC normal. Ida y vuelta exacta, muestra a muestra,
+  desde el PCM de 16 bits de IndexedDB (test). Medido: una toma de guitarra con
+  ruido de sala, 0,60 del PCM (unos 3,4 MB por minuto en mono a 48 kHz); la
+  guitarra sola, 0,54; el silencio, casi nada. Comprobado con ffmpeg en los
+  dos sentidos: lee nuestros FLAC idénticos y nosotros leemos los suyos (con
+  LPC), muestra a muestra. En el PC codifica un minuto en
+  0,8 s y lo lee en 1 s, soltando el hilo cada 24 bloques; mientras grabas no
+  se codifica nada.
+- **Qué gana.** Con la base (la versión en la que el dispositivo y la nube
+  coincidieron) se sabe quién cambió: si uno, gana ese; si los dos, la última
+  modificación. Si la que pierde tenía tomas que la ganadora no, se guarda
+  aparte («Bulería · copia del iPhone»), y la nube las sube con ella. Un
+  borrado de otro dispositivo no se lleva cambios de aquí sin subir (la idea
+  vuelve). El audio va antes que el documento: otro dispositivo nunca ve una
+  idea sin su audio. Lo que nadie usa se borra de la nube a los 30 días, y
+  `deleteProject` ya no borra un audio que use otra idea (las copias de un
+  choque comparten los de la original). De una toma cuadrada al tempo (0020)
+  viajan los dos audios, el que suena y el original, que no se borra nunca.
+- **La idea abierta no cambia por debajo.** Si llega una versión nueva y no
+  la has tocado desde que se cargó, se recarga sola; si la has tocado, Ajustes
+  pregunta «Cargar la del PC» o «Seguir con la mía», con la misma regla de la
+  copia.
+- **Cerebro.** Se mezcla en tres partes con la base: lo aprendido en los dos
+  se junta, lo olvidado en uno se queda olvidado, los usos suman lo de cada
+  uno. Sin base (la primera vez), el mayor.
+- **Cola.** Claves («proyecto:id», «cerebro») y no órdenes: diez cambios
+  seguidos son una subida (se agrupan 2,5 s, nunca más de 20). Sin red espera
+  2, 4, 8 s… hasta 5 min, y al volver la red se reintenta todo. Se guarda con
+  la cuenta en localStorage y sobrevive a cerrar la app.
+- **Entrar con Google.** Ventana emergente primero, como Aura (le funciona
+  también en la app instalada del iPhone); si el navegador la bloquea, la
+  redirección. `next.config.ts` sirve `/__/auth/*` de Firebase desde nuestro
+  dominio para el día que haga falta poner el `authDomain` propio (paso
+  opcional de `CUENTA.md`), y el service worker no toca esas páginas.
+- **Estado visible y discreto.** Un icono gris de nube junto al número de
+  pistas de la cabecera (al día, subiendo, sin conexión, error, ha cambiado
+  en otro sitio) y el detalle bajo tu nombre en Ajustes, con «Reintentar». Sin
+  colores nuevos: el rojo es grabar y el verde es Aura tocando.
+**Descartado:** Firestore completo con su caché sin conexión. Serían dos
+cachés peleándose (Aura sufrió la suya en el iPhone, 25-sep-2026) y ya
+tenemos IndexedDB; `firestore/lite` va por peticiones normales y pesa menos.
+**Descartado:** escuchar cambios en tiempo real (`onSnapshot`). Mirar al
+volver a la app, al volver la red y cada minuto basta para dos dispositivos
+de una persona, y una consulta que no trae nada cuesta una lectura.
+**Descartado:** WAV de 16 bits en la nube (pesa casi el doble) y
+`decodeAudioData` para leer el FLAC (remuestrea a la frecuencia del contexto
+y no corre en los tests).
+**Descartado:** el cerebro compartido con Aura (`users/{uid}/auraStorage`).
+No tiene API HTTP salvo el MCP: fase 2.
+**Pendiente:** entrar con Apple; comprobar en el servidor que la cuenta está
+aprobada en Aura (hoy cualquiera con cuenta de Firebase de Aura guarda en su
+propio espacio, que las reglas ya aíslan); probar en un iPhone de verdad la
+ventana de Google en la app instalada; limitar tamaño y tipo del audio con
+una regla de Storage propia para `aura-music/`; predictores LPC en el FLAC
+(ffmpeg al máximo saca un 15 % menos que el nuestro).

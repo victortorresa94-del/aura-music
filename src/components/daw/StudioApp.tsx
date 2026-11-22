@@ -21,6 +21,9 @@ import { RhythmSheet } from './RhythmSheet';
 import { ClickSheet, TrackSheet, TrackStrip } from './TrackPanel';
 import { Transport } from './Transport';
 import { IconButton, IconChevronDown, IconClose, IconSpark, IconUndo, label, numeric } from './ui';
+// Cuenta (pilar D)
+import { useNube } from '@/hooks/useNube';
+import { IndicadorNube } from '@/components/cuenta/Cuenta';
 // Mezcla (pilar A)
 import { useMezcla } from '@/hooks/useMezcla';
 import { useClaqueta } from '@/hooks/useClaqueta';
@@ -132,6 +135,12 @@ export default function StudioApp() {
 
   // PWA (pilar E): service worker, versiones nuevas, compartir y espacio.
   const pwa = usePwa(studio);
+  // Cuenta (pilar D): tu cuenta de Aura y las ideas en la nube. Sin configuración no hace nada.
+  const nube = useNube(studio);
+  const cambioEnLaAbierta = nube.estado.cambioEnLaAbierta?.dispositivo ?? null;
+  useEffect(() => {
+    if (cambioEnLaAbierta) setStatus(`Esta idea ha cambiado en el ${cambioEnLaAbierta}. Toca el nombre para verlo.`);
+  }, [cambioEnLaAbierta, setStatus]);
 
   useEffect(() => {
     if (!status) return;
@@ -235,6 +244,8 @@ export default function StudioApp() {
           >
             {pistas === 0 ? 'Sin pistas' : `${pistas} ${pistas === 1 ? 'pista' : 'pistas'}`}
             {groove ? ` · ${groove.nombre}` : ''}
+            {/* Cuenta (pilar D): cómo va la nube, en un icono gris. */}
+            <IndicadorNube nube={nube} />
           </span>
         </button>
 
@@ -409,6 +420,7 @@ export default function StudioApp() {
         theme={theme}
         open={sheet === 'settings'}
         onClose={() => setSheet(null)}
+        nube={nube}
       />
 
       <Mezclador
