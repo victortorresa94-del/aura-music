@@ -733,3 +733,37 @@ Es el ciclo de cualquier DAW, para tomas de micro en el estudio principal.
 pruebas no tiene; se probó con una toma simulada de tres vueltas y con el
 transporte dando vueltas). Falta oírlo en un iPhone y comprobar que el pulgar
 llega a las asas sin mover la línea de tiempo.
+
+## 0028 · Un solo «+ Añadir», grabar la voz en el iPhone y leer sus audios (25-nov-2026)
+
+El dueño, probando en su iPhone: «en vez de poner Importar audio y luego al
+lado Tocar instrumento, debería haber un MÁS… ahora mismo no puedo grabarme
+la voz». Y un aviso mudo: «No he podido leer ese audio».
+- **Un solo «+ Añadir»** en la fila de debajo de las pistas, en el estado
+  vacío y en Pista › Añadir del PC. Abre una hoja con una fila por forma de
+  meter una pista, cada una con su icono de arcilla: grabar voz o
+  instrumento, tocar un instrumento, poner un loop, generar con IA (ponle
+  algo debajo o el productor) e importar audio. Grabar y la IA se despliegan
+  en su sitio: grabar dice qué entrada graba («las dos juntas», «solo la 1»)
+  y deja cambiarla ahí, con la cuenta atrás de la claqueta. El estado vacío
+  se queda en «Grabar» (rojo, lo principal) y «+ Añadir».
+- **Grabar la voz, sin fallos callados.** Dos causas no se veían en el
+  iPhone: la app abierta por http (el enlace del ordenador en casa), donde
+  Safari no da micro, y una entrada elegida en Ajustes cuyo id iOS ya no
+  reconoce (`deviceId: exact` fallaba siempre). Ahora lo primero se dice tal
+  cual («el micro solo funciona en https…») y lo segundo se arregla solo,
+  grabando con la entrada del dispositivo y avisando. Permiso denegado dice
+  dónde se da en el iPhone y un micro ocupado dice que lo está
+  (`src/lib/daw/micro/errores.ts`, con tests). Cualquier otro fallo al
+  arrancar ya no se pierde: el transporte lo avisa en vez de no hacer nada.
+- **Leer los audios del iPhone.** Plan A, `decodeAudioData` (también en su
+  forma de callbacks y sobre una copia de los bytes). Plan B, para lo que el
+  navegador reproduce pero no decodifica de golpe (los vídeos .mov y .mp4 de
+  la galería, algunos opus): se reproduce en silencio por un
+  `MediaElementSource` y se copia lo que suena, contando el avance («Sacando
+  el audio del vídeo .mov: 12 de 40 s»). Si ninguno puede, el aviso dice qué
+  formato era (`src/lib/daw/importar/`, con tests). El selector acepta
+  también vídeos, así el iPhone ofrece la galería.
+**Pendiente:** nada de esto se ha probado en un iPhone de verdad. El plan B
+no se ha visto funcionar con un vídeo real (Chrome lee los mp4 con el plan
+A), y si el navegador no deja reproducir tras elegir el fichero, lo dice.

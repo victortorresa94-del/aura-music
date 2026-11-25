@@ -5,15 +5,16 @@ import type { PeakData, Track } from '@/lib/daw/types';
 import type { Studio } from '@/hooks/useStudio';
 import type { Mezcla } from '@/hooks/useMezcla';
 import { cssColor, haptic, trackTint } from './theme';
-import { IconImport, T, hintText, numeric } from './ui';
+import { T, hintText, numeric } from './ui';
 import { CabeceraPista, botonPlano, headerCell, nombreVisible } from './cabecera/CabeceraPista';
 import { ESTILO_MANDOS } from './cabecera/ControlesPista';
 import { EVENTO_VER_CURSOR, EVENTO_ZOOM } from '@/hooks/useEdicion';
 import { alPulso, TROZO_MINIMO } from '@/lib/daw/edicion';
-import { IconTocar, NotasClip } from './instrumentos';
+import { NotasClip } from './instrumentos';
 // Grabar en bucle: el ciclo en la regla y en las pistas.
 import { BotonCiclo, useArrastreDeCiclo, ZonaEnPistas, ZonaEnRegla } from './bucle/Ciclo';
-import { Repeat } from '@phosphor-icons/react';
+// Añadir: el «+» de la fila de añadir y del estado vacío.
+import { Plus } from '@phosphor-icons/react';
 
 /** Ancho de la columna de pistas en el móvil. En pantallas anchas crece. */
 export const HEADER_W = 128;
@@ -751,8 +752,7 @@ export function Timeline({
   onOpenTrack,
   onZoom,
   beatsPerBar = 4,
-  onTocar,
-  onLoops,
+  onAnadir,
   mezcla,
 }: {
   studio: Studio;
@@ -762,9 +762,8 @@ export function Timeline({
   theme: string;
   onOpenTrack: () => void;
   /** Pilar B: abre la pantalla «Tocar». Sin él, no sale el botón. */
-  onTocar?: () => void;
-  /** Abre «Tocar» directamente en «Loops». Sin él, no sale el botón. */
-  onLoops?: () => void;
+  /** Añadir: abre la hoja con todas las formas de meter una pista. */
+  onAnadir?: () => void;
   /** Pellizco, Ctrl/⌘ + rueda o las teclas + y −. Sin él no hay zoom. */
   onZoom?: (pps: number) => void;
   /** Pulsos por compás para la regla: 4, o el ciclo del ritmo que suene. */
@@ -1072,10 +1071,14 @@ export function Timeline({
         {recording ? <RecordingRow studio={studio} pps={pps} headerW={headerW} laneStyle={laneStyle} /> : null}
 
         {project.tracks.length === 0 && !recording ? (
-          <EmptyState onImport={studio.importFile} width={viewport} onTocar={onTocar} onLoops={onLoops} />
+          <EmptyState width={viewport} onAnadir={onAnadir} onGrabar={() => {
+            // Dentro del toque: en iOS el audio solo arranca así.
+            studio.engine?.unlockSync();
+            void studio.record();
+          }} />
         ) : (
           <>
-            <AddTrackRow onImport={studio.importFile} headerW={headerW} laneWidth={laneWidth} laneStyle={laneStyle} wide={headerW > HEADER_W} onTocar={onTocar} />
+            <AddTrackRow headerW={headerW} laneWidth={laneWidth} laneStyle={laneStyle} onAnadir={onAnadir} />
             {/* Relleno: la columna y la rejilla siguen hasta abajo, y deja
                 aire para que el aviso no tape la última pista. */}
             <div style={{ display: 'flex', flex: 1, minHeight: 72 }}>
@@ -1103,178 +1106,82 @@ export function Timeline({
 
 
 /**
- * Añadir una pista que no viene del micro. Va al final de la columna de
- * pistas, que es donde el ojo espera encontrar el "y ahora qué": debajo de lo
- * último grabado. Sin borde de rayas: es una fila más de la lista.
+ * La fila de debajo de la última pista: un solo «+ Añadir» con todas las
+ * formas de meter una pista (grabar, tocar, un loop, la IA, importar). Antes
+ * eran «Importar» y «Tocar» sueltos, y grabar la voz no aparecía. Va en la
+ * columna de las cabeceras, donde el ojo espera el «y ahora qué».
  */
 function AddTrackRow({
-  onImport,
   headerW,
   laneWidth,
   laneStyle,
-  wide,
-  onTocar,
+  onAnadir,
 }: {
-  onImport: (file: File) => void | Promise<void>;
   headerW: number;
   laneWidth: number;
   laneStyle: React.CSSProperties;
-  wide: boolean;
-  onTocar?: () => void;
+  onAnadir?: () => void;
 }) {
   return (
     <div style={{ display: 'flex', height: 56, flexShrink: 0, boxShadow: `inset 0 -1px 0 ${T.rowLine}` }}>
-      <div style={{ ...headerCell(headerW), background: T.surface, justifyContent: 'center', padding: '0 6px' }}>
-        <ImportButton onImport={onImport} text={wide ? 'Importar audio' : 'Importar'} />
+      <div style={{ ...headerCell(headerW), background: T.surface, justifyContent: 'flex-start', padding: '0 8px' }}>
+        {onAnadir ? <BotonAnadir onAnadir={onAnadir} /> : null}
       </div>
-      <div style={{ width: laneWidth, flexShrink: 0, ...laneStyle }}>
-        {/* Pilar B: tocar un instrumento es la otra forma de añadir una pista.
-            Pegado a la izquierda de la calle, para que no se vaya al desplazar. */}
-        {onTocar ? (
-          <div style={{ position: 'sticky', left: headerW, display: 'inline-flex', alignItems: 'center', height: '100%', paddingLeft: 8 }}>
-            <BotonTocar onTocar={onTocar} />
-          </div>
-        ) : null}
-      </div>
+      <div style={{ width: laneWidth, flexShrink: 0, ...laneStyle }} />
     </div>
   );
 }
 
-/** Pilar B: el botón que abre la pantalla «Tocar». */
-function BotonTocar({ onTocar, prominent }: { onTocar: () => void; prominent?: boolean }) {
+/** «+ Añadir»: abre la hoja (en el estado vacío, en grande). */
+function BotonAnadir({ onAnadir, grande }: { onAnadir: () => void; grande?: boolean }) {
   return (
     <button
       type="button"
       className="daw-press daw-hover"
-      title="Tocar pads, teclado, acordes o bajo y grabarlo como notas"
+      title="Grabar, tocar un instrumento, poner un loop, generar con IA o importar un audio"
+      aria-haspopup="dialog"
       onClick={() => {
         haptic(10);
-        onTocar();
+        onAnadir();
       }}
       style={{
         ...botonPlano,
         display: 'inline-flex',
         alignItems: 'center',
+        justifyContent: 'center',
         gap: 8,
-        minHeight: prominent ? 48 : 40,
-        padding: prominent ? '0 18px' : '0 12px',
-        borderRadius: prominent ? 12 : 10,
+        minHeight: grande ? 52 : 40,
+        padding: grande ? '0 22px 0 18px' : '0 14px 0 10px',
+        borderRadius: grande ? 14 : 10,
         background: T.fill,
         boxShadow: `inset 0 1px 0 ${T.rim}`,
         color: T.text,
         fontFamily: T.fontBody,
-        fontSize: prominent ? 15 : 13,
+        fontSize: grande ? 16 : 14,
         fontWeight: 600,
+        letterSpacing: '-0.01em',
         whiteSpace: 'nowrap',
       }}
     >
-      <IconTocar size={prominent ? 18 : 16} color="currentColor" />
-      {prominent ? 'Tocar un instrumento' : 'Tocar'}
+      <Plus size={grande ? 18 : 16} weight="bold" aria-hidden />
+      Añadir
     </button>
-  );
-}
-
-/** Empieza por un ritmo: abre «Tocar» en «Loops», que siempre van al tempo de la idea. */
-function BotonLoops({ onLoops }: { onLoops: () => void }) {
-  return (
-    <button
-      type="button"
-      className="daw-press daw-hover"
-      onClick={() => {
-        haptic(8);
-        onLoops();
-      }}
-      title="Poner un loop de batería, bajo o percusión al tempo de la idea"
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 8,
-        minHeight: 48,
-        padding: '0 18px',
-        border: 'none',
-        borderRadius: 12,
-        background: T.fill,
-        boxShadow: `inset 0 1px 0 ${T.rim}`,
-        color: T.text,
-        fontFamily: T.fontBody,
-        fontSize: 15,
-        fontWeight: 600,
-        whiteSpace: 'nowrap',
-        cursor: 'pointer',
-      }}
-    >
-      <Repeat size={18} color="currentColor" aria-hidden />
-      Poner un loop
-    </button>
-  );
-}
-
-function ImportButton({
-  onImport,
-  text,
-  prominent,
-}: {
-  onImport: (file: File) => void | Promise<void>;
-  text: string;
-  prominent?: boolean;
-}) {
-  const inputRef = useRef<HTMLInputElement | null>(null);
-  return (
-    <>
-      <input
-        ref={inputRef}
-        type="file"
-        accept="audio/*,.m4a,.mp3,.wav,.aac,.caf,.aiff,.ogg"
-        style={{ display: 'none' }}
-        onChange={(event) => {
-          const file = event.target.files?.[0];
-          if (file) void onImport(file);
-          event.target.value = '';
-        }}
-      />
-      <button
-        type="button"
-        className="daw-press daw-hover"
-        title="Importar un audio del móvil como pista nueva"
-        onClick={() => inputRef.current?.click()}
-        style={{
-          ...botonPlano,
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 8,
-          minHeight: prominent ? 48 : 40,
-          padding: prominent ? '0 18px' : '0 8px',
-          borderRadius: prominent ? 12 : 10,
-          background: prominent ? T.fill : 'transparent',
-          boxShadow: prominent ? `inset 0 1px 0 ${T.rim}` : 'none',
-          color: prominent ? T.text : T.dim,
-          fontFamily: T.fontBody,
-          fontSize: prominent ? 15 : 13,
-          fontWeight: 500,
-          whiteSpace: 'nowrap',
-        }}
-      >
-        <IconImport size={prominent ? 18 : 16} color="currentColor" />
-        {text}
-      </button>
-    </>
   );
 }
 
 /**
- * Estado vacío. Enseña lo que se hace aquí en una frase y apunta al botón de
- * grabar: el ojo tiene que saber en menos de un segundo qué toca, sin leer.
+ * Estado vacío. Una frase y dos botones: «Grabar» (lo principal, en rojo,
+ * porque es grabar) y «+ Añadir» para todo lo demás. Antes eran tres botones
+ * iguales y una flecha hacia el botón rojo del transporte.
  */
 function EmptyState({
-  onImport,
   width,
-  onTocar,
-  onLoops,
+  onAnadir,
+  onGrabar,
 }: {
-  onImport: (file: File) => void | Promise<void>;
   width: number;
-  onTocar?: () => void;
-  onLoops?: () => void;
+  onAnadir?: () => void;
+  onGrabar: () => void;
 }) {
   return (
     <div
@@ -1305,23 +1212,44 @@ function EmptyState({
       >
         Graba la primera toma
       </h2>
-      <p style={{ ...hintText, fontSize: 15, maxWidth: 300, marginBottom: 6 }}>
-        Dale al botón rojo y toca. Cada toma cae en su propia pista, y la siguiente se graba oyendo las
-        anteriores.
+      <p style={{ ...hintText, fontSize: 15, maxWidth: 320, marginBottom: 6 }}>
+        Tu voz o tu instrumento con el micro. O añade un instrumento en la pantalla, un loop, algo de la IA o un audio.
       </p>
       <p style={{ ...hintText, fontSize: 13, color: T.faint, maxWidth: 300, marginBottom: 24 }}>
         Con cascos, para que la segunda toma no se coma a la primera.
       </p>
-      {/* Pilar B: sin micro también se empieza, tocando en la pantalla. */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 8 }}>
-        {onTocar ? <BotonTocar onTocar={onTocar} prominent /> : null}
-        {onLoops ? <BotonLoops onLoops={onLoops} /> : null}
-        <ImportButton onImport={onImport} text="Importar un audio" prominent />
+      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 10 }}>
+        <button
+          type="button"
+          className="daw-press daw-sink"
+          onClick={() => {
+            haptic(12);
+            onGrabar();
+          }}
+          style={{
+            ...botonPlano,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 10,
+            minHeight: 52,
+            padding: '0 24px 0 20px',
+            borderRadius: 14,
+            background: T.recFill,
+            boxShadow: T.elev1,
+            color: T.onRec,
+            fontFamily: T.fontBody,
+            fontSize: 16,
+            fontWeight: 600,
+            letterSpacing: '-0.01em',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          <span aria-hidden style={{ width: 12, height: 12, borderRadius: '50%', background: T.onRec }} />
+          Grabar
+        </button>
+        {onAnadir ? <BotonAnadir onAnadir={onAnadir} grande /> : null}
       </div>
-      <svg width="22" height="56" viewBox="0 0 22 56" fill="none" aria-hidden style={{ marginTop: 24, opacity: 0.55 }}>
-        <path d="M11 1v48" stroke={T.rec} strokeWidth="1.5" strokeLinecap="round" strokeDasharray="3 5" />
-        <path d="m4.5 43 6.5 7 6.5-7" stroke={T.rec} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
     </div>
   );
 }

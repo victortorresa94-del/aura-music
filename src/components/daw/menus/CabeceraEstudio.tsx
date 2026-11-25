@@ -13,6 +13,7 @@
  * (y Ajustes al final), y a la derecha quedan el tempo y tres iconos.
  */
 
+import { ACEPTA_AUDIO } from '@/lib/daw/importar/formato';
 import { CaretDown, Sparkle } from '@phosphor-icons/react';
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import type { Archivo } from '@/hooks/useArchivo';
@@ -168,7 +169,7 @@ export function CabeceraEstudio({
       <input
         ref={archivo.entradaAudio}
         type="file"
-        accept="audio/*,.m4a,.mp3,.wav,.aac,.caf,.aiff,.ogg"
+        accept={ACEPTA_AUDIO}
         aria-hidden
         tabIndex={-1}
         style={{ display: 'none' }}

@@ -34,6 +34,9 @@ import {
 import * as store from '@/lib/daw/storage';
 import { asegurarAudioDeLaNube } from '@/lib/nube/puente';
 import { esCuotaLlena } from '@/lib/pwa/espacio';
+// Añadir: qué formato no se ha podido leer y por qué no se abre el micro.
+import { ErrorDeImportar, formatoDe, mensajeDeImportar } from '@/lib/daw/importar/formato';
+import { diagnosticoDeMicro, microImposible } from '@/lib/daw/micro/errores';
 // Grabar en bucle: la zona del ciclo y el corte de la grabación en vueltas.
 import { conCiclo, segundosDelCiclo, tomasDeVueltas, type Ciclo } from '@/lib/daw/bucle/bucle';
 import {
@@ -596,13 +599,38 @@ export function useStudio() {
   const ensureMic = useCallback(async (): Promise<boolean> => {
     if (!engine) return false;
     if (engine.isInputReady) return true;
+    // Añadir: por http (el enlace del ordenador en casa) Safari no da micro y
+    // antes fallaba sin decir por qué.
+    const entorno = {
+      seguro: typeof window !== 'undefined' && window.isSecureContext,
+      hayApi: typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia,
+      conEntradaElegida: !!settingsRef.current.inputDeviceId,
+    };
+    const imposible = microImposible(entorno);
+    if (imposible) {
+      setMicStatus('error');
+      setStatus(imposible);
+      return false;
+    }
     setMicStatus('requesting');
-    try {
-      await engine.armInput({
-        deviceId: settingsRef.current.inputDeviceId,
+    const abrir = (deviceId: string | null) =>
+      engine.armInput({
+        deviceId,
         echoCancellation: settingsRef.current.echoCancellation,
         canal: settingsRef.current.canalEntrada ?? 'juntas',
       });
+    try {
+      try {
+        await abrir(settingsRef.current.inputDeviceId);
+      } catch (error) {
+        // iOS cambia los ids de las entradas: si la elegida ya no existe, se
+        // olvida y se graba con la del dispositivo, avisando.
+        const d = diagnosticoDeMicro(error, entorno);
+        if (!d.reintentarConLaDeSiempre) throw error;
+        updateSettings({ inputDeviceId: null });
+        await abrir(null);
+        setStatus(d.mensaje);
+      }
       setMicStatus('ready');
       // Si nunca se ha calibrado, al menos partimos de la estimación que da
       // el navegador en vez de asumir cero.
@@ -612,14 +640,9 @@ export function useStudio() {
       }
       return true;
     } catch (error) {
-      const name = (error as DOMException)?.name;
-      if (name === 'NotAllowedError' || name === 'SecurityError') {
-        setMicStatus('denied');
-        setStatus('Sin permiso de micrófono. Actívalo en los ajustes del navegador.');
-      } else {
-        setMicStatus('error');
-        setStatus('No he podido abrir el micrófono.');
-      }
+      const d = diagnosticoDeMicro(error, { ...entorno, conEntradaElegida: false });
+      setMicStatus(d.denegado ? 'denied' : 'error');
+      setStatus(d.mensaje);
       return false;
     }
   }, [engine, updateSettings]);
@@ -658,7 +681,12 @@ export function useStudio() {
     } catch (error) {
       // iOS dejó el audio sin arrancar: se avisa y el siguiente toque lo rehace.
       if (error instanceof AudioBloqueado) setStatus(error.message);
-      else throw error;
+      else {
+        // Añadir: antes cualquier otro fallo (al grabar, por ejemplo) se
+        // perdía sin aviso y el botón parecía no hacer nada.
+        console.error(error);
+        setStatus('Algo ha fallado al arrancar. Vuelve a tocar; si se repite, recarga la app.');
+      }
     } finally {
       lockRef.current = false;
     }
@@ -863,9 +891,17 @@ export function useStudio() {
   const importFile = useCallback(
     async (file: File) => {
       if (!engine) return;
+      const formato = formatoDe(file);
       setBusy('Metiendo el audio…');
       try {
-        const buffer = await engine.decodeFile(file);
+        // Lo que hay que reproducir para leerlo (un vídeo) tarda lo que dura: se cuenta.
+        const buffer = await engine.decodeFile(file, (segundos, total) =>
+          setBusy(
+            total > 0
+              ? `Sacando el audio del ${formato.nombre}: ${Math.round(segundos)} de ${Math.round(total)} s`
+              : `Sacando el audio del ${formato.nombre}…`,
+          ),
+        );
         const channels: Float32Array[] = [];
         for (let c = 0; c < Math.min(2, buffer.numberOfChannels); c++) {
           channels.push(new Float32Array(buffer.getChannelData(c)));
@@ -891,8 +927,8 @@ export function useStudio() {
         commit((current) => ({ ...current, tracks: [...current.tracks, track] }));
         setSelectedTrackId(track.id);
         setStatus(`${name} · ${buffer.duration.toFixed(1)} s`);
-      } catch {
-        setStatus('No he podido leer ese audio. Prueba con un m4a, mp3 o wav.');
+      } catch (error) {
+        setStatus(error instanceof ErrorDeImportar ? error.message : mensajeDeImportar(formato, 'no-se-lee'));
       } finally {
         setBusy(null);
       }

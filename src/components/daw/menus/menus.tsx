@@ -29,6 +29,7 @@ import {
   PencilSimple,
   PianoKeys,
   PlayCircle,
+  Plus,
   Repeat,
   Scissors,
   ShareNetwork,
@@ -44,6 +45,8 @@ import {
 import { hayAlgoCopiado } from '@/hooks/useEdicion';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Archivo } from '@/hooks/useArchivo';
+import { IconoArcilla } from '@/components/iconos/IconoArcilla';
+import type { IdArcilla } from '@/lib/iconos/arcilla';
 import type { Studio } from '@/hooks/useStudio';
 import { haceCuanto, textoAtajo, type IdComando } from '@/lib/daw/menus/comandos';
 import { listProjects } from '@/lib/daw/storage';
@@ -160,10 +163,24 @@ export function useMenus(studio: Studio, archivo: Archivo, tema: ThemeMode) {
     item('borrarPista', 'Borrar la pista', <Trash size={I} />, { desactivado: sinPista, peligro: !sinPista }),
   ];
 
+  /* Añadir: un solo sitio con todas las formas de meter una pista (lo mismo
+     que la hoja «+ Añadir» del estudio), con sus iconos de arcilla. */
+  const arcilla = (id: IdArcilla) => <IconoArcilla id={id} tamano={22} />;
   const pistaMenu: Entrada[] = [
-    item('tocar', 'Tocar un instrumento…', <PianoKeys size={I} />),
-    item('loops', 'Poner un loop…', <Repeat size={I} />),
-    item('importarAudio', 'Importar audio…', <FileAudio size={I} />),
+    {
+      tipo: 'sub',
+      clave: 'anadir',
+      texto: 'Añadir',
+      icono: <Plus size={I} />,
+      hijos: [
+        item('grabar', 'Grabar voz o instrumento', arcilla('micro')),
+        item('tocar', 'Tocar un instrumento…', arcilla('piano')),
+        item('loops', 'Poner un loop…', arcilla('loops')),
+        item('musico', 'Ponle algo debajo (IA)…', arcilla('productor'), { desactivado: project.tracks.length === 0 }),
+        item('productor', 'Pídeselo al productor…', arcilla('productor')),
+        item('importarAudio', 'Importar audio…', arcilla('altavoz')),
+      ],
+    },
     SEP('p1'),
     item('opcionesPista', pista ? `Opciones de «${pista.name}»…` : 'Opciones de la pista…', <SlidersHorizontal size={I} />, { desactivado: sinPista }),
     item('duplicarPista', 'Duplicar', <CopySimple size={I} />, { desactivado: sinPista }),

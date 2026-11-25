@@ -47,6 +47,9 @@ export interface AccionesDePantalla {
   ponerTema: (modo: 'light' | 'dark' | 'system') => void;
   verAtajos: () => void;
   verIntro: () => void;
+  /** Añadir: la hoja «+ Añadir» y el músico («Ponle algo debajo»). */
+  abrirAnadir?: () => void;
+  abrirMusico?: () => void;
   /**
    * Qué hay en pantalla, para los atajos de teclas sueltas: con una hoja o
    * el mezclador encima no editan la línea de tiempo, y con «Tocar» abierto
@@ -250,6 +253,12 @@ export function useArchivo(studio: Studio, pantalla: AccionesDePantalla) {
           return;
         case 'compartir':
           void exportarMezcla(true);
+          return;
+        case 'anadir':
+          pantalla.abrirAnadir?.();
+          return;
+        case 'musico':
+          pantalla.abrirMusico?.();
           return;
         case 'importarAudio':
           entradaAudio.current?.click();

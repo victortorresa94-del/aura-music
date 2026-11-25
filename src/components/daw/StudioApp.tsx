@@ -12,6 +12,7 @@ import { getCompas } from '@/lib/daw/rhythm/compases';
 import { getGroove } from '@/lib/daw/rhythm/grooves';
 import { TocarPantalla } from './instrumentos';
 import { MusicoSheet } from './MusicoSheet';
+import { HojaAnadir } from './anadir/HojaAnadir';
 import { ProductorSheet } from './ProductorSheet';
 import { useTheme } from '@/hooks/useTheme';
 import { SettingsSheet } from './SettingsSheet';
@@ -53,7 +54,7 @@ export default function StudioApp() {
   const studio = useStudio();
   const theme = useTheme();
   const [pps, setPps] = useState(45);
-  const [sheet, setSheet] = useState<null | 'track' | 'click' | 'settings' | 'ritmo' | 'musico' | 'productor'>(null);
+  const [sheet, setSheet] = useState<null | 'track' | 'click' | 'settings' | 'ritmo' | 'musico' | 'productor' | 'anadir'>(null);
   // El ciclo del ritmo que esté puesto: si es una bulería, el bajo «al compás» la sigue.
   const grooveId = studio.grooveId;
   const groove = useMemo(() => (grooveId ? getGroove(grooveId) : null), [grooveId]);
@@ -147,6 +148,8 @@ export default function StudioApp() {
       ponerTema,
       verAtajos: () => setAtajos(true),
       verIntro: () => setIntroForzada(true),
+      abrirAnadir: () => setSheet('anadir'),
+      abrirMusico: () => setSheet('musico'),
       modoTeclado: () => modoTecladoRef.current,
       pulsosPorCompas: () => pulsosRef.current,
     }),
@@ -265,16 +268,7 @@ export default function StudioApp() {
           beatsPerBar={beatsPerBar}
           onZoom={setPps}
           onOpenTrack={() => setSheet('track')}
-          onTocar={() => {
-            engine?.unlockSync();
-            setTocarEnLoops(false);
-            setTocar(true);
-          }}
-          onLoops={() => {
-            engine?.unlockSync();
-            setTocarEnLoops(true);
-            setTocar(true);
-          }}
+          onAnadir={() => setSheet('anadir')}
         />
 
         {/* Lo que flota sobre la línea de tiempo: el aviso. Es el único
@@ -358,6 +352,19 @@ export default function StudioApp() {
         onOpenMusico={() => setSheet('musico')}
       />
       <MusicoSheet studio={studio} musico={musico} open={sheet === 'musico'} onClose={() => setSheet(null)} />
+      {/* Añadir: grabar, tocar, un loop, la IA o importar, desde un solo «+». */}
+      <HojaAnadir
+        studio={studio}
+        archivo={archivo}
+        abierta={sheet === 'anadir'}
+        onCerrar={() => setSheet(null)}
+        acciones={{
+          tocar: pantalla.tocar,
+          loops: pantalla.loops,
+          musico: () => setSheet('musico'),
+          productor: () => setSheet('productor'),
+        }}
+      />
       <ProductorSheet
         studio={studio}
         musico={musico}
