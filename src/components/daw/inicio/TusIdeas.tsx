@@ -13,6 +13,7 @@
  * a una pantalla de trabajo se llega, no se asiste a cómo aparece.
  */
 
+import { ACEPTA_AUDIO } from '@/lib/daw/importar/formato';
 import { DotsThree, MagnifyingGlass, Microphone, Plus, UploadSimple } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import type { Archivo } from '@/hooks/useArchivo';
@@ -288,7 +289,7 @@ export function TusIdeas({
       <input
         ref={entrada}
         type="file"
-        accept="audio/*,.m4a,.mp3,.wav,.aac,.caf,.aiff,.ogg"
+        accept={ACEPTA_AUDIO}
         aria-hidden
         tabIndex={-1}
         style={{ display: 'none' }}

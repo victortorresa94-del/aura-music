@@ -19,6 +19,9 @@ export type IdComando =
   | 'exportarPistas'
   | 'exportarZip'
   | 'importarAudio'
+  // Añadir: la hoja con todas las formas de meter una pista, y el músico de IA.
+  | 'anadir'
+  | 'musico'
   | 'importarIdea'
   | 'compartir'
   | 'cerrar'

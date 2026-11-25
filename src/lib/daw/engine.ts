@@ -9,6 +9,9 @@
 
 import { createClickBuffer } from './audio';
 import { isInterrupted, primeContext, setAudioSession, unlockMediaPlayback } from './ios';
+// Importar lo que sale de un iPhone: plan A decodificar, plan B reproducirlo.
+import { formatoDe } from './importar/formato';
+import { decodificar, leerSonando } from './importar/leer';
 import { effectiveLatencyMs } from './latency';
 import { Recorder, openMicrophone, type MicOptions } from './recorder';
 import type { Groove } from './rhythm/grooves';
@@ -347,11 +350,22 @@ export class StudioEngine {
   /**
    * Decodifica un fichero de audio del móvil. Se conserva el estéreo: una base
    * importada en mono pierde toda la anchura y se nota.
+   *
+   * Lo que `decodeAudioData` no lee (un vídeo de la galería, por ejemplo) se
+   * saca reproduciéndolo en silencio (`leerSonando`); `alLeerSonando` avisa
+   * del avance, porque tarda lo que dura. Si tampoco, `ErrorDeImportar` dice
+   * qué formato era.
    */
-  async decodeFile(file: File): Promise<AudioBuffer> {
+  async decodeFile(file: File, alLeerSonando?: (segundos: number, total: number) => void): Promise<AudioBuffer> {
+    // El contexto primero, aún dentro del gesto de elegir el fichero.
     const ctx = await this.ensureContext();
     const bytes = await file.arrayBuffer();
-    return ctx.decodeAudioData(bytes);
+    try {
+      return await decodificar(ctx, bytes);
+    } catch {
+      alLeerSonando?.(0, 0);
+      return leerSonando(file, ctx, formatoDe(file), alLeerSonando);
+    }
   }
 
   /* ------------------------------------------------------------------ */
