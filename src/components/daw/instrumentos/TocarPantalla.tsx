@@ -198,6 +198,8 @@ export function TocarPantalla({
   /** Las teclas propias de cada grupo («Asignar teclas»); sin ellas, las de siempre. */
   const [teclasPropias, setTeclasPropias] = useState<Partial<Record<GrupoTeclas, MapaTeclas>>>({});
   const [asignando, setAsignando] = useState(false);
+  /** El pedal de sostener del teclado (no se recuerda: se pone y se quita tocando). */
+  const [pedal, setPedal] = useState(false);
   const instrumentoRef = useRef<HTMLDivElement | null>(null);
   const seleccionRef = useRef<{ valor: number; el: HTMLElement } | null>(null);
   useEffect(() => {
@@ -436,6 +438,8 @@ export function TocarPantalla({
       onModo={prefs.pestana === 'bajo' ? undefined : (modoTeclado) => cambiar({ modoTeclado })}
       onTamano={(tamano) => cambiar(prefs.pestana === 'bajo' ? { tamanoBajo: tamano } : { tamano })}
       teclaDe={teclaDeNota}
+      sostener={prefs.pestana === 'bajo' ? false : pedal}
+      onSostener={prefs.pestana === 'bajo' ? undefined : setPedal}
     />
   );
 
