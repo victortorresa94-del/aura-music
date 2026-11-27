@@ -5,6 +5,11 @@ Producto: lo que es y adónde va, en `docs/PRD.md`. Cómo está montado, en
 `docs/DECISIONES.md`: **antes de proponer algo, mira si ya se descartó ahí.**
 El plan de agosto, cuando esto vivía en web-aether, en `docs/historia/`.
 
+**aura Music de bolsillo** (la parte para quien escucha y se hace sus canciones,
+artistas y playlists, 27-nov-2026): el plan en `docs/PLAN-BOLSILLO.md` y la
+decisión 0029. Lo revisa la skill `equipo-spotify` antes de construir o de
+enseñar una maqueta.
+
 ## Reglas que no se discuten
 
 1. **Si suena mientras tocas, va en local.** Si puedes esperar veinte

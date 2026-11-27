@@ -767,3 +767,32 @@ la voz». Y un aviso mudo: «No he podido leer ese audio».
 **Pendiente:** nada de esto se ha probado en un iPhone de verdad. El plan B
 no se ha visto funcionar con un vídeo real (Chrome lee los mp4 con el plan
 A), y si el navegador no deja reproducir tras elegir el fichero, lo dice.
+## 0029 · aura Music de bolsillo: también para quien escucha (27-nov-2026)
+
+El dueño: «quiero crear aura music de bolsillo como un spotify para gente que
+se pueda crear sus canciones y playlists pero con un objetivo distinto a
+suno… esto es usuario». Solo plan, sin código: `docs/PLAN-BOLSILLO.md`, y el
+equipo que lo revisa, `.claude/skills/equipo-spotify/`.
+- **Relevo parcial del PRD.** El PRD de Compás decía «Lo que NO vamos a
+  hacer: generar canciones enteras desde un texto. Eso es Suno; aquí se
+  toca». Sigue valiendo para el ESTUDIO. La app de bolsillo sí hace canciones
+  enteras, porque su objetivo es otro: no la cantidad (Suno) sino la canción
+  que te quedas, retocada hasta que te gusta y escuchada como en Spotify.
+- **El motor y el dinero no se duplican.** Las canciones se piden a
+  aura Studio (`/api/fal`, `op:'music'`), que ya cobra del monedero de aura,
+  tiene los frenos y va a Lyria por Google. Entra como un `ProveedorDePistas`
+  más.
+- **Lo que suena una hora se hace en el móvil.** Alargar, tonos, ruido y
+  binaurales no gastan créditos, y en el iPhone el bucle se renderiza a un
+  fichero y suena con `<audio>` (el `AudioContext` se calla con la pantalla
+  bloqueada).
+**Descartado:** competir con Suno en precio por canción (a nosotros solo
+Lyria nos cuesta 0,08 $; ellos venden a unos 0,02 $). Si ACE-Step convence al
+oído en GPU propia, se revisa.
+**Descartado:** prometer efectos de salud («alivia la migraña»). La evidencia
+no lo sostiene y lo convertiría en producto sanitario.
+**Descartado:** artistas que imitan a alguien real y publicar en Spotify en
+la v1.
+**Pendiente de su sí:** dónde vive (recomendado: la misma app, con Escuchar
+como entrada y el estudio como otra puerta), el plan Música (4,99 € + IVA,
+120 créditos, monedero de aura) y la maqueta de F0.
