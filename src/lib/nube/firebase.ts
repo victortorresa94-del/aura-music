@@ -34,8 +34,29 @@ type ModAuth = typeof import('firebase/auth');
 type ModFs = typeof import('firebase/firestore/lite');
 type ModSt = typeof import('firebase/storage');
 
+/** Un documento de `users/{uid}/studioAudios` de aura Studio, crudo: lo valida quien lo usa. */
+export interface DocDeAuraStudio {
+  id: string;
+  datos: Record<string, unknown>;
+}
+
 export interface Conexion {
   observar(cb: (usuario: Usuario | null) => void): () => void;
+  /**
+   * El token de la sesión (para llamar a aura Studio con `Authorization:
+   * Bearer`), o `null` si no hay nadie dentro. Espera a que Firebase haya
+   * recuperado la sesión guardada: sin eso, nada más abrir la app diría que no
+   * hay nadie. `forzar` pide uno nuevo aunque el guardado siga vivo (tras un 401).
+   */
+  token(forzar?: boolean): Promise<string | null>;
+  /**
+   * Las pistas que guarda aura Studio (Music Studio y Voice Studio) en
+   * `users/{uid}/studioAudios`. Solo lectura y solo las tuyas: lo deciden las
+   * reglas de Aura (el dueño lee todo `users/{uid}/**`). Se leen enteras y se
+   * filtran fuera, como hace el propio aura Studio (`listStudioAudios`): un
+   * filtro en la consulta dejaría fuera en silencio un documento viejo.
+   */
+  leerPistasDeAuraStudio(uid: string): Promise<DocDeAuraStudio[]>;
   /** `redirigiendo`: la página se va a Google y vuelve sola. */
   entrarConGoogle(): Promise<'dentro' | 'redirigiendo' | 'cancelado'>;
   entrarConCorreo(correo: string, clave: string): Promise<void>;
@@ -132,6 +153,17 @@ async function montar(config: ConfigFirebase): Promise<Conexion> {
 
     async salir() {
       await auth.signOut(cuenta);
+    },
+
+    async token(forzar = false) {
+      await cuenta.authStateReady();
+      const u = cuenta.currentUser;
+      return u ? u.getIdToken(forzar) : null;
+    },
+
+    async leerPistasDeAuraStudio(uid) {
+      const instantanea = await fs.getDocs(fs.collection(db, 'users', uid, 'studioAudios'));
+      return instantanea.docs.map((d) => ({ id: d.id, datos: d.data() }));
     },
 
     remoto(uid) {

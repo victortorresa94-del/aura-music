@@ -9,7 +9,8 @@
  *   · La app y sus trozos de `_next/static` se guardan al instalar (precache
  *     con versión: cada compilación trae su lista).
  *   · Páginas: red primero, con 3 s de margen; si no llega, la última copia, y
- *     si no hay, la app guardada al instalar.
+ *     si no hay, la app guardada al instalar: la del estudio para `/` y la de
+ *     bolsillo para `/escuchar` (son dos apps; ver `esRutaEscuchar`).
  *   · Estáticos, letras e iconos: caché primero.
  *   · `/api/*`: siempre red. El músico y el productor responden en vivo.
  *
@@ -19,7 +20,7 @@
 
 import type { PrecacheEntry, SerwistGlobalConfig } from 'serwist';
 import { CacheFirst, ExpirationPlugin, NetworkFirst, NetworkOnly, Serwist } from 'serwist';
-import { CACHES, cachesQueSobran, RUTA_COMPARTIR, URL_APP_GUARDADA } from '../lib/pwa/caches';
+import { CACHES, cachesQueSobran, esRutaEscuchar, RUTA_COMPARTIR, URL_APP_GUARDADA, URL_ESCUCHAR_GUARDADA } from '../lib/pwa/caches';
 import { recibirCompartido } from '../lib/pwa/compartir';
 
 declare global {
@@ -92,9 +93,17 @@ const serwist = new Serwist({
       }),
     },
   ],
-  // Sin red y sin copia de esa página: la app guardada al instalar.
+  // Sin red y sin copia de esa página: la app guardada al instalar. Gana la
+  // primera que encaje: `/escuchar` abre bolsillo, no el estudio. Si la de
+  // bolsillo aún no está guardada (un worker de antes), cae en la del estudio.
   fallbacks: {
-    entries: [{ url: URL_APP_GUARDADA, matcher: ({ request }) => request.mode === 'navigate' }],
+    entries: [
+      {
+        url: URL_ESCUCHAR_GUARDADA,
+        matcher: ({ request }) => request.mode === 'navigate' && esRutaEscuchar(new URL(request.url).pathname),
+      },
+      { url: URL_APP_GUARDADA, matcher: ({ request }) => request.mode === 'navigate' },
+    ],
   },
 });
 

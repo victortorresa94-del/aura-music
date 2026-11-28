@@ -58,5 +58,21 @@ export function cachesQueSobran(nombres: readonly string[]): string[] {
  */
 export const URL_APP_GUARDADA = '/?app=guardada';
 
+/**
+ * aura Music de bolsillo (la parte para quien escucha) vive en `/escuchar` y
+ * es otra app dentro de la misma web. Sin red y sin copia propia, una
+ * navegación a `/escuchar` caía en la copia del estudio (`/`): abría otra app.
+ * Por eso tiene SU copia guardada al instalar, con la misma idea que la del
+ * estudio (Next sirve la misma página con o sin parámetros).
+ */
+export const RUTA_ESCUCHAR = '/escuchar';
+export const URL_ESCUCHAR_GUARDADA = '/escuchar?app=guardada';
+
+/** ¿Esta ruta es de bolsillo? `/escuchar`, `/escuchar/` y lo que cuelgue de ahí. */
+export function esRutaEscuchar(pathname: string): boolean {
+  const ruta = String(pathname || '').split(/[?#]/)[0].toLowerCase();
+  return ruta === RUTA_ESCUCHAR || ruta.startsWith(`${RUTA_ESCUCHAR}/`);
+}
+
 /** A dónde manda el formulario de compartir de Android (ver el manifest). */
 export const RUTA_COMPARTIR = '/compartir';

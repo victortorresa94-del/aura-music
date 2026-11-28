@@ -35,7 +35,13 @@ const withSerwist = withSerwistInit({
   cacheOnNavigation: false,
   // En desarrollo no hay worker: serviría código viejo mientras editas.
   disable: process.env.NODE_ENV === 'development',
-  additionalPrecacheEntries: [{ url: '/?app=guardada', revision: version }, ...publicos()],
+  // Dos copias de la app para abrir sin red: el estudio (`/`) y bolsillo
+  // (`/escuchar`, la parte para quien escucha). Ver src/lib/pwa/caches.ts.
+  additionalPrecacheEntries: [
+    { url: '/?app=guardada', revision: version },
+    { url: '/escuchar?app=guardada', revision: version },
+    ...publicos(),
+  ],
 });
 
 /*

@@ -29,6 +29,16 @@
         { "src": "/icons/atajo-grabar-96.png", "sizes": "96x96", "type": "image/png" },
         { "src": "/icons/atajo-grabar-192.png", "sizes": "192x192", "type": "image/png" }
       ]
+    },
+    {
+      "name": "Escuchar tu música",
+      "short_name": "Escuchar",
+      "url": "/escuchar",
+      "description": "Abre tu biblioteca para escuchar, también sin red",
+      "icons": [
+        { "src": "/icons/atajo-escuchar-96.png", "sizes": "96x96", "type": "image/png" },
+        { "src": "/icons/atajo-escuchar-192.png", "sizes": "192x192", "type": "image/png" }
+      ]
     }
   ],
   "screenshots": [
