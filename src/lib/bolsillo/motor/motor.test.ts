@@ -151,11 +151,14 @@ describe('motor falso', () => {
 describe('qué motor toca', () => {
   afterEach(() => ponerMotorParaPruebas(null));
 
-  it('el falso si se pide, o en desarrollo sin Firebase; nunca en producción por su cuenta', () => {
+  it('el falso si se pide, o sin Firebase en desarrollo o en una vista previa; nunca en producción por su cuenta', () => {
     expect(usaMotorFalso({ motor: 'falso', entorno: 'production', nube: true })).toBe(true);
     expect(usaMotorFalso({ entorno: 'development', nube: false })).toBe(true);
     expect(usaMotorFalso({ entorno: 'development', nube: true })).toBe(false);
     expect(usaMotorFalso({ entorno: 'production', nube: false })).toBe(false);
+    expect(usaMotorFalso({ entorno: 'production', vercel: 'preview', nube: false })).toBe(true);
+    expect(usaMotorFalso({ entorno: 'production', vercel: 'preview', nube: true })).toBe(false);
+    expect(usaMotorFalso({ entorno: 'production', vercel: 'production', nube: false })).toBe(false);
   });
 
   it('Lyria 3 Pro por defecto, MiniMax si hay que cantar una letra literal, Lyria 3 para el boceto', () => {

@@ -3,8 +3,10 @@
  * para añadir un motor, un fichero que cumpla `MotorDeCanciones` y una línea
  * aquí. La app (crear, retoques, playlists) nunca elige modelo por su cuenta.
  *
- * - `falso` cuando se pide (`NEXT_PUBLIC_BOLSILLO_MOTOR=falso`) o en `next dev`
- *   sin Firebase (no hay cuenta con la que pagar). No gasta nada.
+ * - `falso` cuando se pide (`NEXT_PUBLIC_BOLSILLO_MOTOR=falso`), o sin Firebase
+ *   en `next dev` o en una vista previa de Vercel (no hay cuenta con la que
+ *   pagar). No gasta nada. En producción nunca por su cuenta: allí, sin
+ *   Firebase, crear dice que entres con tu cuenta.
  * - aura Studio para todo lo demás: Lyria 3 Pro por defecto, Lyria 3 para el
  *   boceto de 30 s y MiniMax Music 3 cuando hay que cantar una letra literal.
  */
@@ -16,13 +18,15 @@ import { crearMotorAuraStudio } from './auraStudio';
 import { crearMotorFalso } from './falso';
 import type { MotorDeCanciones } from './tipos';
 
-type Entorno = { motor?: string; entorno?: string; nube: boolean };
+type Entorno = { motor?: string; entorno?: string; vercel?: string; nube: boolean };
 
 function entornoActual(): Entorno {
   return {
     // Next solo mete en el código lo que se escribe entero.
     motor: process.env.NEXT_PUBLIC_BOLSILLO_MOTOR,
     entorno: process.env.NODE_ENV,
+    // Vercel la pone sola en el build: 'production' | 'preview' | 'development'.
+    vercel: process.env.NEXT_PUBLIC_VERCEL_ENV,
     nube: hayNube(),
   };
 }
@@ -33,7 +37,7 @@ let forzado: boolean | null = null;
 export function usaMotorFalso(e: Entorno = entornoActual()): boolean {
   if (forzado !== null) return forzado;
   if (e.motor?.trim() === 'falso') return true;
-  return !e.nube && e.entorno === 'development';
+  return !e.nube && (e.entorno === 'development' || e.vercel?.trim() === 'preview');
 }
 
 /** El modelo de una canción entera para esta receta. */
