@@ -116,7 +116,7 @@ const MOMENTOS_POR_PALABRA: [Momento, RegExp][] = [
   ['correr', /\b(correr|corriendo|running|entren\w*|gimnasio|gym|deporte|caminar|bici\w*|pesas|cardio)\b/],
   ['concentrarme', /\b(concentr\w*|estudi\w*|trabaj\w*|foco|focus|leer|lectura|programar|oficina|deberes)\b/],
   // Salud: lleva a desconectar y a nada más (ni una etiqueta, ni un campo).
-  ['desconectar', /\b(desconect\w*|relaj\w*|calma\w*|descans\w*|medit\w*|respir\w*|yoga|estres\w*|nervios|migrana\w*|jaqueca\w*|cefalea\w*|dolor de cabeza|ansiedad|bajar el ritmo)\b/],
+  ['desconectar', /\b(desconect\w*|relaj\w*|calma\w*|descans\w*|medit\w*|respir\w*|yoga|sofa|estres\w*|nervios|migrana\w*|jaqueca\w*|cefalea\w*|dolor de cabeza|ansiedad|bajar el ritmo)\b/],
   ['sorprendeme', /\b(sorprend\w*|lo que quieras|cualquiera)\b/],
 ];
 
@@ -270,7 +270,7 @@ export function tempoDe(texto: string): { bpm?: number; energia?: number } {
     return { bpm: dicho ?? 124, energia: 0.8 };
   }
   if (/\b(tranquil[ao]|suave|calmad[ao]|relajad[ao]|relajante|dulce|serena?)\b/.test(n)) return { ...(dicho ? { bpm: dicho } : {}), energia: 0.2 };
-  if (/\b(alegre|animad[ao]|luminos[ao])\b/.test(n)) return { ...(dicho ? { bpm: dicho } : {}), energia: 0.7 };
+  if (/\b(alegre|animad[ao]|luminos[ao]|content[ao]s?|feliz|felices|recoger|limpiar|ordenar|limpieza)\b/.test(n)) return { ...(dicho ? { bpm: dicho } : {}), energia: 0.7 };
   return dicho ? { bpm: dicho } : {};
 }
 
