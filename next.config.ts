@@ -56,6 +56,10 @@ const proyectoFirebase = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID?.trim();
 
 const config: NextConfig = {
   reactStrictMode: true,
+  // Producción o vista previa, para el motor de prueba de bolsillo
+  // (src/lib/bolsillo/motor/motores.ts). Vercel da VERCEL_ENV siempre en el
+  // build; la versión NEXT_PUBLIC_ solo si el proyecto expone las de sistema.
+  env: { NEXT_PUBLIC_VERCEL_ENV: process.env.NEXT_PUBLIC_VERCEL_ENV || process.env.VERCEL_ENV || '' },
   poweredByHeader: false,
   async rewrites() {
     if (!proyectoFirebase) return [];
