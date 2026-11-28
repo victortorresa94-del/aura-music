@@ -15,19 +15,33 @@ export const USD_EUR = 0.92;
 export const MULTIPLICADOR = 3.75;
 export const EUR_POR_CREDITO = 0.05;
 
-/** Lo mismo que `usdMusica` de aura Studio: 30 s si no viene, entre 5 y 180. */
+/** Lo mismo que `usdMusica` de aura Studio (`api/_precios.ts`): 30 s si no viene, entre 5 y 180. */
 export function usdMusica(motor: MotorId, segundosPedidos: number): number {
   const n = Number(segundosPedidos);
   const s = Math.max(5, Math.min(180, Number.isFinite(n) ? n : 30));
   switch (motor) {
     case 'lyria-3.5':
       return 0.1;
+    case 'lyria2':
+      return 0.1;
+    case 'eleven-music':
+      return 0.6 * Math.ceil(s / 60);
     case 'minimax-music-3':
       return 0.002 * s;
+    case 'stable-audio':
+      return 0.0376;
+    case 'minimax-music':
+      return 0.15;
     case 'ace-step':
       return 0.0002 * s;
     case 'lyria3-base':
       return 0.04;
+    case 'diffrhythm':
+      return 0.01 * (s <= 95 ? 10 : 29);
+    case 'sonilo':
+      return 0.0025 * Math.max(10, s);
+    case 'cassette':
+      return 0.02 * Math.ceil(Math.max(10, s) / 60);
     case 'falso':
       return 0;
     case 'lyria3':

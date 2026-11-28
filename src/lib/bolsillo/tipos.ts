@@ -28,11 +28,25 @@ export const MOMENTOS: readonly Momento[] = [
 ];
 
 /**
- * Los motores que se pueden pedir. Son los ids de música de aura Studio
- * (`aura-studio/src/services/falService.ts`, `MUSIC_MODELS`), más el motor
- * falso de desarrollo, que suena en el móvil y no gasta.
+ * Los motores que se pueden pedir: TODOS los de música de aura Studio, con
+ * sus mismos ids (`aura-studio/api/fal.ts`, `MUSIC_MODELS` de la op `music`),
+ * más el motor falso de desarrollo, que suena en el móvil y no gasta. Qué es
+ * cada uno y cuándo conviene: `motores.ts`.
  */
-export type MotorId = 'lyria3' | 'lyria3-base' | 'lyria-3.5' | 'minimax-music-3' | 'ace-step' | 'falso';
+export type MotorId =
+  | 'lyria3'
+  | 'lyria-3.5'
+  | 'lyria3-base'
+  | 'lyria2'
+  | 'eleven-music'
+  | 'minimax-music-3'
+  | 'minimax-music'
+  | 'diffrhythm'
+  | 'sonilo'
+  | 'stable-audio'
+  | 'ace-step'
+  | 'cassette'
+  | 'falso';
 
 /** Una canción (2-3 min, con estructura) o un paisaje (largo, sin estribillo, para un fin). */
 export type TipoPieza = 'cancion' | 'paisaje';
