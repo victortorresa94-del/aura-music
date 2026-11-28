@@ -94,3 +94,13 @@ describe('cambiar y combinar playlists', () => {
     expect(moverCancion(a, '1', -1).cancionIds).toEqual(['1', '2', '3']);
   });
 });
+
+describe('el nombre de una playlist', () => {
+  it('sale de la ocasión o de la frase, corto', async () => {
+    const { nombreCorto } = await import('./conversacion');
+    expect(nombreCorto('Una playlist para una noche de sofá, chill y tranquila')).toBe('Noche de sofá');
+    expect(nombreCorto('hazme una lista de domingo contento')).toBe('Domingo contento');
+    const e = decir(conversacionVacia(), 'Una playlist para una noche de sofá', 'playlist', 'Noche de sofá chill');
+    expect(planDe({ ...e, n: 4 }, { falso: true }).nombre).toBe('Noche de sofá chill');
+  });
+});

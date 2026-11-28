@@ -108,10 +108,12 @@ export function PantallaPlaylist({ id }: { id: string }) {
             <h1 style={{ fontSize: 26, fontWeight: 650, letterSpacing: '-0.03em', lineHeight: 1.1 }}>{playlist.nombre}</h1>
           )}
           <p style={{ fontSize: 14, color: T.dim, marginTop: 6 }}>
-            {playlist.cancionIds.length} canciones{playlist.porque ? ` · ${playlist.porque}` : ''}
+            {playlist.cancionIds.length === 1 ? '1 canción' : `${playlist.cancionIds.length} canciones`}
           </p>
         </div>
       </div>
+
+      {playlist.porque ? <p style={{ fontSize: 14, color: T.dim, marginTop: 12 }}>{playlist.porque}</p> : null}
 
       {generandose ? (
         <Aviso>

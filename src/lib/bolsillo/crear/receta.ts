@@ -214,9 +214,11 @@ const IDIOMA_ES: Record<string, string> = {
   pt: 'en portugués', eu: 'en euskera', gl: 'en gallego', de: 'en alemán',
 };
 
-function tempoEnPalabras(r: Pick<Receta, 'energia' | 'bpm'>): string | undefined {
+function tempoEnPalabras(r: Pick<Receta, 'energia' | 'bpm' | 'tipo'>): string | undefined {
   const e = r.energia ?? 0.5;
-  if (e <= 0.25) return r.bpm && r.bpm <= 72 ? 'lenta' : 'tranquila';
+  // «Canción lenta», «paisaje lento»: concuerda con lo que es.
+  const masculino = r.tipo === 'paisaje';
+  if (e <= 0.25) return r.bpm && r.bpm <= 72 ? (masculino ? 'lento' : 'lenta') : masculino ? 'tranquilo' : 'tranquila';
   if (e >= 0.75) return 'con energía';
   return undefined;
 }

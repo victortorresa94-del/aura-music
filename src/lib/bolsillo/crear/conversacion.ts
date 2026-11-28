@@ -34,7 +34,7 @@ export const OCASIONES: readonly Ocasion[] = [
   { id: 'recoger', etiqueta: 'Para recoger la casa', frase: 'Una playlist alegre y con ritmo para recoger la casa', quiere: 'playlist' },
   { id: 'domingo', etiqueta: 'Domingo contento', frase: 'Una playlist de domingo contento, alegre y luminosa', quiere: 'playlist' },
   { id: 'funky-jazz', etiqueta: 'Funky con rollo jazz', frase: 'Una canción funky pero con un rollo jazz', quiere: 'cancion' },
-  { id: 'migrana', etiqueta: 'Para bajar el ritmo, 1 h', frase: 'Para bajar el ritmo, lenta, sin voz, una hora, con un tono de 142 Hz', quiere: 'paisaje' },
+  { id: 'migrana', etiqueta: 'Bajar el ritmo', frase: 'Para bajar el ritmo, lenta, sin voz, una hora, con un tono de 142 Hz', quiere: 'paisaje' },
   { id: 'dormir', etiqueta: 'Para dormir', frase: 'Para dormir, muy lenta y sin voz, una hora', quiere: 'paisaje' },
   { id: 'correr', etiqueta: 'Para correr', frase: 'Una playlist con energía para correr', quiere: 'playlist' },
 ];
@@ -60,6 +60,8 @@ export interface EstadoConversacion {
   n?: number;
   respondidas: IdPregunta[];
   imitacion: string | null;
+  /** El nombre de la playlist si se eligió una ocasión («Noche de sofá chill»). */
+  nombre?: string;
 }
 
 export const MAX_PREGUNTAS = 3;
@@ -77,7 +79,7 @@ export function queQuiere(texto: string, parcial: RecetaParcial): Quiere | undef
 }
 
 /** Lo que se le dice a aura: suma la frase a lo que ya sabía (lo nuevo manda). */
-export function decir(estado: EstadoConversacion, texto: string, quiere?: Quiere): EstadoConversacion {
+export function decir(estado: EstadoConversacion, texto: string, quiere?: Quiere, nombre?: string): EstadoConversacion {
   const limpio = texto.trim();
   if (!limpio) return estado;
   const { parcial, imitacion } = interpretar(limpio);
@@ -90,8 +92,19 @@ export function decir(estado: EstadoConversacion, texto: string, quiere?: Quiere
     parcial: deseo === 'paisaje' ? { ...junto, tipo: 'paisaje' } : deseo === 'cancion' && junto.tipo === 'paisaje' && !junto.duracionSeg ? { ...junto, tipo: 'cancion' } : junto,
     frases: [...estado.frases, limpio],
     ...(n ? { n } : {}),
+    ...(nombre ? { nombre } : {}),
     imitacion: imitacion ?? null,
   };
+}
+
+/** Un nombre corto para una playlist pedida con una frase: «Una playlist para una noche de sofá, chill» → «Noche de sofá». */
+export function nombreCorto(frase: string): string {
+  const sin = frase
+    .replace(/^\s*(?:hazme |créame |creame |quiero )?(?:una |la )?(?:playlist|lista)(?: de canciones)?\s*(?:para |de |con )?(?:una |un |el |la )?/i, '')
+    .split(/[,.;]/)[0]
+    .trim();
+  const corto = sin.length > 32 ? `${sin.slice(0, 30).replace(/\s+\S*$/, '')}…` : sin;
+  return corto ? corto[0].toUpperCase() + corto.slice(1) : 'Tu playlist';
 }
 
 function numeroDeCanciones(texto: string): number | undefined {
@@ -189,10 +202,11 @@ export function recetaDe(estado: EstadoConversacion, opciones: { falso?: boolean
 
 /** El plan de una playlist con lo que se sabe. */
 export function planDe(estado: EstadoConversacion, opciones: { falso?: boolean } = {}): PlanDePlaylist {
-  return planDePlaylist({
+  const plan = planDePlaylist({
     momento: estado.parcial.momento ?? 'sorprendeme',
     frase: estado.frases.join('. '),
     n: estado.n ?? 8,
     ...(opciones.falso ? { motor: 'falso' as const } : {}),
   });
+  return { ...plan, nombre: estado.nombre ?? nombreCorto(estado.frases[0] ?? plan.nombre) };
 }

@@ -128,9 +128,11 @@ export function PantallaInicio() {
               </Seccion>
             );
           }
+          // El bloque de la hora ya es el título grande: aquí va su línea («Para desconectar»).
+          const tituloSeccion = s.id === 'franja' && s.titulo === titulo ? (s.linea ?? 'Para ahora') : s.titulo;
           return (
-            <Seccion key={s.id} titulo={s.titulo}>
-              {s.linea ? <p style={{ fontSize: 14, color: T.dim, marginTop: -4 }}>{s.linea}</p> : null}
+            <Seccion key={s.id} titulo={tituloSeccion}>
+              {s.linea && tituloSeccion !== s.linea ? <p style={{ fontSize: 14, color: T.dim, marginTop: -4 }}>{s.linea}</p> : null}
               <div style={{ display: 'grid', gridAutoFlow: 'column', gridAutoColumns: 'minmax(132px, 30%)', gap: 12, overflowX: 'auto', paddingBottom: 4 }}>
                 {s.cancionIds.map((id) => {
                   const c = biblioteca.cancion(id);

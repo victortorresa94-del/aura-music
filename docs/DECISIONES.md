@@ -796,3 +796,40 @@ la v1.
 **Pendiente de su sí:** dónde vive (recomendado: la misma app, con Escuchar
 como entrada y el estudio como otra puerta), el plan Música (4,99 € + IVA,
 120 créditos, monedero de aura) y la maqueta de F0.
+
+## 0030 · aura Music de bolsillo, hecha: todos los motores, soñada antes y por casos de uso (28-nov-2026)
+
+El dueño: «que se puedan mezclar todos los modelos de música del mundo… Lyria
+está bien… antes debes soñar… cada pantalla de la app primero», y «más casos
+de uso: créame una canción, una playlist para noche de sofá chill, para
+recoger, domingo contento, funky con rollo jazz… añadir, crear, modificar y
+combinar playlists». Y a mitad: «no uses tantos agentes».
+- **Todos los motores** de aura Studio en un catálogo (`src/lib/bolsillo/motores.ts`)
+  con su precio y para qué sirven. Lyria 3 Pro por defecto; Lyria 3 para el
+  boceto de 30 s; MiniMax Music 3 para cantar una letra tal cual. Una canción
+  puede tener versiones de motores distintos («Con Stable Audio 3»…): así se
+  mezclan. Eleven Music queda apagado (Enterprise).
+- **Soñado antes**: cuatro pantallas con GPT Image 2.5 en el lienzo
+  «aura Music de bolsillo · pantallas soñadas» del proyecto Aura UI UX, copia
+  en `docs/bolsillo/suenos/`. El código las sigue (Inicio por hora del día,
+  Crear con chips y precio en el botón, la canción con v1 v2 v3, el modo
+  cuidado oscuro). Se quitó lo que la casa no admite: el sparkle y el play
+  verde relleno (el primario es negro).
+- **Casos de uso** como ocasiones de un toque en Crear (`OCASIONES` de
+  `crear/conversacion.ts`), con como mucho tres preguntas; las de playlist
+  enseñan el plan con el porqué de cada canción y el total en el botón.
+- **Playlists**: renombrar, añadir de tus canciones, quitar, ordenar, pedir una
+  nueva que encaje y combinar varias en una nueva (una de cada, sin repetir;
+  las de origen no se tocan). Lo que entra en una playlist queda guardado.
+- **Paisajes** gratis en el móvil: WAV estéreo que se repite sin costura, tono
+  (142 Hz por defecto), binaural, ruido y pulso; cuidado a −23 LUFS y −9 dBTP.
+- **Agentes**: cinco en paralelo agotaron el límite de uso de la cuenta a la
+  vez. Su trabajo a medias se integró y el resto lo terminó una sola sesión.
+**Descartado:** seguir con cinco agentes en paralelo (se cortaron todos a la
+vez y no dejaban avanzar nada entero). Una sesión, una cosa de punta a punta.
+**Descartado:** el play y el chip elegido en verde relleno del sueño: el verde
+es acento y el primario es negro.
+**Pendiente:** probarlo en un iPhone (pantalla bloqueada con un paisaje de una
+hora, la sesión de aura y generar de verdad con Lyria), artistas con su
+pantalla completa, la revisión del equipo Spotify sobre capturas y el sí de
+Víctor a dónde vive (hoy `/escuchar`, con puertas desde y hacia el estudio).

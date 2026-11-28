@@ -9,6 +9,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { almacen } from '@/lib/bolsillo/almacen';
+import { quedarme } from '@/lib/bolsillo/biblioteca';
 import {
   conversacionVacia,
   decir,
@@ -55,7 +56,7 @@ export interface Crear {
   error: string | null;
   /** Ya se ha dicho algo: se enseñan los mensajes y no las ocasiones. */
   empezado: boolean;
-  escribir(texto: string, quiere?: Quiere): void;
+  escribir(texto: string, quiere?: Quiere, nombre?: string): void;
   responder(valor: string, etiqueta: string): void;
   /** Hace la pieza. Devuelve a dónde ir: la canción o la playlist. */
   generar(opciones?: { boceto?: boolean }): Promise<{ tipo: 'cancion' | 'playlist'; id: string } | null>;
@@ -96,12 +97,12 @@ export function useCrear(_biblioteca: Biblioteca, opciones: { hayCuenta: boolean
   }, []);
 
   const escribir = useCallback(
-    (texto: string, quiere?: Quiere) => {
+    (texto: string, quiere?: Quiere, nombre?: string) => {
       const limpio = texto.trim();
       if (!limpio) return;
       setError(null);
       setMensajes((m) => [...m, mensaje('tu', limpio)]);
-      const siguiente = decir(estadoRef.current, limpio, quiere);
+      const siguiente = decir(estadoRef.current, limpio, quiere, nombre);
       setEstado(siguiente);
       anadirPregunta(siguiente);
     },
@@ -154,7 +155,14 @@ export function useCrear(_biblioteca: Biblioteca, opciones: { hayCuenta: boolean
           const playlist = nuevaPlaylist({ nombre: plan.nombre, porque: plan.porque });
           await almacen().playlists.poner(playlist);
           // Se llena mientras escuchas: la pantalla de la playlist enseña el avance.
-          void generarPlaylist({ almacen: almacen(), playlistId: playlist.id, plan, generar: generarCancion }).catch(() => undefined);
+          // Lo que entra en una playlist está en tu biblioteca: se queda guardado.
+          const generarYQuedar: typeof generarCancion = async (r, d) => {
+            const hecho = await generarCancion(r, d);
+            const c = await almacen().canciones.leer(hecho.cancionId);
+            if (c) await almacen().canciones.poner(quedarme(c, hecho.versionId));
+            return hecho;
+          };
+          void generarPlaylist({ almacen: almacen(), playlistId: playlist.id, plan, generar: generarYQuedar }).catch(() => undefined);
           setFase('charla');
           return { tipo: 'playlist' as const, id: playlist.id };
         }

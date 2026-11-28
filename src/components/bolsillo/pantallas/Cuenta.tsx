@@ -250,6 +250,13 @@ function ConCuenta({ cuenta, usuario }: { cuenta: CuentaBolsillo; usuario: Usuar
       <Creditos cuenta={cuenta} />
       <Importar cuenta={cuenta} />
 
+      <Seccion titulo="Si tocas un instrumento">
+        <p style={dim}>El estudio de aura Music graba lo que tocas y te pone una banda debajo, a tu tempo.</p>
+        <a href="/" style={{ display: 'inline-flex', alignItems: 'center', minHeight: 44, color: T.text, fontWeight: 550 }}>
+          Abrir el estudio
+        </a>
+      </Seccion>
+
       <Seccion titulo="Salir">
         <p style={dim}>Al salir, tus canciones se quedan en este móvil y siguen sonando.</p>
         <BotonSecundario

@@ -66,7 +66,7 @@ export function PantallaCrear() {
               className="daw-press"
               onClick={() => {
                 haptic(6);
-                crear.escribir(o.frase, o.quiere);
+                crear.escribir(o.frase, o.quiere, o.quiere === 'playlist' ? o.etiqueta : undefined);
               }}
               style={{
                 appearance: 'none',
@@ -86,7 +86,7 @@ export function PantallaCrear() {
             >
               {o.etiqueta}
               <span style={{ display: 'block', marginTop: 4, fontSize: 13, fontWeight: 400, color: T.faint }}>
-                {o.quiere === 'playlist' ? 'Playlist' : o.quiere === 'paisaje' ? 'Larga, en bucle' : 'Una canción'}
+                {o.quiere === 'playlist' ? 'Playlist' : o.quiere === 'paisaje' ? 'Larga, en bucle · gratis de alargar' : 'Una canción'}
               </span>
             </button>
           ))}

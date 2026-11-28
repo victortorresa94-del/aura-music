@@ -14,7 +14,7 @@
  */
 
 import { ACEPTA_AUDIO } from '@/lib/daw/importar/formato';
-import { DotsThree, MagnifyingGlass, Microphone, Plus, UploadSimple } from '@phosphor-icons/react';
+import { DotsThree, Headphones, MagnifyingGlass, Microphone, Plus, UploadSimple } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import type { Archivo } from '@/hooks/useArchivo';
 import type { Studio } from '@/hooks/useStudio';
@@ -110,10 +110,17 @@ export function TusIdeas({
           <span style={{ fontFamily: T.fontBody, fontSize: 15, letterSpacing: '-0.03em', color: T.text }}>
             <span style={{ fontWeight: 650 }}>aura</span> <span style={{ fontWeight: 450, color: T.dim }}>music</span>
           </span>
-          <button type="button" className="daw-press daw-hover" onClick={onAjustes} style={botonFantasma}>
-            <IconSettings size={18} color={T.dim} />
-            Ajustes
-          </button>
+          <span style={{ display: 'flex', gap: 4 }}>
+            {/* La otra puerta de aura Music: escuchar lo que te haces (docs/PLAN-BOLSILLO.md). */}
+            <a href="/escuchar" className="daw-press daw-hover" style={{ ...botonFantasma, textDecoration: 'none' }}>
+              <Headphones size={18} color={T.dim} aria-hidden />
+              Escuchar
+            </a>
+            <button type="button" className="daw-press daw-hover" onClick={onAjustes} style={botonFantasma}>
+              <IconSettings size={18} color={T.dim} />
+              Ajustes
+            </button>
+          </span>
         </div>
 
         {/* La pregunta y lo que se puede hacer ya. */}
